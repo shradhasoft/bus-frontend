@@ -100,6 +100,44 @@ export const viewProfileController = async (req, res) => {
   }
 };
 
+export const viewProfileRoleController = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const user = await User.findById(userId).select("role").lean();
+
+    if (!user) {
+      return sendResponse(
+        res,
+        false,
+        "USER_NOT_FOUND",
+        "User not found",
+        null,
+        404
+      );
+    }
+
+    sendResponse(
+      res,
+      true,
+      "ROLE_RETRIEVED",
+      "User role retrieved successfully",
+      {
+        role: user.role,
+      }
+    );
+  } catch (error) {
+    console.error("Profile Role Error: ", error);
+    sendResponse(
+      res,
+      false,
+      "SERVER_ERROR",
+      "An error occurred while retrieving the user role",
+      process.env.NODE_ENV === "development" ? error.message : undefined,
+      500
+    );
+  }
+};
+
 export const editProfileController = async (req, res) => {
   try {
     const userId = req.user._id;
