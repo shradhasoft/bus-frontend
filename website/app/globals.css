@@ -123,3 +123,92 @@
     @apply bg-background text-foreground;
   }
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+section[id] {
+  scroll-margin-top: 110px;
+}
+
+.custom-expo {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.shadow-card {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.grain-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.hero-parallax {
+  will-change: transform;
+}
+
+@keyframes float {
+  0% { transform: translateY(0) translateX(0); opacity: 0.3; }
+  50% { transform: translateY(-18px) translateX(10px); opacity: 0.8; }
+  100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+}
+
+.animate-float {
+  animation-name: float;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.bg-cream {
+  background-color: #f6f1e7;
+}
+
+.text-cream {
+  color: #f6f1e7;
+}
+
+.bg-sage {
+  background-color: #7a9e7e;
+}
+
+.text-sage {
+  color: #7a9e7e;
+}
+
+.bg-sage-dark {
+  background-color: #2f4f3a;
+}
+
+.text-sage-dark {
+  color: #2f4f3a;
+}
+
+.bg-tan {
+  background-color: #d9b99b;
+}
+
+.text-tan {
+  color: #d9b99b;
+}
+
+.bg-brown {
+  background-color: #8b5e3c;
+}
+
+.text-brown {
+  color: #8b5e3c;
+}

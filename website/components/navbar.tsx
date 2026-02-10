@@ -1,121 +1,33 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signOut,
+  type User as FirebaseUser,
+} from "firebase/auth";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Menu, Moon, Sun, User as UserIcon, X } from "lucide-react";
+import { Bus, Menu, Moon, Sun, User as UserIcon, X } from "lucide-react";
 
 import SignCard from "@/components/sign-card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { apiUrl } from "@/lib/api";
 import { firebaseAuth } from "@/lib/firebase/client";
 
-type StartViewTransition = (callback: () => void) => { ready: Promise<void> };
-
-const ToggleTheme = ({
-  className,
-  duration = 400,
-}: {
-  className?: string;
-  duration?: number;
-}) => {
-  const [mounted, setMounted] = useState(false);
-  const { setTheme, resolvedTheme } = useTheme();
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => setMounted(true), []);
-
-  const isDark = resolvedTheme === "dark";
-
-  const toggleTheme = useCallback(async () => {
-    const startViewTransition = (
-      document as Document & { startViewTransition?: StartViewTransition }
-    ).startViewTransition;
-
-    if (!buttonRef.current || !startViewTransition) {
-      setTheme(isDark ? "light" : "dark");
-      return;
-    }
-
-    try {
-      const { left, width, top, height } =
-        buttonRef.current.getBoundingClientRect();
-      const x = left + width / 2;
-      const y = top + height / 2;
-      const maxRadius = Math.hypot(
-        Math.max(x, window.innerWidth - x),
-        Math.max(y, window.innerHeight - y)
-      );
-
-      const transition = startViewTransition(() => {
-        setTheme(isDark ? "light" : "dark");
-      });
-
-      await transition.ready;
-
-      document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${maxRadius}px at ${x}px ${y}px)`,
-          ],
-        },
-        {
-          duration,
-          easing: "ease-in-out",
-          pseudoElement: "::view-transition-new(root)",
-        } as KeyframeAnimationOptions & { pseudoElement: string }
-      );
-    } catch (error) {
-      console.error("View transition failed:", error);
-      setTheme(isDark ? "light" : "dark");
-    }
-  }, [isDark, setTheme, duration]);
-
-  if (!mounted) {
-    return (
-      <button
-        type="button"
-        className="group relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl border border-slate-900/10 bg-black/5 text-slate-900 dark:border-white/15 dark:bg-white/10 dark:text-white/90"
-        aria-label="Toggle theme"
-      >
-        <span className="text-[10px] font-semibold tracking-[0.28em] opacity-70">
-          ...
-        </span>
-      </button>
-    );
-  }
-
-  return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={toggleTheme}
-        className={`group relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl border border-slate-900/10 bg-black/5 text-slate-900 transition hover:bg-black/10 dark:border-white/15 dark:bg-white/10 dark:text-white/90 dark:hover:bg-white/15 ${className ?? ""}`}
-        aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
-      >
-        {isDark ? (
-          <Sun className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-        ) : (
-          <Moon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-        )}
-
-        <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <span className="absolute -left-6 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full bg-black/10 blur-xl dark:bg-white/10" />
-        </span>
-      </button>
-
-      <style jsx>{`
-        ::view-transition-old(root),
-        ::view-transition-new(root) {
-          animation: none;
-          mix-blend-mode: normal;
-        }
-      `}</style>
-    </>
-  );
+const ROLE_SWITCH_TARGETS: Record<string, string> = {
+  admin: "/admin/dashboard",
+  owner: "/bus-owner/dashboard",
+  superadmin: "/super-admin/dashboard",
+  conductor: "/conductor/dashboard",
 };
 
 const Navbar = () => {
@@ -124,10 +36,14 @@ const Navbar = () => {
   const [scrollingUp, setScrollingUp] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [profileRole, setProfileRole] = useState<string | null>(null);
+  const [themeReady, setThemeReady] = useState(false);
   const lastScrollY = useRef(0);
 
   const router = useRouter();
   const pathname = usePathname();
+  const { setTheme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   useEffect(() => {
     const onScroll = () => {
@@ -158,11 +74,59 @@ const Navbar = () => {
   }, [open]);
 
   useEffect(() => {
+    setThemeReady(true);
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
       setCurrentUser(user);
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setProfileRole(null);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    const loadRole = async () => {
+      try {
+        const response = await fetch(apiUrl("/profile/role"), {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          if (active) setProfileRole(null);
+          return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        const role = data?.data?.role;
+
+        if (active) {
+          setProfileRole(typeof role === "string" ? role : null);
+        }
+      } catch (error) {
+        if (active && (error as Error).name !== "AbortError") {
+          console.error("Failed to load user role:", error);
+          setProfileRole(null);
+        }
+      }
+    };
+
+    loadRole();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [currentUser]);
 
   const links = [
     { label: "Track Bus", href: "/track" },
@@ -217,189 +181,243 @@ const Navbar = () => {
     router.push("/profile");
   }, [router]);
 
+  const goBookings = useCallback(() => {
+    setOpen(false);
+    router.push("/bookings");
+  }, [router]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await fetch(apiUrl("/logout"), {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      await signOut(firebaseAuth);
+    }
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(isDark ? "light" : "dark");
+  }, [isDark, setTheme]);
+
+  const roleSwitchPath = profileRole
+    ? ROLE_SWITCH_TARGETS[profileRole]
+    : null;
+
+  const handleRoleSwitch = useCallback(() => {
+    if (!roleSwitchPath) return;
+    setOpen(false);
+    router.push(roleSwitchPath);
+  }, [roleSwitchPath, router]);
+
   return (
-    <header className="fixed inset-x-0 top-0 z-[999]">
-      <div
-        className="mx-auto w-full px-3 transition-[padding] duration-300 sm:px-6"
+    <header className="fixed top-4 left-1/2 z-[999] w-full -translate-x-1/2 px-4">
+      <nav
+        className={`transition-all duration-500 custom-expo ${
+          scrolled
+            ? "w-[95%] max-w-6xl nav-glass shadow-card rounded-full py-3 px-6"
+            : "w-full max-w-7xl py-4 px-6 bg-transparent"
+        } mx-auto`}
       >
-        <div
-          className={[
-            "relative transform-gpu transition-all duration-300 ease-out",
-            "mt-3 rounded-2xl",
-            scrolled
-              ? [
-                  "translate-y-0 border backdrop-blur-xl",
-                  "border-slate-900/10 bg-white/70 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]",
-                  "dark:border-white/15 dark:bg-black/40 dark:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.65)]",
-                ].join(" ")
-              : [
-                  "translate-y-1 border-transparent bg-transparent shadow-none backdrop-blur-0",
-                  "dark:border-transparent dark:bg-transparent",
-                ].join(" "),
-          ].join(" ")}
-        >
-          <div
-            className={[
-              "pointer-events-none absolute -left-8 -top-8 h-24 w-24 rounded-full bg-black/5 blur-2xl transition-opacity duration-300 dark:bg-white/10",
-              scrolled ? "opacity-100" : "opacity-0",
-            ].join(" ")}
-          />
-          <div
-            className={[
-              "pointer-events-none absolute -right-10 -bottom-10 h-28 w-28 rounded-full bg-black/5 blur-2xl transition-opacity duration-300 dark:bg-white/10",
-              scrolled ? "opacity-100" : "opacity-0",
-            ].join(" ")}
-          />
-
-          <div className="relative flex items-center justify-between px-4 py-3 sm:px-6">
-            <div
-              className={[
-                "z-20 flex items-center gap-3 transition-transform duration-300 ease-out",
-                scrolled ? "translate-x-2" : "translate-x-0",
-              ].join(" ")}
-            >
-              <ToggleTheme />
-
-              <Link
-                href="/"
-                className="group rounded-xl px-2 py-1 transition hover:bg-black/5 dark:hover:bg-white/5"
-                aria-label="Home"
-                onClick={() => setOpen(false)}
-              >
-                <p className="text-sm font-semibold text-slate-900/90 dark:text-white/90">
-                  BookMySeat
-                </p>
-                <p className="text-xs text-slate-600 dark:text-white/60">
-                  {/* Tagline can go here if needed */}
-                  Your Journey, Our Priority
-                </p>
-              </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="flex items-center gap-2 group"
+            aria-label="Home"
+            onClick={() => setOpen(false)}
+          >
+            <div className="w-10 h-10 bg-sage rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <Bus className="w-5 h-5 text-cream" />
             </div>
+            <span className="font-bold text-lg tracking-tight text-slate-900/90 transition-colors duration-300 dark:text-white/90">
+              BookMySeat
+            </span>
+          </Link>
 
-            <div
-              className={[
-                "pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:block",
-                "transition-transform duration-300 ease-out",
-                scrolled ? "scale-95" : "scale-100",
-              ].join(" ")}
-            >
-              <nav className="pointer-events-auto flex items-center gap-2">
-                {links.map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    onClick={handleNavClick(l.href)}
-                    className="rounded-full px-4 py-2 text-sm text-slate-600 transition hover:bg-black/5 hover:text-slate-900 dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-
-            <div
-              className={[
-                "z-20 flex items-center gap-2 transition-transform duration-300 ease-out",
-                scrolled ? "-translate-x-2" : "translate-x-0",
-              ].join(" ")}
-            >
-              {currentUser ? (
-                <button
-                  type="button"
-                  onClick={goProfile}
-                  className="hidden h-10 w-10 items-center justify-center rounded-full border border-slate-900/10 bg-white/70 text-slate-700 transition hover:border-slate-900/20 hover:text-slate-900 dark:border-white/15 dark:bg-white/10 dark:text-white/80 dark:hover:border-white/25 dark:hover:text-white sm:inline-flex"
-                  aria-label="Profile"
-                >
-                  <UserIcon className="h-5 w-5" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={openAuth}
-                  className="hidden items-center text-sm font-semibold text-slate-700 transition hover:text-slate-900 dark:text-white/80 dark:hover:text-white sm:inline-flex"
-                >
-                  Login/SignUp
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setOpen((v) => !v)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-900/10 bg-white/70 text-slate-900 backdrop-blur transition hover:bg-white/85 dark:border-white/15 dark:bg-white/10 dark:text-white/90 dark:hover:bg-white/15 sm:hidden"
-                aria-label={open ? "Close menu" : "Open menu"}
-                aria-expanded={open}
-              >
-                {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div
-        className={[
-          "sm:hidden",
-          open ? "pointer-events-auto" : "pointer-events-none",
-        ].join(" ")}
-      >
-        <div
-          className={[
-            "fixed inset-0 backdrop-blur-sm transition-opacity",
-            open ? "opacity-100" : "opacity-0",
-            "bg-slate-900/35 dark:bg-black/60",
-          ].join(" ")}
-          onClick={() => setOpen(false)}
-        />
-
-        <div
-          className={[
-            "fixed left-1/2 top-[76px] w-[calc(100%-24px)] -translate-x-1/2",
-            "rounded-2xl border backdrop-blur-xl",
-            "shadow-[0_18px_50px_-20px_rgba(0,0,0,0.35)] dark:shadow-[0_18px_50px_-20px_rgba(0,0,0,0.75)]",
-            "transition-all duration-200",
-            "border-slate-900/10 bg-white/75 dark:border-white/15 dark:bg-black/50",
-            open ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
-          ].join(" ")}
-        >
-          <div className="p-3">
+          <div className="hidden md:flex items-center gap-8">
             {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
                 onClick={handleNavClick(l.href)}
-                className="flex items-center justify-between rounded-xl px-4 py-3 text-sm text-slate-800/90 transition hover:bg-black/5 dark:text-white/85 dark:hover:bg-white/5"
+                className="text-sm font-medium text-slate-600 transition-all duration-300 hover:opacity-70 hover:text-slate-900 relative group dark:text-white/70 dark:hover:text-white"
               >
-                <span>{l.label}</span>
+                {l.label}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full" />
               </Link>
             ))}
+          </div>
 
+          <div className="flex items-center gap-3">
             {currentUser ? (
-              <button
-                type="button"
-                onClick={goProfile}
-                className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold text-slate-800/90 transition hover:bg-black/5 dark:text-white/85 dark:hover:bg-white/5"
-              >
-                <span className="flex items-center gap-2">
-                  <UserIcon className="h-4 w-4" />
-                  Profile
-                </span>
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-2 rounded-full text-slate-700 transition-all duration-300 hover:bg-white/10 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
+                    aria-label="Profile"
+                  >
+                    <UserIcon className="h-5 w-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={12}
+                  className="min-w-[180px] rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur dark:border-white/10 dark:bg-slate-950/95"
+                >
+                  <DropdownMenuItem
+                    className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
+                    onSelect={goProfile}
+                  >
+                    My Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
+                    onSelect={goBookings}
+                  >
+                    My Bookings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
+                    onSelect={toggleTheme}
+                  >
+                    {themeReady ? (
+                      isDark ? (
+                        <>
+                          <Sun className="h-4 w-4" />
+                          Light mode
+                        </>
+                      ) : (
+                        <>
+                          <Moon className="h-4 w-4" />
+                          Dark mode
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <Moon className="h-4 w-4" />
+                        Theme
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1" />
+                  <DropdownMenuItem
+                    className="rounded-lg px-3 py-2 text-sm text-rose-600 focus:text-rose-600 dark:text-rose-300"
+                    onSelect={handleLogout}
+                  >
+                    Log out
+                  </DropdownMenuItem>
+                  {roleSwitchPath ? (
+                    <DropdownMenuItem
+                      className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
+                      onSelect={handleRoleSwitch}
+                    >
+                      Switch to {profileRole}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <button
                 type="button"
                 onClick={openAuth}
-                className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold text-slate-800/90 transition hover:bg-black/5 dark:text-white/85 dark:hover:bg-white/5"
+                className="text-sm font-semibold text-slate-700 transition-all duration-300 hover:opacity-70 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
               >
-                <span>Login/SignUp</span>
+                Login/SignUp
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="md:hidden p-2 rounded-full text-slate-700 transition-all duration-300 hover:bg-white/10 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
+              onClick={() => setOpen((v) => !v)}
+              aria-label="Menu"
+            >
+              {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        <div
+          className={`md:hidden absolute top-full left-0 right-0 mt-2 nav-glass rounded-2xl overflow-hidden transition-all duration-300 custom-expo ${
+            open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          <div className="py-4 px-6 space-y-2">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={handleNavClick(l.href)}
+                className="block py-2 text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+              >
+                {l.label}
+              </Link>
+            ))}
+            {currentUser ? (
+              <>
+                <button
+                  type="button"
+                  onClick={goProfile}
+                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                >
+                  My Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={goBookings}
+                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                >
+                  My Bookings
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                >
+                  {themeReady
+                    ? isDark
+                      ? "Light mode"
+                      : "Dark mode"
+                    : "Theme"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="block w-full py-2 text-left text-rose-600 font-medium"
+                >
+                  Log out
+                </button>
+                {roleSwitchPath ? (
+                  <button
+                    type="button"
+                    onClick={handleRoleSwitch}
+                    className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                  >
+                    Switch to {profileRole}
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={openAuth}
+                className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+              >
+                Login/SignUp
               </button>
             )}
           </div>
         </div>
-      </div>
+      </nav>
 
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
         <DialogContent className="border-0 bg-transparent p-0 shadow-none">
-          <SignCard />
+          <SignCard onAuthSuccess={() => setAuthOpen(false)} />
         </DialogContent>
       </Dialog>
     </header>

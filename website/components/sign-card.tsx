@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 type SignCardProps = {
   className?: string;
+  onAuthSuccess?: () => void;
 };
 
 const perks = [
@@ -36,7 +37,7 @@ const perks = [
   },
 ];
 
-const SignCard = ({ className }: SignCardProps) => {
+const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -77,12 +78,13 @@ const SignCard = ({ className }: SignCardProps) => {
     return digits ? `+91${digits}` : "";
   }, [phone]);
 
-  const finishLogin = useCallback(async (user: User) => {
-    const token = await user.getIdToken();
-    const response = await fetch(apiUrl("/firebase-auth"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+  const finishLogin = useCallback(
+    async (user: User) => {
+      const token = await user.getIdToken();
+      const response = await fetch(apiUrl("/firebase-auth"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
       body: JSON.stringify({
         token,
         fullName: user.displayName || undefined,
@@ -90,10 +92,12 @@ const SignCard = ({ className }: SignCardProps) => {
     });
 
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data?.message || "Authentication failed");
-    }
-  }, []);
+      if (!response.ok) {
+        throw new Error(data?.message || "Authentication failed");
+      }
+    },
+    []
+  );
 
   const handleSendCode = useCallback(async () => {
     setMessage(null);
@@ -141,6 +145,7 @@ const SignCard = ({ className }: SignCardProps) => {
       const credential = await confirmation.confirm(otp.trim());
       await finishLogin(credential.user);
       setMessage({ type: "success", text: "You're signed in." });
+      onAuthSuccess?.();
     } catch (error) {
       setMessage({
         type: "error",
@@ -149,7 +154,7 @@ const SignCard = ({ className }: SignCardProps) => {
     } finally {
       setIsVerifying(false);
     }
-  }, [confirmation, finishLogin, otp]);
+  }, [confirmation, finishLogin, otp, onAuthSuccess]);
 
   const handleGoogleSignIn = useCallback(async () => {
     setIsGoogleLoading(true);
@@ -159,6 +164,7 @@ const SignCard = ({ className }: SignCardProps) => {
       const credential = await signInWithPopup(firebaseAuth, provider);
       await finishLogin(credential.user);
       setMessage({ type: "success", text: "You're signed in." });
+      onAuthSuccess?.();
     } catch (error) {
       setMessage({
         type: "error",
@@ -167,7 +173,7 @@ const SignCard = ({ className }: SignCardProps) => {
     } finally {
       setIsGoogleLoading(false);
     }
-  }, [finishLogin]);
+  }, [finishLogin, onAuthSuccess]);
 
   return (
     <div
