@@ -8,7 +8,6 @@ import {
   Bus,
   ArrowUp,
   CalendarCheck2,
-  ChartNoAxesCombined,
   ClipboardList,
   ChevronLeft,
   ChevronRight,
@@ -19,22 +18,72 @@ import {
   Sun,
   User,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { apiUrl } from "@/lib/api";
 
-const navItems = [
-  { label: "Overview", icon: Activity },
-  { label: "Trips", icon: Bus },
-  { label: "Bookings", icon: ClipboardList },
-  { label: "Crew & Staff", icon: Users },
-  { label: "Compliance", icon: BadgeCheck },
-  { label: "Reports", icon: FileText },
-  { label: "Schedule", icon: CalendarCheck2 },
-  { label: "Finance", icon: Banknote },
-  { label: "Insights", icon: ChartNoAxesCombined },
-  { label: "Broadcast", icon: MessageSquareText },
+type NavItem = {
+  label: string;
+  icon: LucideIcon;
+};
+
+const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
+  superadmin: [
+    { label: "Dashboard", icon: Activity },
+    { label: "Manage Buses", icon: Bus },
+    { label: "Manage Bookings", icon: ClipboardList },
+    { label: "Manage Users", icon: Users },
+    { label: "Manage Offers", icon: BadgeCheck },
+    { label: "Manage Transactions", icon: Banknote },
+    { label: "Callback Requests", icon: CalendarCheck2 },
+    { label: "Manage Tickets", icon: FileText },
+    { label: "Broadcast", icon: MessageSquareText },
+  ],
+  admin: [
+    { label: "Dashboard", icon: Activity },
+    { label: "Manage Buses", icon: Bus },
+    { label: "Manage Bookings", icon: ClipboardList },
+    { label: "Manage Offers", icon: BadgeCheck },
+    { label: "Callback Requests", icon: CalendarCheck2 },
+    { label: "Manage Tickets", icon: FileText },
+    { label: "Broadcast", icon: MessageSquareText },
+  ],
+  conductor: [
+    { label: "Dashboard", icon: Activity },
+    { label: "Manage Bus", icon: Bus },
+  ],
+  owner: [
+    { label: "Dashboard", icon: Activity },
+    { label: "Manage conductor", icon: User },
+    { label: "Manage Buses", icon: Bus },
+  ],
+};
+
+const DEFAULT_NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", icon: Activity },
 ];
+
+const ROLE_BASE_PATHS: Record<string, string> = {
+  superadmin: "/super-admin/dashboard",
+  admin: "/admin/dashboard",
+  owner: "/bus-owner/dashboard",
+  conductor: "/conductor/dashboard",
+  user: "/dashboard",
+};
+
+const KNOWN_BASE_PATHS = Object.values(ROLE_BASE_PATHS);
+
+const normalizeRole = (role: string | null) =>
+  role?.toLowerCase().replace(/[\s_-]+/g, "") ?? "";
+
+const toSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 type SidebarProps = {
   collapsed: boolean;
@@ -47,11 +96,53 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     : "Collapse (⌘/Ctrl + B)";
   const { setTheme, resolvedTheme } = useTheme();
   const [themeReady, setThemeReady] = useState(false);
+  const [profileRole, setProfileRole] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<string>("Dashboard");
   const isDark = resolvedTheme === "dark";
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     setThemeReady(true);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const loadRole = async () => {
+      try {
+        const response = await fetch(apiUrl("/profile/role"), {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          if (active) setProfileRole(null);
+          return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        const role = data?.data?.role;
+
+        if (active) {
+          setProfileRole(typeof role === "string" ? role : null);
+        }
+      } catch (error) {
+        if (active && (error as Error).name !== "AbortError") {
+          console.error("Failed to load user role:", error);
+          setProfileRole(null);
+        }
+      }
+    };
+
+    loadRole();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, []);
 
   const toggleTheme = () => {
@@ -69,6 +160,50 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const handleGoProfile = () => {
     router.push("/profile");
   };
+
+  const normalizedRole = normalizeRole(profileRole);
+  const navItems = NAV_ITEMS_BY_ROLE[normalizedRole] ?? DEFAULT_NAV_ITEMS;
+
+  const inferredBasePath = KNOWN_BASE_PATHS.find(
+    (base) => pathname === base || pathname.startsWith(`${base}/`)
+  );
+  const basePath = inferredBasePath ?? ROLE_BASE_PATHS[normalizedRole] ?? "/dashboard";
+
+  const navRoutes: Record<string, string> = {
+    Dashboard: basePath,
+    "Manage Users": `${basePath}/manage-users`,
+  };
+
+  const isRouteMatch = (route: string) =>
+    pathname === route || pathname.startsWith(`${route}/`);
+
+  const isItemPathMatch = (label: string) => {
+    if (label === "Dashboard") {
+      return pathname === basePath || pathname === `${basePath}/`;
+    }
+
+    const destination = navRoutes[label];
+    const slugRoute = `${basePath}/${toSlug(label)}`;
+    return destination ? isRouteMatch(destination) : isRouteMatch(slugRoute);
+  };
+
+  const hasRouteMatch = navItems.some((item) =>
+    isItemPathMatch(item.label)
+  );
+
+  useEffect(() => {
+    if (navItems.some((item) => item.label === activeItem)) {
+      return;
+    }
+
+    const fallback =
+      navItems.find((item) => item.label === "Dashboard")?.label ??
+      navItems[0]?.label;
+
+    if (fallback) {
+      setActiveItem(fallback);
+    }
+  }, [activeItem, navItems]);
 
   return (
     <aside className="relative flex h-full w-full flex-col border-r border-slate-200/80 bg-white px-4 pb-6 pt-6 text-slate-700 dark:border-white/10 dark:bg-[#0b1020] dark:text-slate-200">
@@ -109,19 +244,36 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
       </div>
 
       <nav className="mt-8 flex-1 space-y-1">
-        {navItems.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            title={item.label}
-            className={`flex w-full items-center rounded-2xl border border-transparent py-2 text-sm text-slate-600 transition hover:-translate-y-0.5 hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white ${
-              collapsed ? "justify-center px-2" : "gap-3 px-3"
-            }`}
-          >
-            <item.icon className="h-4 w-4" />
-            {!collapsed ? <span>{item.label}</span> : null}
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const destination = navRoutes[item.label];
+          const matchesPath = isItemPathMatch(item.label);
+          const isActive =
+            matchesPath || (!hasRouteMatch && item.label === activeItem);
+          return (
+            <button
+              key={item.label}
+              type="button"
+              title={item.label}
+              aria-current={isActive ? "page" : undefined}
+              onClick={() => {
+                if (destination) {
+                  router.push(destination);
+                }
+                setActiveItem(item.label);
+              }}
+              className={`flex w-full items-center rounded-2xl border py-2 text-sm transition hover:-translate-y-0.5 ${
+                isActive
+                  ? "border-slate-200 bg-slate-100 text-slate-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+              } ${
+                collapsed ? "justify-center px-2" : "gap-3 px-3"
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              {!collapsed ? <span>{item.label}</span> : null}
+            </button>
+          );
+        })}
       </nav>
 
       <div

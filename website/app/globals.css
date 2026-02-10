@@ -161,6 +161,16 @@ section[id] {
   will-change: transform;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 @keyframes float {
   0% { transform: translateY(0) translateX(0); opacity: 0.3; }
   50% { transform: translateY(-18px) translateX(10px); opacity: 0.8; }

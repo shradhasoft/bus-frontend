@@ -2,13 +2,10 @@
 
 // components/hero.tsx
 import React from "react";
-import { addDays, format, isSameDay, startOfDay } from "date-fns";
 import Image from "next/image";
 import {
-  ArrowLeftRight,
   BadgePercent,
   Bus,
-  Calendar as CalendarIcon,
   Headphones,
   MapPin,
   Navigation,
@@ -16,21 +13,9 @@ import {
   Zap,
   Users,
 } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import BusSearchForm from "@/components/bus-search-form";
 
 const Hero = () => {
-  const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
-  const [departureDate, setDepartureDate] = React.useState<Date>(today);
-
-  const isToday = isSameDay(departureDate, today);
-  const isTomorrow = isSameDay(departureDate, tomorrow);
-
   const offers = [
     {
       title: "Get 15% off",
@@ -87,7 +72,7 @@ const Hero = () => {
 
   return (
     <section id="hero" className="bg-slate-50">
-      <div className="relative w-full pb-10 pt-24 sm:pb-12 sm:pt-28 md:h-[480px] md:py-0 md:overflow-hidden">
+      <div className="relative w-full pb-10 pt-24 sm:pb-12 sm:pt-28 md:h-[480px] md:py-0 md:overflow-visible">
         <Image
           src="/assets/hero.png"
           alt="Modern intercity bus on a scenic highway at sunrise"
@@ -99,7 +84,7 @@ const Hero = () => {
         <div className="absolute inset-0 hidden bg-gradient-to-b from-sky-500/10 via-sky-400/10 to-rose-950/40 md:block" />
 
         <div className="relative px-4 sm:px-6 md:absolute md:inset-0 md:flex md:items-center md:justify-center">
-          <div className="mx-auto w-full max-w-6xl rounded-3xl border border-white/70 bg-white/80 p-5 shadow-2xl shadow-black/20 backdrop-blur-2xl sm:p-6 lg:max-w-7xl lg:p-7">
+          <div className="relative z-20 mx-auto w-full max-w-6xl rounded-3xl border border-white/70 bg-white/80 p-5 shadow-2xl shadow-black/20 backdrop-blur-2xl sm:p-6 lg:max-w-7xl lg:p-7">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-600 sm:gap-5">
                 <button
@@ -129,92 +114,8 @@ const Hero = () => {
               </p>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-[1.2fr_0.18fr_1.2fr_0.9fr_0.6fr_0.6fr_0.9fr]">
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <MapPin className="h-4 w-4 text-slate-500" />
-                <div>
-                  <p className="text-xs text-slate-400">Leaving From</p>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Bengaluru
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="hidden items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 lg:flex"
-                aria-label="Swap cities"
-              >
-                <ArrowLeftRight className="h-4 w-4" />
-              </button>
-
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <MapPin className="h-4 w-4 text-slate-500" />
-                <div>
-                  <p className="text-xs text-slate-400">Going To</p>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Hyderabad
-                  </p>
-                </div>
-              </div>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors hover:border-rose-200 hover:bg-white"
-                    aria-label="Select departure date"
-                  >
-                    <CalendarIcon className="h-4 w-4 text-slate-500" />
-                    <div>
-                      <p className="text-xs text-slate-400">Departure</p>
-                      <p className="text-sm font-semibold text-slate-700">
-                        {format(departureDate, "dd/MM/yyyy")}
-                      </p>
-                    </div>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={departureDate}
-                    onSelect={setDepartureDate}
-                    initialFocus
-                    required
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <button
-                type="button"
-                onClick={() => setDepartureDate(today)}
-                aria-pressed={isToday}
-                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                  isToday
-                    ? "border-rose-300 bg-rose-50 text-rose-600"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-600"
-                }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setDepartureDate(tomorrow)}
-                aria-pressed={isTomorrow}
-                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                  isTomorrow
-                    ? "border-rose-300 bg-rose-50 text-rose-600"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-600"
-                }`}
-              >
-                Tomorrow
-              </button>
-              <button
-                type="button"
-                className="md:col-span-2 rounded-xl bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/30 transition-all hover:bg-rose-600 lg:col-span-1"
-              >
-                Search
-              </button>
+            <div className="mt-5">
+              <BusSearchForm />
             </div>
           </div>
         </div>
