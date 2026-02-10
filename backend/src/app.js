@@ -21,6 +21,7 @@ import profileRouter from "./routes/profileRoutes.js";
 import helpRouter from "./routes/helpRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import trackingRouter from "./routes/trackingRoutes.js";
+import userRouter from "./routes/userRoutes.js";
 
 const app = express();
 connectCloudinary();
@@ -68,6 +69,7 @@ app.use("/", profileRouter);
 app.use("/", helpRouter);
 app.use("/", paymentRouter);
 app.use("/", trackingRouter);
+app.use("/", userRouter);
 
 // Create HTTP server and attach socket.io
 const server = http.createServer(app);
