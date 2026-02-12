@@ -46,6 +46,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Manage Buses", icon: Bus },
     { label: "Manage Bookings", icon: ClipboardList },
     { label: "Manage Offers", icon: BadgeCheck },
+    { label: "Manage Transactions", icon: Banknote },
     { label: "Callback Requests", icon: CalendarCheck2 },
     { label: "Manage Tickets", icon: FileText },
     { label: "Broadcast", icon: MessageSquareText },
@@ -95,16 +96,12 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     ? "Expand (⌘/Ctrl + B)"
     : "Collapse (⌘/Ctrl + B)";
   const { setTheme, resolvedTheme } = useTheme();
-  const [themeReady, setThemeReady] = useState(false);
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<string>("Dashboard");
+  const themeReady = typeof resolvedTheme === "string";
   const isDark = resolvedTheme === "dark";
   const router = useRouter();
   const pathname = usePathname();
-
-  useEffect(() => {
-    setThemeReady(true);
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -172,6 +169,10 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const navRoutes: Record<string, string> = {
     Dashboard: basePath,
     "Manage Users": `${basePath}/manage-users`,
+    "Manage Buses": `${basePath}/manage-buses`,
+    "Manage Bookings": `${basePath}/manage-bookings`,
+    "Manage Offers": `${basePath}/manage-offers`,
+    "Manage Transactions": `${basePath}/manage-transactions`,
   };
 
   const isRouteMatch = (route: string) =>
@@ -190,20 +191,13 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const hasRouteMatch = navItems.some((item) =>
     isItemPathMatch(item.label)
   );
-
-  useEffect(() => {
-    if (navItems.some((item) => item.label === activeItem)) {
-      return;
-    }
-
-    const fallback =
-      navItems.find((item) => item.label === "Dashboard")?.label ??
-      navItems[0]?.label;
-
-    if (fallback) {
-      setActiveItem(fallback);
-    }
-  }, [activeItem, navItems]);
+  const fallbackActiveItem =
+    navItems.find((item) => item.label === "Dashboard")?.label ??
+    navItems[0]?.label ??
+    "Dashboard";
+  const effectiveActiveItem = navItems.some((item) => item.label === activeItem)
+    ? activeItem
+    : fallbackActiveItem;
 
   return (
     <aside className="relative flex h-full w-full flex-col border-r border-slate-200/80 bg-white px-4 pb-6 pt-6 text-slate-700 dark:border-white/10 dark:bg-[#0b1020] dark:text-slate-200">
@@ -245,10 +239,10 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
       <nav className="mt-8 flex-1 space-y-1">
         {navItems.map((item) => {
-          const destination = navRoutes[item.label];
+          const destination = navRoutes[item.label] ?? `${basePath}/${toSlug(item.label)}`;
           const matchesPath = isItemPathMatch(item.label);
           const isActive =
-            matchesPath || (!hasRouteMatch && item.label === activeItem);
+            matchesPath || (!hasRouteMatch && item.label === effectiveActiveItem);
           return (
             <button
               key={item.label}
@@ -256,9 +250,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               title={item.label}
               aria-current={isActive ? "page" : undefined}
               onClick={() => {
-                if (destination) {
-                  router.push(destination);
-                }
+                router.push(destination);
                 setActiveItem(item.label);
               }}
               className={`flex w-full items-center rounded-2xl border py-2 text-sm transition hover:-translate-y-0.5 ${

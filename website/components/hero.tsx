@@ -1,8 +1,9 @@
 "use client";
 
 // components/hero.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   BadgePercent,
   Bus,
@@ -14,9 +15,17 @@ import {
   Users,
 } from "lucide-react";
 import BusSearchForm from "@/components/bus-search-form";
+import { apiUrl } from "@/lib/api";
+
+type OfferCard = {
+  title: string;
+  subtitle: string;
+  code: string;
+  tone: string;
+};
 
 const Hero = () => {
-  const offers = [
+  const fallbackOffers: OfferCard[] = [
     {
       title: "Get 15% off",
       subtitle: "on your 1st booking",
@@ -24,24 +33,83 @@ const Hero = () => {
       tone: "bg-rose-50 border-rose-100",
     },
     {
-      title: "Flat $8 off",
+      title: "Flat ₹80 off",
       subtitle: "on Bus Booking",
       code: "BMS8OFF",
       tone: "bg-amber-50 border-amber-100",
     },
     {
-      title: "Save up to $20",
+      title: "Save up to ₹200",
       subtitle: "on cards & wallets",
       code: "SAVE20",
       tone: "bg-purple-50 border-purple-100",
     },
     {
-      title: "Up to $10 off",
+      title: "Up to ₹100 off",
       subtitle: "for weekend rides",
       code: "WEEKEND",
       tone: "bg-blue-50 border-blue-100",
     },
   ];
+  const [offers, setOffers] = useState<OfferCard[]>(fallbackOffers);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadOffers = async () => {
+      try {
+        const response = await fetch(apiUrl("/offers?page=1&limit=4"), {
+          method: "GET",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => ({}));
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+
+        if (!rows.length) return;
+
+        const tones = [
+          "bg-rose-50 border-rose-100",
+          "bg-amber-50 border-amber-100",
+          "bg-sky-50 border-sky-100",
+          "bg-emerald-50 border-emerald-100",
+        ];
+
+        const mapped: OfferCard[] = rows.map(
+          (item: Record<string, unknown>, index: number) => {
+            const discountValue = Number(item?.discountValue || 0);
+            const isPercentage = item?.discountType === "percentage";
+            const title = isPercentage
+              ? `${discountValue}% off`
+              : `Flat ₹${discountValue} off`;
+            const subtitle =
+              typeof item?.minOrderAmount === "number"
+                ? `Min booking ₹${item.minOrderAmount}`
+                : "On selected bookings";
+            return {
+              title,
+              subtitle,
+              code: String(item?.code || ""),
+              tone: tones[index % tones.length],
+            };
+          }
+        );
+
+        const valid = mapped.filter((offer) => offer.code);
+        if (valid.length > 0) {
+          setOffers(valid);
+        }
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error("Failed to load hero offers:", error);
+        }
+      }
+    };
+
+    void loadOffers();
+
+    return () => controller.abort();
+  }, []);
 
   const features = [
     {
@@ -126,12 +194,12 @@ const Hero = () => {
           <h2 className="text-lg font-semibold text-slate-900">
             Bus Booking Discount Offers
           </h2>
-          <button
-            type="button"
+          <Link
+            href="/offers"
             className="text-sm font-semibold text-rose-500 hover:text-rose-600"
           >
             View All
-          </button>
+          </Link>
         </div>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {offers.map((offer) => (

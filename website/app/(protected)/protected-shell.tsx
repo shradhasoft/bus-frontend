@@ -2,14 +2,22 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Navbar } from "./dashboard/_components/navbar";
 import { Sidebar } from "./dashboard/_components/Sidebar";
 
 const SIDEBAR_WIDTH = "17rem";
 const SIDEBAR_COLLAPSED_WIDTH = "4.75rem";
+const STANDALONE_ROUTES = ["/profile"];
+
+const isStandaloneRoute = (pathname: string) =>
+  STANDALONE_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 
 const ProtectedShell = ({ children }: { children: ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const pathname = usePathname();
 
   const toggleSidebar = useCallback(() => {
     setCollapsed((prev) => !prev);
@@ -37,6 +45,14 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
       }) as CSSProperties,
     [collapsed]
   );
+
+  if (isStandaloneRoute(pathname)) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 pb-8 pt-24 text-slate-900 dark:bg-[#0b1020] dark:text-slate-100 sm:px-6 lg:px-8">
+        {children}
+      </main>
+    );
+  }
 
   return (
     <div

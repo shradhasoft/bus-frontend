@@ -38,6 +38,8 @@ const Navbar = () => {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [themeReady, setThemeReady] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [roleRefreshKey, setRoleRefreshKey] = useState(0);
   const lastScrollY = useRef(0);
 
   const router = useRouter();
@@ -95,9 +97,20 @@ const Navbar = () => {
 
     const loadRole = async () => {
       try {
+        let idToken: string | null = null;
+        try {
+          idToken = await currentUser.getIdToken();
+        } catch (tokenError) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("Failed to get ID token for role fetch", tokenError);
+          }
+        }
+
         const response = await fetch(apiUrl("/profile/role"), {
           method: "GET",
           credentials: "include",
+          headers: idToken ? { Authorization: `Bearer ${idToken}` } : undefined,
+          cache: "no-store",
           signal: controller.signal,
         });
 
@@ -126,7 +139,7 @@ const Navbar = () => {
       active = false;
       controller.abort();
     };
-  }, [currentUser]);
+  }, [currentUser, roleRefreshKey]);
 
   const links = [
     { label: "Track Bus", href: "/track" },
@@ -176,28 +189,54 @@ const Navbar = () => {
     setAuthOpen(true);
   }, []);
 
+  const handleAuthSuccess = useCallback(() => {
+    setAuthOpen(false);
+    setRoleRefreshKey((value) => value + 1);
+  }, []);
+
   const goProfile = useCallback(() => {
     setOpen(false);
     router.push("/profile");
   }, [router]);
 
-  const goBookings = useCallback(() => {
-    setOpen(false);
-    router.push("/bookings");
-  }, [router]);
-
   const handleLogout = useCallback(async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    setOpen(false);
+    setAuthOpen(false);
+
     try {
-      await fetch(apiUrl("/logout"), {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (error) {
-      console.error("Logout failed:", error);
+      try {
+        const response = await fetch(apiUrl("/logout"), {
+          method: "POST",
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          console.error(
+            "Logout failed:",
+            data?.message || response.statusText || response.status
+          );
+        }
+      } catch (error) {
+        console.error("Logout failed:", error);
+      }
+
+      try {
+        await signOut(firebaseAuth);
+      } catch (error) {
+        console.error("Firebase sign out failed:", error);
+      }
+
+      setCurrentUser(null);
+      setProfileRole(null);
+      router.replace("/");
+      router.refresh();
     } finally {
-      await signOut(firebaseAuth);
+      setIsLoggingOut(false);
     }
-  }, []);
+  }, [isLoggingOut, router]);
 
   const toggleTheme = useCallback(() => {
     setTheme(isDark ? "light" : "dark");
@@ -277,12 +316,6 @@ const Navbar = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
-                    onSelect={goBookings}
-                  >
-                    My Bookings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
                     onSelect={toggleTheme}
                   >
                     {themeReady ? (
@@ -307,9 +340,10 @@ const Navbar = () => {
                   <DropdownMenuSeparator className="my-1" />
                   <DropdownMenuItem
                     className="rounded-lg px-3 py-2 text-sm text-rose-600 focus:text-rose-600 dark:text-rose-300"
+                    disabled={isLoggingOut}
                     onSelect={handleLogout}
                   >
-                    Log out
+                    {isLoggingOut ? "Logging out..." : "Log out"}
                   </DropdownMenuItem>
                   {roleSwitchPath ? (
                     <DropdownMenuItem
@@ -369,13 +403,6 @@ const Navbar = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={goBookings}
-                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
-                >
-                  My Bookings
-                </button>
-                <button
-                  type="button"
                   onClick={toggleTheme}
                   className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
                 >
@@ -388,9 +415,10 @@ const Navbar = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="block w-full py-2 text-left text-rose-600 font-medium"
+                  disabled={isLoggingOut}
+                  className="block w-full py-2 text-left text-rose-600 font-medium disabled:opacity-60"
                 >
-                  Log out
+                  {isLoggingOut ? "Logging out..." : "Log out"}
                 </button>
                 {roleSwitchPath ? (
                   <button
@@ -417,7 +445,7 @@ const Navbar = () => {
 
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
         <DialogContent className="border-0 bg-transparent p-0 shadow-none">
-          <SignCard onAuthSuccess={() => setAuthOpen(false)} />
+          <SignCard onAuthSuccess={handleAuthSuccess} />
         </DialogContent>
       </Dialog>
     </header>

@@ -618,7 +618,7 @@ const ManageUsersPage = () => {
                     }))
                   }
                   disabled={isReadOnly || submitting}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus:outline-none"
+                  className="h-9 w-full rounded-md border border-input bg-white px-3 text-sm text-slate-900 shadow-xs focus:outline-none dark:border-white/10 dark:bg-slate-900 dark:text-slate-100 dark:[color-scheme:dark]"
                 >
                   {Object.entries(ROLE_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
