@@ -13,7 +13,6 @@ import { initSocketServer } from "./socket/socketServer.js";
 // Routers
 import authRouter from "./routes/authRoutes.js";
 import busRouter from "./routes/busRoutes.js";
-import routeRouter from "./routes/routeRoutes.js";
 import searchBusRouter from "./routes/busSearchRoutes.js";
 import bookingRouter from "./routes/bookingRoutes.js";
 import offerRouter from "./routes/offerRoutes.js";
@@ -55,13 +54,20 @@ app.use(
   }),
 );
 
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      if (req.originalUrl?.startsWith("/payment/razorpay/webhook")) {
+        req.rawBody = buf;
+      }
+    },
+  }),
+);
 app.use(cookieParser());
 
 // REST routes
 app.use("/", authRouter);
 app.use("/", busRouter);
-app.use("/", routeRouter);
 app.use("/", searchBusRouter);
 app.use("/", bookingRouter);
 app.use("/", offerRouter);

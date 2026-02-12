@@ -33,7 +33,7 @@ const normalizeEmail = (email) => {
 
 export const listUsersController = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search } = req.query;
+    const { page = 1, limit = 20, search, role } = req.query;
     const pageInt = Number.parseInt(page, 10);
     const limitInt = Number.parseInt(limit, 10);
 
@@ -71,6 +71,9 @@ export const listUsersController = async (req, res) => {
     }
 
     const query = {};
+    if (typeof role === "string" && role.trim()) {
+      query.role = role.trim().toLowerCase();
+    }
     if (typeof search === "string" && search.trim()) {
       const regex = new RegExp(search.trim(), "i");
       query.$or = [

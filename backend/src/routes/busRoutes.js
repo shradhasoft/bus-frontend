@@ -1,6 +1,12 @@
 // src/routes/busRoutes.js
 import express from "express";
-import { addBus, deleteBus, updateBus } from "../controllers/busController.js";
+import {
+  addBus,
+  deleteBus,
+  updateBus,
+  listBuses,
+  getBusById,
+} from "../controllers/busController.js";
 import {
   validateBusCreation,
   validateBusUpdate,
@@ -12,7 +18,7 @@ const busRouter = express.Router();
 busRouter.post(
   "/addbus",
   protect,
-  authorize("admin", "owner"),
+  authorize("admin", "owner", "superadmin"),
   validateBusCreation,
   addBus
 );
@@ -20,7 +26,7 @@ busRouter.post(
 busRouter.patch(
   "/updatebus/:id",
   protect,
-  authorize("admin", "owner"),
+  authorize("admin", "owner", "superadmin"),
   validateBusUpdate,
   updateBus
 );
@@ -28,7 +34,44 @@ busRouter.patch(
 busRouter.delete(
   "/deletebus/:id",
   protect,
-  authorize("admin", "owner"),
+  authorize("admin", "owner", "superadmin"),
+  deleteBus
+);
+
+busRouter.get(
+  "/admin/buses",
+  protect,
+  authorize("admin", "owner", "superadmin"),
+  listBuses
+);
+
+busRouter.get(
+  "/admin/buses/:id",
+  protect,
+  authorize("admin", "owner", "superadmin"),
+  getBusById
+);
+
+busRouter.post(
+  "/admin/buses",
+  protect,
+  authorize("admin", "owner", "superadmin"),
+  validateBusCreation,
+  addBus
+);
+
+busRouter.patch(
+  "/admin/buses/:id",
+  protect,
+  authorize("admin", "owner", "superadmin"),
+  validateBusUpdate,
+  updateBus
+);
+
+busRouter.delete(
+  "/admin/buses/:id",
+  protect,
+  authorize("admin", "owner", "superadmin"),
   deleteBus
 );
 

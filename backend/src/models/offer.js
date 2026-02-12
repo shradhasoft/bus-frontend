@@ -61,8 +61,9 @@ const offerSchema = new mongoose.Schema(
     },
     specificRoutes: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Route",
+        type: String,
+        trim: true,
+        uppercase: true,
       },
     ],
     specificBuses: [
@@ -81,10 +82,19 @@ const offerSchema = new mongoose.Schema(
       type: Number,
       min: [0, "Usage limit cannot be negative"],
     },
+    usageLimitPerUser: {
+      type: Number,
+      min: [0, "Usage limit per user cannot be negative"],
+      default: null,
+    },
     usedCount: {
       type: Number,
       default: 0,
       min: [0, "Used count cannot be negative"],
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -113,6 +123,7 @@ offerSchema.index({ code: 1 }, { unique: true });
 offerSchema.index({ validFrom: 1, validUntil: 1 });
 offerSchema.index({ isActive: 1, validUntil: 1 });
 offerSchema.index({ isDeleted: 1 });
+offerSchema.index({ isDeleted: 1, isActive: 1, validFrom: 1, validUntil: 1 });
 
 // Virtual for validity status
 offerSchema.virtual("isValid").get(function () {
@@ -123,6 +134,16 @@ offerSchema.virtual("isValid").get(function () {
     now <= this.validUntil &&
     (!this.usageLimit || this.usedCount < this.usageLimit)
   );
+});
+
+offerSchema.virtual("status").get(function () {
+  const now = new Date();
+
+  if (this.isDeleted) return "deleted";
+  if (!this.isActive) return "inactive";
+  if (now < this.validFrom) return "upcoming";
+  if (now > this.validUntil) return "expired";
+  return "active";
 });
 
 // Pre-save validation
@@ -141,6 +162,17 @@ offerSchema.pre("save", function (next) {
     this.maxDiscountAmount > this.minOrderAmount
   ) {
     return next(new Error("Max discount cannot exceed min order amount"));
+  }
+
+  if (
+    this.usageLimit !== undefined &&
+    this.usageLimitPerUser !== null &&
+    this.usageLimitPerUser !== undefined &&
+    this.usageLimitPerUser > this.usageLimit
+  ) {
+    return next(
+      new Error("Usage limit per user cannot exceed overall usage limit")
+    );
   }
 
   next();

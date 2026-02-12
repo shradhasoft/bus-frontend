@@ -12,8 +12,9 @@ const reviewSchema = new mongoose.Schema(
       ref: "Bus",
     },
     route: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Route",
+      routeCode: { type: String, trim: true, uppercase: true },
+      origin: { type: String, trim: true },
+      destination: { type: String, trim: true },
     },
     rating: {
       type: Number,
@@ -45,7 +46,7 @@ const reviewSchema = new mongoose.Schema(
 
 // Ensure reviews are either for bus or route
 reviewSchema.pre("validate", function (next) {
-  if (!this.bus && !this.route) {
+  if (!this.bus && !this.route?.routeCode) {
     this.invalidate(
       "subject",
       "Review must be associated with either a bus or route"
@@ -57,14 +58,17 @@ reviewSchema.pre("validate", function (next) {
 // Indexes
 reviewSchema.index({ user: 1 });
 reviewSchema.index({ bus: 1 });
-reviewSchema.index({ route: 1 });
+reviewSchema.index({ "route.routeCode": 1 });
 reviewSchema.index(
   { user: 1, bus: 1 },
   { unique: true, partialFilterExpression: { bus: { $exists: true } } }
 );
 reviewSchema.index(
-  { user: 1, route: 1 },
-  { unique: true, partialFilterExpression: { route: { $exists: true } } }
+  { user: 1, "route.routeCode": 1 },
+  {
+    unique: true,
+    partialFilterExpression: { "route.routeCode": { $exists: true } },
+  }
 );
 
 export const Review = mongoose.models.Review || mongoose.model("Review", reviewSchema);

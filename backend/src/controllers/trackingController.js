@@ -21,10 +21,6 @@ export const searchBusForTracking = async (req, res) => {
       $or: [{ busName: regex }, { busNumber: regex }],
     })
       .select("busName busNumber busId operator features route conductor")
-      .populate({
-        path: "route",
-        select: "origin destination routeCode distance",
-      })
       .lean();
 
     return res.json({
@@ -64,10 +60,6 @@ export const getLatestBusLocation = async (req, res) => {
       .select(
         "busName busNumber busId operator features route conductor totalSeats",
       )
-      .populate({
-        path: "route",
-        select: "origin destination routeCode distance stops",
-      })
       .lean();
 
     if (!bus) {

@@ -38,7 +38,6 @@ export const viewProfileController = async (req, res) => {
         options: { limit: 5, sort: { createdAt: -1 } },
         populate: [
           { path: "bus", select: "busName busNumber departureTime" },
-          { path: "route", select: "origin destination" },
         ],
       })
       .lean();

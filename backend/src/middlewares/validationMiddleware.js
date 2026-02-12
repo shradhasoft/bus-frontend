@@ -1,5 +1,18 @@
 import { body, validationResult, query, param } from "express-validator";
 import mongoose from "mongoose";
+import { validateSeatLayoutBlueprint } from "../models/bus.js";
+
+const SEAT_ID_REGEX = /^[A-Z]{1,10}-[0-9]{1,2}[A-Z]$/;
+const SEAT_LABEL_REGEX = /^[0-9]{1,2}[A-Z]$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeSeatToken = (value) =>
+  String(value || "").trim().toUpperCase();
+
+const isSeatTokenValid = (value) => {
+  const token = normalizeSeatToken(value);
+  return SEAT_ID_REGEX.test(token) || SEAT_LABEL_REGEX.test(token);
+};
 
 // Helper to validate time format
 const validateTimeFormat = (value) => {
@@ -26,6 +39,17 @@ export const validateBusCreation = [
   body("busName").trim().notEmpty().withMessage("Bus name is required"),
   body("busNumber").trim().notEmpty().withMessage("Bus number is required"),
   body("operator").trim().notEmpty().withMessage("Operator is required"),
+  body("busOwnerEmail")
+    .custom((value, { req }) => {
+      const role = req.user?.role;
+      if (role === "owner") {
+        return true;
+      }
+      if (!value || !EMAIL_REGEX.test(String(value).trim().toLowerCase())) {
+        throw new Error("Valid bus owner email is required");
+      }
+      return true;
+    }),
   body("totalSeats")
     .isInt({ min: 1 })
     .withMessage("Total seats must be a positive integer"),
@@ -40,46 +64,102 @@ export const validateBusCreation = [
       "Volvo",
     ])
     .withMessage("Invalid bus type"),
-  body("seatLayout").isArray().withMessage("Seat layout must be an array"),
-  body("seatLayout.*").isArray().withMessage("Each row must be an array"),
-  body("seatLayout.*.*")
-    .isInt({ min: 0 })
-    .withMessage("Seat numbers must be positive integers"),
-  body("route")
-    .custom(async (value) => {
-      if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error("Invalid route ID format");
-      }
-      const route = await mongoose.model("Route").findById(value);
-      if (!route) {
-        throw new Error(`Route with ID ${value} not found`);
+  body("seatLayout")
+    .notEmpty()
+    .withMessage("Seat layout is required")
+    .custom((value, { req }) => {
+      const { valid, errors } = validateSeatLayoutBlueprint(
+        value,
+        req.body.totalSeats
+      );
+      if (!valid) {
+        throw new Error(errors[0] || "Invalid seat layout");
       }
       return true;
-    })
-    .withMessage("Invalid route ID"),
-  // Forward trip timing validation
-  body("forwardTrip").isObject().withMessage("Forward trip timing is required"),
-  body("forwardTrip.departureTime")
+    }),
+  body("route").isObject().withMessage("Route is required"),
+  body("route.routeCode")
+    .trim()
+    .notEmpty()
+    .withMessage("Route code is required")
+    .isLength({ min: 3, max: 10 })
+    .withMessage("Route code must be 3-10 characters"),
+  body("route.origin")
+    .trim()
+    .notEmpty()
+    .withMessage("Origin is required")
+    .isLength({ min: 3, max: 50 })
+    .withMessage("Origin must be 3-50 characters"),
+  body("route.destination")
+    .trim()
+    .notEmpty()
+    .withMessage("Destination is required")
+    .isLength({ min: 3, max: 50 })
+    .withMessage("Destination must be 3-50 characters"),
+  body("route.distance")
+    .optional()
+    .isFloat({ min: 0, max: 10000 })
+    .withMessage("Distance must be between 0 and 10,000 km"),
+  body("route.duration.hours")
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Duration hours must be 0-100"),
+  body("route.duration.minutes")
+    .optional()
+    .isInt({ min: 0, max: 59 })
+    .withMessage("Duration minutes must be 0-59"),
+  body("route.cancellationPolicy.before24h")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Cancellation fee must be between 0-100%"),
+  body("route.cancellationPolicy.before12h")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Cancellation fee must be between 0-100%"),
+  body("route.cancellationPolicy.noShow")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Cancellation fee must be between 0-100%"),
+  body("route.stops")
+    .isArray({ min: 2 })
+    .withMessage("Route stops must be an array with at least 2 stops"),
+  body("route.stops.*.city")
+    .notEmpty()
+    .withMessage("Stop city is required"),
+  body("route.stops.*.location")
+    .isObject()
+    .withMessage("Stop location is required"),
+  body("route.stops.*.location.lat")
+    .isFloat({ min: -90, max: 90 })
+    .withMessage("Stop latitude must be between -90 and 90"),
+  body("route.stops.*.location.lng")
+    .isFloat({ min: -180, max: 180 })
+    .withMessage("Stop longitude must be between -180 and 180"),
+  body("route.stops.*.upTrip")
+    .isObject()
+    .withMessage("Up trip details are required"),
+  body("route.stops.*.upTrip.arrivalTime")
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid forward departure time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid up trip arrival time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
-  body("forwardTrip.arrivalTime")
+  body("route.stops.*.upTrip.departureTime")
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid forward arrival time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid up trip departure time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
-  // Return trip timing validation
-  body("returnTrip").isObject().withMessage("Return trip timing is required"),
-  body("returnTrip.departureTime")
+  body("route.stops.*.downTrip")
+    .isObject()
+    .withMessage("Down trip details are required"),
+  body("route.stops.*.downTrip.arrivalTime")
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid return departure time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid down trip arrival time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
-  body("returnTrip.arrivalTime")
+  body("route.stops.*.downTrip.departureTime")
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid return arrival time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid down trip departure time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
   body("farePerKm")
     .isFloat({ min: 0 })
@@ -129,6 +209,18 @@ export const validateBusUpdate = [
     .trim()
     .notEmpty()
     .withMessage("Operator cannot be empty"),
+  body("busOwnerEmail")
+    .optional()
+    .custom((value, { req }) => {
+      if (!value) return true;
+      if (!EMAIL_REGEX.test(String(value).trim().toLowerCase())) {
+        throw new Error("Invalid bus owner email");
+      }
+      if (req.user?.role === "owner" && value !== req.user.email) {
+        throw new Error("Owners cannot change bus owner email");
+      }
+      return true;
+    }),
   body("totalSeats")
     .optional()
     .isInt({ min: 1 })
@@ -147,54 +239,116 @@ export const validateBusUpdate = [
     .withMessage("Invalid bus type"),
   body("seatLayout")
     .optional()
-    .isArray()
-    .withMessage("Seat layout must be an array"),
-  body("seatLayout.*")
-    .optional()
-    .isArray()
-    .withMessage("Each row must be an array"),
-  body("seatLayout.*.*")
-    .optional()
-    .isInt({ min: 0 })
-    .withMessage("Seat numbers must be positive integers"),
-  body("route")
-    .optional()
-    .custom(async (value) => {
-      if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error("Invalid route ID format");
-      }
-      const route = await mongoose.model("Route").findById(value);
-      if (!route) {
-        throw new Error(`Route with ID ${value} not found`);
+    .custom((value, { req }) => {
+      const { valid, errors } = validateSeatLayoutBlueprint(
+        value,
+        req.body.totalSeats
+      );
+      if (!valid) {
+        throw new Error(errors[0] || "Invalid seat layout");
       }
       return true;
-    })
-    .withMessage("Invalid route ID"),
-  // Forward trip timing validation
-  body("forwardTrip.departureTime")
+    }),
+  body("route")
     .optional()
+    .isObject()
+    .withMessage("Route must be an object"),
+  body("route.routeCode")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Route code cannot be empty")
+    .isLength({ min: 3, max: 10 })
+    .withMessage("Route code must be 3-10 characters"),
+  body("route.origin")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Origin cannot be empty")
+    .isLength({ min: 3, max: 50 })
+    .withMessage("Origin must be 3-50 characters"),
+  body("route.destination")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Destination cannot be empty")
+    .isLength({ min: 3, max: 50 })
+    .withMessage("Destination must be 3-50 characters"),
+  body("route.distance")
+    .optional()
+    .isFloat({ min: 0, max: 10000 })
+    .withMessage("Distance must be between 0 and 10,000 km"),
+  body("route.duration.hours")
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Duration hours must be 0-100"),
+  body("route.duration.minutes")
+    .optional()
+    .isInt({ min: 0, max: 59 })
+    .withMessage("Duration minutes must be 0-59"),
+  body("route.cancellationPolicy.before24h")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Cancellation fee must be between 0-100%"),
+  body("route.cancellationPolicy.before12h")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Cancellation fee must be between 0-100%"),
+  body("route.cancellationPolicy.noShow")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Cancellation fee must be between 0-100%"),
+  body("route.stops")
+    .optional()
+    .isArray({ min: 2 })
+    .withMessage("Route stops must be an array with at least 2 stops"),
+  body("route.stops.*.city")
+    .if(body("route.stops").exists())
+    .notEmpty()
+    .withMessage("Stop city is required"),
+  body("route.stops.*.location")
+    .if(body("route.stops").exists())
+    .isObject()
+    .withMessage("Stop location is required"),
+  body("route.stops.*.location.lat")
+    .if(body("route.stops").exists())
+    .isFloat({ min: -90, max: 90 })
+    .withMessage("Stop latitude must be between -90 and 90"),
+  body("route.stops.*.location.lng")
+    .if(body("route.stops").exists())
+    .isFloat({ min: -180, max: 180 })
+    .withMessage("Stop longitude must be between -180 and 180"),
+  body("route.stops.*.upTrip")
+    .if(body("route.stops").exists())
+    .isObject()
+    .withMessage("Up trip details are required"),
+  body("route.stops.*.upTrip.arrivalTime")
+    .if(body("route.stops").exists())
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid forward departure time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid up trip arrival time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
-  body("forwardTrip.arrivalTime")
-    .optional()
+  body("route.stops.*.upTrip.departureTime")
+    .if(body("route.stops").exists())
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid forward arrival time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid up trip departure time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
-  // Return trip timing validation
-  body("returnTrip.departureTime")
-    .optional()
+  body("route.stops.*.downTrip")
+    .if(body("route.stops").exists())
+    .isObject()
+    .withMessage("Down trip details are required"),
+  body("route.stops.*.downTrip.arrivalTime")
+    .if(body("route.stops").exists())
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid return departure time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid down trip arrival time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
-  body("returnTrip.arrivalTime")
-    .optional()
+  body("route.stops.*.downTrip.departureTime")
+    .if(body("route.stops").exists())
     .custom((value) => validateTimeFormat(value))
     .withMessage(
-      "Invalid return arrival time format. Use HH:MM or {hours: X, minutes: Y}"
+      "Invalid down trip departure time format. Use HH:MM or {hours: X, minutes: Y}"
     ),
   body("farePerKm")
     .optional()
@@ -225,152 +379,6 @@ export const validateBusUpdate = [
           field: err.param,
           message: err.msg,
         })),
-      });
-    }
-    next();
-  },
-];
-
-// Route creation validation
-export const validateRouteCreation = [
-  body("routeCode")
-    .trim()
-    .notEmpty()
-    .withMessage("Route code is required")
-    .isLength({ min: 3, max: 10 })
-    .withMessage("Route code must be 3-10 characters"),
-  body("origin")
-    .trim()
-    .notEmpty()
-    .withMessage("Origin is required")
-    .isLength({ min: 3, max: 50 })
-    .withMessage("Origin must be 3-50 characters"),
-  body("destination")
-    .trim()
-    .notEmpty()
-    .withMessage("Destination is required")
-    .isLength({ min: 3, max: 50 })
-    .withMessage("Destination must be 3-50 characters"),
-  body("stops").optional().isArray().withMessage("Stops must be an array"),
-  body("stops.*.city")
-    .if(body("stops").exists())
-    .notEmpty()
-    .withMessage("Stop city is required"),
-  body("stops.*.arrivalTime")
-    .if(body("stops").exists())
-    .optional()
-    .custom((value) => !value || validateTimeFormat(value))
-    .withMessage(
-      "Invalid arrival time format. Use HH:MM or {hours: X, minutes: Y}"
-    ),
-  body("stops.*.departureTime")
-    .if(body("stops").exists())
-    .optional()
-    .custom((value) => !value || validateTimeFormat(value))
-    .withMessage(
-      "Invalid departure time format. Use HH:MM or {hours: X, minutes: Y}"
-    ),
-  body("stops.*.distanceFromOrigin")
-    .if(body("stops").exists())
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Distance must be a positive number"),
-  body("cancellationPolicy.before24h")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Cancellation fee must be between 0-100%"),
-  body("cancellationPolicy.before12h")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Cancellation fee must be between 0-100%"),
-  body("cancellationPolicy.noShow")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Cancellation fee must be between 0-100%"),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array().map((err) => ({
-          field: err.param,
-          message: err.msg,
-        })),
-        code: "VALIDATION_ERROR",
-      });
-    }
-    next();
-  },
-];
-
-export const validateRouteUpdate = [
-  body("routeCode")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Route code cannot be empty")
-    .isLength({ min: 3, max: 10 })
-    .withMessage("Route code must be 3-10 characters"),
-  body("origin")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Origin cannot be empty")
-    .isLength({ min: 3, max: 50 })
-    .withMessage("Origin must be 3-50 characters"),
-  body("destination")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Destination cannot be empty")
-    .isLength({ min: 3, max: 50 })
-    .withMessage("Destination must be 3-50 characters"),
-  body("stops").optional().isArray().withMessage("Stops must be an array"),
-  body("stops.*.city")
-    .if(body("stops").exists())
-    .notEmpty()
-    .withMessage("Stop city is required"),
-  body("stops.*.arrivalTime")
-    .if(body("stops").exists())
-    .optional()
-    .custom((value) => !value || validateTimeFormat(value))
-    .withMessage(
-      "Invalid arrival time format. Use HH:MM or {hours: X, minutes: Y}"
-    ),
-  body("stops.*.departureTime")
-    .if(body("stops").exists())
-    .optional()
-    .custom((value) => !value || validateTimeFormat(value))
-    .withMessage(
-      "Invalid departure time format. Use HH:MM or {hours: X, minutes: Y}"
-    ),
-  body("stops.*.distanceFromOrigin")
-    .if(body("stops").exists())
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Distance must be a positive number"),
-  body("cancellationPolicy.before24h")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Cancellation fee must be between 0-100%"),
-  body("cancellationPolicy.before12h")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Cancellation fee must be between 0-100%"),
-  body("cancellationPolicy.noShow")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Cancellation fee must be between 0-100%"),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array().map((err) => ({
-          field: err.param,
-          message: err.msg,
-        })),
-        code: "VALIDATION_ERROR",
       });
     }
     next();
@@ -477,8 +485,12 @@ export const validateBookingCreation = [
     .isIn(["male", "female", "other"])
     .withMessage("Invalid gender"),
   body("passengers.*.seatNumber")
-    .isInt({ min: 1 })
-    .withMessage("Invalid seat number"),
+    .custom((value) => {
+      if (!isSeatTokenValid(value)) {
+        throw new Error("Invalid seat identifier");
+      }
+      return true;
+    }),
   body("passengers.*.mobileNumber")
     .matches(/^[6-9]\d{9}$/)
     .withMessage("Invalid mobile number format"),
@@ -498,10 +510,16 @@ export const validateBookingCreation = [
     .notEmpty()
     .withMessage("Dropping point is required"),
   body("sessionId")
-    .optional()
     .trim()
     .notEmpty()
-    .withMessage("Session ID cannot be empty if provided"),
+    .withMessage("Session ID is required"),
+  body("offerCode")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ min: 2, max: 20 })
+    .withMessage("Offer code must be between 2 and 20 characters")
+    .matches(/^[A-Za-z0-9_-]+$/)
+    .withMessage("Offer code may only contain letters, numbers, _ and -"),
   handleValidationErrors,
 ];
 
@@ -534,18 +552,16 @@ export const validateSeatLocking = [
     .isArray({ min: 1, max: 10 })
     .withMessage("Seat numbers must be an array with 1-10 seats")
     .custom((seatNumbers) => {
-      // Check if all elements are positive integers
-      const areValidNumbers = seatNumbers.every(
-        (seat) => Number.isInteger(seat) && seat > 0
-      );
-      if (!areValidNumbers) {
-        throw new Error("All seat numbers must be positive integers");
+      const normalized = seatNumbers.map((seat) => normalizeSeatToken(seat));
+      const areValidTokens = normalized.every((seat) => isSeatTokenValid(seat));
+      if (!areValidTokens) {
+        throw new Error("All seat identifiers must be valid");
       }
 
       // Check for duplicates
-      const uniqueSeats = new Set(seatNumbers);
-      if (uniqueSeats.size !== seatNumbers.length) {
-        throw new Error("Duplicate seat numbers are not allowed");
+      const uniqueSeats = new Set(normalized);
+      if (uniqueSeats.size !== normalized.length) {
+        throw new Error("Duplicate seat identifiers are not allowed");
       }
 
       return true;
@@ -585,11 +601,12 @@ export const validateSeatRelease = [
     .withMessage("Seat numbers must be an array")
     .custom((seatNumbers) => {
       if (seatNumbers && seatNumbers.length > 0) {
-        const areValidNumbers = seatNumbers.every(
-          (seat) => Number.isInteger(seat) && seat > 0
+        const normalized = seatNumbers.map((seat) => normalizeSeatToken(seat));
+        const areValidTokens = normalized.every((seat) =>
+          isSeatTokenValid(seat)
         );
-        if (!areValidNumbers) {
-          throw new Error("All seat numbers must be positive integers");
+        if (!areValidTokens) {
+          throw new Error("All seat identifiers must be valid");
         }
       }
       return true;
@@ -724,7 +741,15 @@ export const validateOfferCreation = [
     .isArray()
     .withMessage("Specific routes must be an array"),
 
-  body("specificRoutes.*").isMongoId().withMessage("Invalid route ID format"),
+  body("specificRoutes.*")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("Route code is required")
+    .isLength({ min: 3, max: 10 })
+    .withMessage("Route code must be 3-10 characters")
+    .matches(/^[A-Za-z0-9-]+$/)
+    .withMessage("Route code may only contain letters, numbers, and dashes"),
 
   body("specificBuses")
     .optional()
@@ -838,8 +863,14 @@ export const validateOfferUpdate = [
 
   body("specificRoutes.*")
     .optional()
-    .isMongoId()
-    .withMessage("Invalid route ID format"),
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("Route code is required")
+    .isLength({ min: 3, max: 10 })
+    .withMessage("Route code must be 3-10 characters")
+    .matches(/^[A-Za-z0-9-]+$/)
+    .withMessage("Route code may only contain letters, numbers, and dashes"),
 
   body("specificBuses")
     .optional()

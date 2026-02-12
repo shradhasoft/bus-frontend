@@ -6,6 +6,13 @@ import {
   cancelBooking,
   changeTravelDate,
   getMyBookings,
+  getMyBookingByRef,
+  downloadMyBookingInvoice,
+  getAdminBookings,
+  getAdminBookingByRef,
+  createAdminBooking,
+  updateAdminBooking,
+  deleteAdminBooking,
   getAllBookings,
   extendSeatLocks,
   validateSeatLocks
@@ -43,7 +50,46 @@ router.patch(
   changeTravelDate
 );
 router.get("/mybookings", protect, getMyBookings);
+router.get("/mybookings/:bookingRef/invoice", protect, downloadMyBookingInvoice);
+router.get("/mybookings/:bookingRef", protect, getMyBookingByRef);
 
-router.get("/getallbookings", protect, authorize("admin"), getAllBookings);
+// Admin booking management
+router.get(
+  "/admin/bookings",
+  protect,
+  authorize("admin", "superadmin"),
+  getAdminBookings
+);
+router.get(
+  "/admin/bookings/:bookingRef",
+  protect,
+  authorize("admin", "superadmin"),
+  getAdminBookingByRef
+);
+router.post(
+  "/admin/bookings",
+  protect,
+  authorize("admin", "superadmin"),
+  createAdminBooking
+);
+router.patch(
+  "/admin/bookings/:bookingRef",
+  protect,
+  authorize("admin", "superadmin"),
+  updateAdminBooking
+);
+router.delete(
+  "/admin/bookings/:bookingRef",
+  protect,
+  authorize("admin", "superadmin"),
+  deleteAdminBooking
+);
+
+router.get(
+  "/getallbookings",
+  protect,
+  authorize("admin", "superadmin"),
+  getAllBookings
+);
 
 export default router;

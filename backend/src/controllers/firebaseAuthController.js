@@ -122,7 +122,7 @@ export const firebaseAuth = async (req, res) => {
   }
 };
 
-export const logout = (req, res) => {
+export const logout = async (req, res) => {
   try {
     // Set cookie options to ensure the cookie is cleared correctly.
     // These options should match the options used when setting the cookie,
@@ -143,6 +143,38 @@ export const logout = (req, res) => {
       sameSite, // Adjust sameSite policy for cross-site requests in production
       path: "/",
     };
+
+    const sessionCookie = req.cookies?.token || null;
+    const authHeader = req.headers.authorization || "";
+    const bearerToken = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+
+    let uid = null;
+
+    if (sessionCookie) {
+      try {
+        const decoded = await auth.verifySessionCookie(sessionCookie, false);
+        uid = decoded.uid;
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Logout: failed to verify session cookie", error.message);
+        }
+      }
+    } else if (bearerToken) {
+      try {
+        const decoded = await auth.verifyIdToken(bearerToken, false);
+        uid = decoded.uid;
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Logout: failed to verify bearer token", error.message);
+        }
+      }
+    }
+
+    if (uid) {
+      await auth.revokeRefreshTokens(uid);
+    }
 
     // Clear the 'token' cookie.
     // The name of the cookie ('token') must match the name used during login.

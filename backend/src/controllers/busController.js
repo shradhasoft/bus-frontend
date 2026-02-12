@@ -1,6 +1,5 @@
 // src/controllers/busController.js
-import { Bus } from "../models/bus.js";
-import { Route } from "../models/route.js";
+import { Bus, validateSeatLayoutBlueprint } from "../models/bus.js";
 import mongoose from "mongoose";
 
 // Generate unique bus ID
@@ -9,22 +8,9 @@ const generateBusId = async () => {
   return lastBus ? lastBus.busId + 1 : 1000;
 };
 
-// Validate seat layout
-const validateSeatLayout = (totalSeats, seatLayout) => {
-  if (!Array.isArray(seatLayout)) return false;
-  let seatCount = 0;
-  const seenSeats = new Set();
-  for (const row of seatLayout) {
-    if (!Array.isArray(row)) return false;
-    for (const seat of row) {
-      if (typeof seat !== "number" || seat < 0 || seenSeats.has(seat))
-        return false;
-      seenSeats.add(seat);
-      seatCount++;
-    }
-  }
-  return seatCount === totalSeats;
-};
+// Validate seat layout blueprint
+const validateSeatLayout = (totalSeats, seatLayout) =>
+  validateSeatLayoutBlueprint(seatLayout, totalSeats);
 
 // Helper function to parse time string to time object
 const parseTimeString = (timeStr) => {
@@ -36,8 +22,190 @@ const parseTimeString = (timeStr) => {
     return timeStr;
   }
 
+  if (typeof timeStr !== "string") {
+    return timeStr;
+  }
+
   const [hours, minutes] = timeStr.split(":").map(Number);
   return { hours, minutes };
+};
+
+const normalizeTripStop = (tripStop) => {
+  if (!tripStop || typeof tripStop !== "object") return tripStop;
+  const { distanceFromOrigin, ...rest } = tripStop;
+  return {
+    ...rest,
+    arrivalTime: parseTimeString(tripStop.arrivalTime),
+    departureTime: parseTimeString(tripStop.departureTime),
+  };
+};
+
+const normalizeRouteData = (route) => {
+  if (!route || typeof route !== "object") return route;
+  const { distance, duration, ...restRoute } = route;
+  const normalizedStops = Array.isArray(route.stops)
+    ? route.stops.map((stop) => ({
+        ...stop,
+        upTrip: normalizeTripStop(stop.upTrip),
+        downTrip: normalizeTripStop(stop.downTrip),
+      }))
+    : route.stops;
+
+  return {
+    ...restRoute,
+    stops: normalizedStops,
+  };
+};
+
+const buildBusQuery = ({ search, status }, user) => {
+  const query = {};
+
+  const role = String(user?.role || "").toLowerCase();
+  if (role === "owner") {
+    if (user?.email) {
+      query.busOwnerEmail = String(user.email).toLowerCase();
+    } else {
+      query.createdBy = user.id;
+    }
+  }
+
+  if (status === "active") {
+    query.isActive = true;
+  } else if (status === "inactive") {
+    query.isActive = false;
+  }
+
+  if (typeof search === "string" && search.trim()) {
+    const regex = new RegExp(search.trim(), "i");
+    query.$or = [
+      { busName: regex },
+      { busNumber: regex },
+      { operator: regex },
+      { busOwnerEmail: regex },
+      { "route.routeCode": regex },
+      { "route.origin": regex },
+      { "route.destination": regex },
+    ];
+  }
+
+  return query;
+};
+
+// List buses for management views
+export const listBuses = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, status } = req.query;
+    const pageInt = Number.parseInt(page, 10);
+    const limitInt = Number.parseInt(limit, 10);
+
+    if (Number.isNaN(pageInt) || pageInt < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid page number",
+        code: "INVALID_PAGE",
+      });
+    }
+
+    if (Number.isNaN(limitInt) || limitInt < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid limit value",
+        code: "INVALID_LIMIT",
+      });
+    }
+
+    if (limitInt > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum limit is 100",
+        code: "MAX_LIMIT_EXCEEDED",
+      });
+    }
+
+    const query = buildBusQuery({ search, status }, req.user);
+    query.isDeleted = false;
+
+    const projection =
+      "busId busName busNumber operator busOwnerEmail totalSeats availableSeats isActive isDeleted createdAt updatedAt features farePerKm operatingDays model year route.routeCode route.origin route.destination";
+
+    const [buses, total] = await Promise.all([
+      Bus.find(query)
+        .select(projection)
+        .sort({ createdAt: -1 })
+        .skip((pageInt - 1) * limitInt)
+        .limit(limitInt)
+        .lean(),
+      Bus.countDocuments(query),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limitInt));
+    const hasNext = pageInt < totalPages;
+    const hasPrevious = pageInt > 1;
+
+    return res.json({
+      success: true,
+      message: "Buses retrieved successfully",
+      data: {
+        buses,
+        page: pageInt,
+        limit: limitInt,
+        total,
+        totalPages,
+        hasNext,
+        hasPrevious,
+      },
+    });
+  } catch (error) {
+    console.error("List buses error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load buses",
+      code: "SERVER_ERROR",
+    });
+  }
+};
+
+// Get full bus details for management views
+export const getBusById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid bus ID format",
+        code: "INVALID_ID",
+      });
+    }
+
+    const query = { _id: id, isDeleted: false };
+    const role = String(req.user?.role || "").toLowerCase();
+    if (role === "owner") {
+      query.createdBy = req.user.id;
+    }
+
+    const bus = await Bus.findOne(query).lean();
+    if (!bus) {
+      return res.status(404).json({
+        success: false,
+        message: "Bus not found",
+        code: "BUS_NOT_FOUND",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Bus retrieved successfully",
+      data: { bus },
+    });
+  } catch (error) {
+    console.error("Get bus error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load bus details",
+      code: "SERVER_ERROR",
+    });
+  }
 };
 
 // Add new bus
@@ -50,11 +218,12 @@ export const addBus = async (req, res) => {
       busName,
       busNumber,
       operator,
+      busOwnerEmail,
       totalSeats,
       amenities,
       features,
       seatLayout,
-      route: routeId,
+      route,
       forwardTrip,
       returnTrip,
       farePerKm,
@@ -70,10 +239,9 @@ export const addBus = async (req, res) => {
       "busNumber",
       "operator",
       "totalSeats",
+      "seatLayout",
       "features",
       "route",
-      "forwardTrip",
-      "returnTrip",
       "farePerKm",
     ];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
@@ -84,21 +252,14 @@ export const addBus = async (req, res) => {
       });
     }
 
-    // Validate route exists
-    const route = await Route.findById(routeId).session(session);
-    if (!route) {
-      return res.status(404).json({
-        success: false,
-        message: `Route with ID ${routeId} not found`,
-        code: "ROUTE_NOT_FOUND",
-      });
-    }
-
     // Validate seat layout
-    if (!validateSeatLayout(totalSeats, seatLayout)) {
+    const seatLayoutValidation = validateSeatLayout(totalSeats, seatLayout);
+    if (!seatLayoutValidation.valid) {
       return res.status(400).json({
         success: false,
-        message: "Invalid seat layout structure or seat numbers",
+        message:
+          seatLayoutValidation.errors?.[0] ||
+          "Invalid seat layout blueprint",
       });
     }
 
@@ -119,29 +280,50 @@ export const addBus = async (req, res) => {
       });
     }
 
-    // Parse timing data
-    const parsedForwardTrip = {
-      departureTime: parseTimeString(forwardTrip.departureTime),
-      arrivalTime: parseTimeString(forwardTrip.arrivalTime),
-    };
+    const resolvedOwnerEmail =
+      req.user?.role === "owner"
+        ? req.user.email
+        : typeof busOwnerEmail === "string"
+          ? busOwnerEmail
+          : "";
 
-    const parsedReturnTrip = {
-      departureTime: parseTimeString(returnTrip.departureTime),
-      arrivalTime: parseTimeString(returnTrip.arrivalTime),
-    };
+    if (!resolvedOwnerEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Bus owner email is required",
+      });
+    }
+
+    // Parse timing data
+    const parsedForwardTrip = forwardTrip
+      ? {
+          departureTime: parseTimeString(forwardTrip.departureTime),
+          arrivalTime: parseTimeString(forwardTrip.arrivalTime),
+        }
+      : undefined;
+
+    const parsedReturnTrip = returnTrip
+      ? {
+          departureTime: parseTimeString(returnTrip.departureTime),
+          arrivalTime: parseTimeString(returnTrip.arrivalTime),
+        }
+      : undefined;
 
     // Create and save new bus
     const busId = await generateBusId();
+    const normalizedRoute = normalizeRouteData(route);
+
     const bus = new Bus({
       busId,
       busName,
       busNumber,
       operator,
+      busOwnerEmail: resolvedOwnerEmail.trim().toLowerCase(),
       totalSeats,
       amenities: amenities || {},
       features,
       seatLayout,
-      route: routeId,
+      route: normalizedRoute,
       forwardTrip: parsedForwardTrip,
       returnTrip: parsedReturnTrip,
       farePerKm,
@@ -155,16 +337,9 @@ export const addBus = async (req, res) => {
 
     await bus.save({ session });
 
-    // Update route with new bus reference
-    route.buses.push(bus._id);
-    await route.save({ session });
-
     await session.commitTransaction();
 
-    // Populate relationships for response
-    const populatedBus = await Bus.findById(bus._id)
-      .populate("routeDetails")
-      .lean();
+    const populatedBus = await Bus.findById(bus._id).lean();
 
     res.status(201).json({
       success: true,
@@ -258,10 +433,11 @@ export const updateBus = async (req, res) => {
       const newLayout = updates.seatLayout || bus.seatLayout;
       const newTotalSeats = updates.totalSeats || bus.totalSeats;
 
-      if (!validateSeatLayout(newTotalSeats, newLayout)) {
+      const seatLayoutCheck = validateSeatLayout(newTotalSeats, newLayout);
+      if (!seatLayoutCheck.valid) {
         return res.status(400).json({
           success: false,
-          message: "Invalid seat layout",
+          message: seatLayoutCheck.errors?.[0] || "Invalid seat layout",
           code: "INVALID_SEAT_LAYOUT",
         });
       }
@@ -282,27 +458,31 @@ export const updateBus = async (req, res) => {
       }
     }
 
+    if (updates.busOwnerEmail) {
+      if (req.user?.role === "owner") {
+        updates.busOwnerEmail = req.user.email;
+      }
+    }
+
     // Handle route changes
     if (updates.route) {
-      const newRoute = await Route.findById(updates.route).session(session);
-      if (!newRoute) {
-        return res.status(404).json({
-          success: false,
-          message: "Route not found",
-          code: "ROUTE_NOT_FOUND",
-        });
-      }
-
-      if (!bus.route.equals(newRoute._id)) {
-        const oldRoute = await Route.findById(bus.route).session(session);
-        if (oldRoute) {
-          oldRoute.buses.pull(bus._id);
-          await oldRoute.save({ session });
-        }
-
-        newRoute.buses.push(bus._id);
-        await newRoute.save({ session });
-      }
+      const baseRoute = bus.route?.toObject
+        ? bus.route.toObject()
+        : bus.route;
+      const mergedRoute = {
+        ...baseRoute,
+        ...updates.route,
+        duration: {
+          ...(baseRoute?.duration || {}),
+          ...(updates.route?.duration || {}),
+        },
+        cancellationPolicy: {
+          ...(baseRoute?.cancellationPolicy || {}),
+          ...(updates.route?.cancellationPolicy || {}),
+        },
+        stops: updates.route?.stops ?? baseRoute?.stops,
+      };
+      updates.route = normalizeRouteData(mergedRoute);
     }
 
     // Parse timing updates if provided
@@ -337,11 +517,13 @@ export const updateBus = async (req, res) => {
       "busName",
       "busNumber",
       "operator",
+      "busOwnerEmail",
       "conductor",
       "totalSeats",
       "amenities",
       "features",
       "seatLayout",
+      "route",
       "forwardTrip",
       "returnTrip",
       "farePerKm",
@@ -370,7 +552,7 @@ export const updateBus = async (req, res) => {
     await bus.save({ session });
     await session.commitTransaction();
 
-    const updatedBus = await Bus.findById(id).populate("routeDetails").lean();
+    const updatedBus = await Bus.findById(id).lean();
 
     res.json({
       success: true,
@@ -449,13 +631,6 @@ export const deleteBus = async (req, res) => {
     bus.isActive = false;
     bus.updatedBy = userId;
     await bus.save({ session });
-
-    // Remove from route
-    const route = await Route.findById(bus.route).session(session);
-    if (route) {
-      route.buses.pull(bus._id);
-      await route.save({ session });
-    }
 
     await session.commitTransaction();
 
