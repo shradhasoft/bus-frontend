@@ -77,6 +77,21 @@ type BusRouteStop = {
   };
 };
 
+type CurrentUserProfile = {
+  role?: string | null;
+  email?: string | null;
+};
+
+type ApiErrorPayload = {
+  message?: string;
+  errors?: Array<{
+    field?: string;
+    message?: string;
+  }>;
+  error?: string;
+  details?: string;
+};
+
 type RouteStopForm = {
   city: string;
   lat: string;
@@ -327,19 +342,22 @@ const parseNumber = (value: string) => {
 const isValidTimeInput = (value: string) =>
   /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value);
 
-const buildApiErrorMessage = (payload: any) => {
+const buildApiErrorMessage = (payload: unknown) => {
   if (!payload || typeof payload !== "object") {
     return "Unable to save bus.";
   }
 
+  const normalizedPayload = payload as ApiErrorPayload;
+
   const baseMessage =
-    typeof payload.message === "string" && payload.message.trim()
-      ? payload.message
+    typeof normalizedPayload.message === "string" &&
+    normalizedPayload.message.trim()
+      ? normalizedPayload.message
       : "Unable to save bus.";
 
-  if (Array.isArray(payload.errors) && payload.errors.length > 0) {
-    const details = payload.errors
-      .map((error: any) => {
+  if (Array.isArray(normalizedPayload.errors) && normalizedPayload.errors.length > 0) {
+    const details = normalizedPayload.errors
+      .map((error) => {
         const field =
           typeof error?.field === "string" && error.field.trim()
             ? error.field
@@ -354,12 +372,18 @@ const buildApiErrorMessage = (payload: any) => {
     return `${baseMessage}: ${details}`;
   }
 
-  if (typeof payload.error === "string" && payload.error.trim()) {
-    return `${baseMessage}: ${payload.error}`;
+  if (
+    typeof normalizedPayload.error === "string" &&
+    normalizedPayload.error.trim()
+  ) {
+    return `${baseMessage}: ${normalizedPayload.error}`;
   }
 
-  if (typeof payload.details === "string" && payload.details.trim()) {
-    return `${baseMessage}: ${payload.details}`;
+  if (
+    typeof normalizedPayload.details === "string" &&
+    normalizedPayload.details.trim()
+  ) {
+    return `${baseMessage}: ${normalizedPayload.details}`;
   }
 
   return baseMessage;
@@ -784,6 +808,8 @@ const ManageBusesPage = () => {
   const [ownerOptions, setOwnerOptions] = useState<OwnerOption[]>([]);
   const [ownerLoading, setOwnerLoading] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState("");
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [activeStopIndex, setActiveStopIndex] = useState<number | null>(null);
   const [geoQuery, setGeoQuery] = useState("");
@@ -800,6 +826,7 @@ const ManageBusesPage = () => {
     if (!total) return 1;
     return Math.max(1, Math.ceil(total / limit));
   }, [limit, total]);
+  const isOwnerUser = currentUserRole === "owner";
 
   const seatLayoutPreview = useMemo(
     () => buildSeatLayoutFromForm(formState),
@@ -883,7 +910,7 @@ const ManageBusesPage = () => {
           updateStopAtIndex(activeStopIndex, { city: result.name });
           setGeoQuery(result.name);
         }
-      } catch (err) {
+      } catch {
         setGeoError("Unable to look up the selected location.");
       }
     },
@@ -1016,6 +1043,12 @@ const ManageBusesPage = () => {
 
   const loadOwners = useCallback(
     async (query: string, signal: AbortSignal) => {
+      if (isOwnerUser) {
+        setOwnerOptions([]);
+        setOwnerError(null);
+        setOwnerLoading(false);
+        return;
+      }
       setOwnerLoading(true);
       setOwnerError(null);
       try {
@@ -1062,8 +1095,44 @@ const ManageBusesPage = () => {
         setOwnerLoading(false);
       }
     },
-    []
+    [isOwnerUser]
   );
+
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
+    const loadCurrentUser = async () => {
+      try {
+        const response = await fetch(apiUrl("/profile/view"), {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+
+        const payload = await response.json().catch(() => ({}));
+        const user = (payload?.data?.user ?? {}) as CurrentUserProfile;
+        if (!mounted) return;
+
+        const nextRole =
+          typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
+        const nextEmail =
+          typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+        setCurrentUserRole(nextRole);
+        setCurrentUserEmail(nextEmail);
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+      }
+    };
+
+    void loadCurrentUser();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1080,7 +1149,7 @@ const ManageBusesPage = () => {
   }, [searchInput]);
 
   useEffect(() => {
-    if (!formOpen || formMode === "view") return;
+    if (!formOpen || formMode === "view" || isOwnerUser) return;
     const controller = new AbortController();
     const handle = window.setTimeout(() => {
       void loadOwners(ownerSearch, controller.signal);
@@ -1089,7 +1158,21 @@ const ManageBusesPage = () => {
       window.clearTimeout(handle);
       controller.abort();
     };
-  }, [formOpen, formMode, ownerSearch, loadOwners]);
+  }, [formOpen, formMode, ownerSearch, loadOwners, isOwnerUser]);
+
+  useEffect(() => {
+    if (!formOpen || formMode !== "create" || !isOwnerUser || !currentUserEmail) {
+      return;
+    }
+
+    setFormState((prev) => {
+      if (prev.busOwnerEmail.trim()) return prev;
+      return {
+        ...prev,
+        busOwnerEmail: currentUserEmail,
+      };
+    });
+  }, [currentUserEmail, formMode, formOpen, isOwnerUser]);
 
   useEffect(() => {
     if (!formOpen || formMode === "view") return;
@@ -1131,7 +1214,12 @@ const ManageBusesPage = () => {
   const openCreate = () => {
     setFormMode("create");
     setSelectedBus(null);
-    setFormState(draftRef.current.create ?? DEFAULT_FORM);
+    const createDraft = draftRef.current.create ?? DEFAULT_FORM;
+    const ownerEmail = isOwnerUser ? currentUserEmail : createDraft.busOwnerEmail;
+    setFormState({
+      ...createDraft,
+      busOwnerEmail: ownerEmail || createDraft.busOwnerEmail,
+    });
     setFormError(null);
     setFormOpen(true);
   };
@@ -1180,12 +1268,18 @@ const ManageBusesPage = () => {
       return;
     }
 
-    if (!formState.busOwnerEmail.trim()) {
+    const resolvedBusOwnerEmail = (
+      isOwnerUser ? currentUserEmail || formState.busOwnerEmail : formState.busOwnerEmail
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!resolvedBusOwnerEmail) {
       setFormError("Bus owner email is required.");
       return;
     }
 
-    if (!EMAIL_REGEX.test(formState.busOwnerEmail.trim().toLowerCase())) {
+    if (!EMAIL_REGEX.test(resolvedBusOwnerEmail)) {
       setFormError("Bus owner email must be a valid email address.");
       return;
     }
@@ -1258,7 +1352,7 @@ const ManageBusesPage = () => {
         busName: formState.busName.trim(),
         busNumber: formState.busNumber.trim().toUpperCase(),
         operator: formState.operator.trim(),
-        busOwnerEmail: formState.busOwnerEmail.trim().toLowerCase(),
+        busOwnerEmail: resolvedBusOwnerEmail,
         totalSeats,
         amenities: formState.amenities,
         features: {
@@ -1831,22 +1925,33 @@ const ManageBusesPage = () => {
                       }))
                     }
                     placeholder="owner@example.com"
-                    disabled={isReadOnly || submitting}
+                    disabled={isReadOnly || submitting || isOwnerUser}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Find owner
-                  </label>
-                  <Input
-                    value={ownerSearch}
-                    onChange={(event) => setOwnerSearch(event.target.value)}
-                    placeholder="Search by name or email..."
-                    disabled={isReadOnly || submitting}
-                  />
-                </div>
+                {isOwnerUser ? (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Owner source
+                    </label>
+                    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                      Linked to your signed-in owner account.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Find owner
+                    </label>
+                    <Input
+                      value={ownerSearch}
+                      onChange={(event) => setOwnerSearch(event.target.value)}
+                      placeholder="Search by name or email..."
+                      disabled={isReadOnly || submitting}
+                    />
+                  </div>
+                )}
               </div>
-              {formMode !== "view" ? (
+              {formMode !== "view" && !isOwnerUser ? (
                 <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-3 text-sm text-slate-600 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
