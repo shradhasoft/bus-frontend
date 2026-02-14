@@ -57,38 +57,69 @@ const normalizeRouteData = (route) => {
   };
 };
 
-const buildBusQuery = ({ search, status }, user) => {
-  const query = {};
+const normalizeRole = (role) => String(role || "").toLowerCase();
 
-  const role = String(user?.role || "").toLowerCase();
-  if (role === "owner") {
-    if (user?.email) {
-      query.busOwnerEmail = String(user.email).toLowerCase();
-    } else {
-      query.createdBy = user.id;
-    }
+const resolveUserId = (user) => {
+  const rawUserId = user?._id ?? user?.id;
+  if (!rawUserId) return null;
+  const userId = String(rawUserId);
+  return mongoose.Types.ObjectId.isValid(userId) ? userId : null;
+};
+
+const buildOwnerAccessQuery = (user) => {
+  if (normalizeRole(user?.role) !== "owner") return null;
+
+  const clauses = [];
+  const email =
+    typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
+  const userId = resolveUserId(user);
+
+  if (email) {
+    clauses.push({ busOwnerEmail: email });
+  }
+  if (userId) {
+    clauses.push({ createdBy: userId });
+  }
+
+  if (clauses.length === 0) {
+    // Fail closed for malformed owner sessions.
+    return { _id: null };
+  }
+
+  return clauses.length === 1 ? clauses[0] : { $or: clauses };
+};
+
+const buildBusQuery = ({ search, status }, user) => {
+  const filters = [];
+  const ownerAccessQuery = buildOwnerAccessQuery(user);
+  if (ownerAccessQuery) {
+    filters.push(ownerAccessQuery);
   }
 
   if (status === "active") {
-    query.isActive = true;
+    filters.push({ isActive: true });
   } else if (status === "inactive") {
-    query.isActive = false;
+    filters.push({ isActive: false });
   }
 
   if (typeof search === "string" && search.trim()) {
     const regex = new RegExp(search.trim(), "i");
-    query.$or = [
-      { busName: regex },
-      { busNumber: regex },
-      { operator: regex },
-      { busOwnerEmail: regex },
-      { "route.routeCode": regex },
-      { "route.origin": regex },
-      { "route.destination": regex },
-    ];
+    filters.push({
+      $or: [
+        { busName: regex },
+        { busNumber: regex },
+        { operator: regex },
+        { busOwnerEmail: regex },
+        { "route.routeCode": regex },
+        { "route.origin": regex },
+        { "route.destination": regex },
+      ],
+    });
   }
 
-  return query;
+  if (filters.length === 0) return {};
+  if (filters.length === 1) return filters[0];
+  return { $and: filters };
 };
 
 // List buses for management views
@@ -122,8 +153,11 @@ export const listBuses = async (req, res) => {
       });
     }
 
-    const query = buildBusQuery({ search, status }, req.user);
-    query.isDeleted = false;
+    const scopedQuery = buildBusQuery({ search, status }, req.user);
+    const query = {
+      ...scopedQuery,
+      isDeleted: false,
+    };
 
     const projection =
       "busId busName busNumber operator busOwnerEmail totalSeats availableSeats isActive isDeleted createdAt updatedAt features farePerKm operatingDays model year route.routeCode route.origin route.destination";
@@ -179,9 +213,9 @@ export const getBusById = async (req, res) => {
     }
 
     const query = { _id: id, isDeleted: false };
-    const role = String(req.user?.role || "").toLowerCase();
-    if (role === "owner") {
-      query.createdBy = req.user.id;
+    const ownerAccessQuery = buildOwnerAccessQuery(req.user);
+    if (ownerAccessQuery) {
+      Object.assign(query, ownerAccessQuery);
     }
 
     const bus = await Bus.findOne(query).lean();
@@ -280,11 +314,14 @@ export const addBus = async (req, res) => {
       });
     }
 
+    const normalizedRole = normalizeRole(req.user?.role);
     const resolvedOwnerEmail =
-      req.user?.role === "owner"
-        ? req.user.email
+      normalizedRole === "owner"
+        ? typeof req.user?.email === "string"
+          ? req.user.email.trim().toLowerCase()
+          : ""
         : typeof busOwnerEmail === "string"
-          ? busOwnerEmail
+          ? busOwnerEmail.trim().toLowerCase()
           : "";
 
     if (!resolvedOwnerEmail) {
@@ -332,7 +369,7 @@ export const addBus = async (req, res) => {
       insurance: insurance || {},
       operatingDays,
       availableSeats: totalSeats,
-      createdBy: req.user.id,
+      createdBy: resolveUserId(req.user) ?? req.user.id,
     });
 
     await bus.save({ session });
@@ -391,7 +428,8 @@ export const updateBus = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const userId = req.user.id;
+    const userId = resolveUserId(req.user) ?? req.user.id;
+    const normalizedRole = normalizeRole(req.user?.role);
 
     // Validate ID format
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -402,9 +440,15 @@ export const updateBus = async (req, res) => {
       });
     }
 
-    // Find bus and check existence
-    const bus = await Bus.findById(id).session(session);
-    if (!bus || bus.isDeleted) {
+    // Find bus and check existence within caller ownership scope.
+    const busQuery = { _id: id, isDeleted: false };
+    const ownerAccessQuery = buildOwnerAccessQuery(req.user);
+    if (ownerAccessQuery) {
+      Object.assign(busQuery, ownerAccessQuery);
+    }
+
+    const bus = await Bus.findOne(busQuery).session(session);
+    if (!bus) {
       return res.status(404).json({
         success: false,
         message: "Bus not found",
@@ -458,10 +502,16 @@ export const updateBus = async (req, res) => {
       }
     }
 
-    if (updates.busOwnerEmail) {
-      if (req.user?.role === "owner") {
-        updates.busOwnerEmail = req.user.email;
+    if (normalizedRole === "owner") {
+      const ownerEmail =
+        typeof req.user?.email === "string"
+          ? req.user.email.trim().toLowerCase()
+          : "";
+      if (ownerEmail) {
+        updates.busOwnerEmail = ownerEmail;
       }
+    } else if (typeof updates.busOwnerEmail === "string") {
+      updates.busOwnerEmail = updates.busOwnerEmail.trim().toLowerCase();
     }
 
     // Handle route changes
@@ -592,7 +642,7 @@ export const deleteBus = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = resolveUserId(req.user) ?? req.user.id;
 
     // Validate ID format
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -603,9 +653,15 @@ export const deleteBus = async (req, res) => {
       });
     }
 
-    // Find bus
-    const bus = await Bus.findById(id).session(session);
-    if (!bus || bus.isDeleted) {
+    // Find bus within caller ownership scope.
+    const busQuery = { _id: id, isDeleted: false };
+    const ownerAccessQuery = buildOwnerAccessQuery(req.user);
+    if (ownerAccessQuery) {
+      Object.assign(busQuery, ownerAccessQuery);
+    }
+
+    const bus = await Bus.findOne(busQuery).session(session);
+    if (!bus) {
       return res.status(404).json({
         success: false,
         message: "Bus not found",
