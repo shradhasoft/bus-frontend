@@ -12,8 +12,23 @@ const ROLE_LABELS: Record<string, string> = {
   user: "User",
 };
 
+type ImpersonationStatus = {
+  active: boolean;
+  actor?: {
+    fullName?: string | null;
+    role?: string | null;
+  } | null;
+  target?: {
+    fullName?: string | null;
+    role?: string | null;
+  } | null;
+};
+
 const Navbar = () => {
   const [profileRole, setProfileRole] = useState<string | null>(null);
+  const [impersonationStatus, setImpersonationStatus] = useState<ImpersonationStatus>({
+    active: false,
+  });
 
   useEffect(() => {
     let active = true;
@@ -54,9 +69,62 @@ const Navbar = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const loadImpersonationStatus = async () => {
+      try {
+        const response = await fetch(apiUrl("/admin/impersonation/status"), {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (active) {
+            setImpersonationStatus({ active: false });
+          }
+          return;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        const data = payload?.data ?? {};
+        if (!active) return;
+
+        setImpersonationStatus({
+          active: data?.active === true,
+          actor: data?.actor ?? null,
+          target: data?.target ?? null,
+        });
+      } catch (error) {
+        if (active && (error as Error).name !== "AbortError") {
+          setImpersonationStatus({ active: false });
+        }
+      }
+    };
+
+    void loadImpersonationStatus();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
   const roleLabel = profileRole
     ? ROLE_LABELS[profileRole] ?? profileRole
     : "Control Room";
+
+  const actorRole = String(impersonationStatus.actor?.role || "").toLowerCase();
+  const targetRole = String(impersonationStatus.target?.role || "").toLowerCase();
+  const actorRoleLabel =
+    ROLE_LABELS[actorRole] || impersonationStatus.actor?.role || "Admin";
+  const targetRoleLabel =
+    ROLE_LABELS[targetRole] || impersonationStatus.target?.role || "User";
+  const actorName = impersonationStatus.actor?.fullName || "Admin";
+  const targetName = impersonationStatus.target?.fullName || "Target user";
 
   return (
     <div className="flex h-full items-center justify-between border-b border-slate-200/80 bg-white/80 px-6 text-slate-700 backdrop-blur dark:border-white/10 dark:bg-[#0b1020]/90 dark:text-slate-200">
@@ -71,6 +139,14 @@ const Navbar = () => {
         >
           Search
         </button>
+        {impersonationStatus.active ? (
+          <div className="hidden items-center gap-2 rounded-2xl border border-indigo-200/80 bg-indigo-50 px-3 py-2 text-[11px] font-semibold text-indigo-700 lg:flex dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-100">
+            <span className="uppercase tracking-[0.12em]">Impersonating</span>
+            <span>
+              {targetName} ({targetRoleLabel}) as {actorName} ({actorRoleLabel})
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-3">

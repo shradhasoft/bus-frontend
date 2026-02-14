@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, isSameDay, parse, startOfDay } from "date-fns";
 import {
   ArrowLeftRight,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiUrl } from "@/lib/api";
+import { subscribeAuthSessionChanged } from "@/lib/auth-events";
 import { cn } from "@/lib/utils";
 
 type BusSearchParams = {
@@ -97,6 +98,7 @@ const BusSearchForm = ({
 
   const fromRef = useRef<HTMLDivElement | null>(null);
   const toRef = useRef<HTMLDivElement | null>(null);
+  const stopsRequestControllerRef = useRef<AbortController | null>(null);
 
   const isToday = isSameDay(departureDate, today);
   const isTomorrow = isSameDay(departureDate, tomorrow);
@@ -114,56 +116,65 @@ const BusSearchForm = ({
     if (parsed) setDepartureDate(parsed);
   }, [initialDate]);
 
-  useEffect(() => {
-    let active = true;
+  const loadStops = useCallback(async () => {
+    stopsRequestControllerRef.current?.abort();
     const controller = new AbortController();
+    stopsRequestControllerRef.current = controller;
 
-    const loadStops = async () => {
-      setStopsLoading(true);
-      setStopsError(null);
+    setStopsLoading(true);
+    setStopsError(null);
 
-      try {
-        const response = await fetch(apiUrl("/stops?limit=200"), {
-          method: "GET",
-          credentials: "include",
-          signal: controller.signal,
-        });
+    try {
+      const response = await fetch(apiUrl("/stops?limit=200"), {
+        method: "GET",
+        credentials: "include",
+        signal: controller.signal,
+      });
 
-        const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
 
-        if (!response.ok) {
-          const message =
-            response.status === 401
-              ? "Sign in to see stop suggestions."
-              : data?.message || "Unable to load stops right now.";
-          if (active) setStopsError(message);
-          return;
+      if (!response.ok) {
+        const message =
+          response.status === 401
+            ? "Sign in to see stop suggestions."
+            : data?.message || "Unable to load stops right now.";
+        if (!controller.signal.aborted) {
+          setStops([]);
+          setStopsError(message);
         }
-
-        const fetchedStops = Array.isArray(data?.data?.stops)
-          ? data.data.stops
-          : [];
-
-        if (active) {
-          setStops(fetchedStops);
-        }
-      } catch (error) {
-        if ((error as Error).name === "AbortError") return;
-        if (active) {
-          setStopsError("Unable to load stops right now.");
-        }
-      } finally {
-        if (active) setStopsLoading(false);
+        return;
       }
-    };
 
-    loadStops();
+      const fetchedStops = Array.isArray(data?.data?.stops) ? data.data.stops : [];
 
-    return () => {
-      active = false;
-      controller.abort();
-    };
+      if (!controller.signal.aborted) {
+        setStops(fetchedStops);
+      }
+    } catch (error) {
+      if ((error as Error).name === "AbortError") return;
+      if (!controller.signal.aborted) {
+        setStops([]);
+        setStopsError("Unable to load stops right now.");
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setStopsLoading(false);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    void loadStops();
+    return () => {
+      stopsRequestControllerRef.current?.abort();
+    };
+  }, [loadStops]);
+
+  useEffect(() => {
+    return subscribeAuthSessionChanged(() => {
+      void loadStops();
+    });
+  }, [loadStops]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

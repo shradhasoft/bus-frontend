@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Plus, Search, Trash2, UserRound, Pencil } from "lucide-react";
+import { Eye, LogIn, Plus, Search, Trash2, UserRound, Pencil } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/api";
+import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +69,17 @@ const DEFAULT_FORM: UserFormState = {
   isBlocked: false,
 };
 
+const IMPERSONATABLE_ROLES = new Set(["owner", "conductor"]);
+
+const getRoleDashboardPath = (role?: string | null) => {
+  const normalized = String(role || "").toLowerCase();
+  if (normalized === "owner") return "/bus-owner/dashboard";
+  if (normalized === "conductor") return "/conductor/dashboard";
+  if (normalized === "admin") return "/admin/dashboard";
+  if (normalized === "superadmin") return "/super-admin/dashboard";
+  return "/dashboard";
+};
+
 const formatDate = (value?: string) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -95,6 +108,7 @@ const normalizeRoleLabel = (role?: string | null) =>
   ROLE_LABELS[role ?? ""] ?? role ?? "User";
 
 const ManageUsersPage = () => {
+  const router = useRouter();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -112,6 +126,9 @@ const ManageUsersPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(
+    null
+  );
 
   const totalPages = useMemo(() => {
     if (!total) return 1;
@@ -252,7 +269,7 @@ const ManageUsersPage = () => {
       const endpoint =
         formMode === "create"
           ? apiUrl("/admin/users")
-          : apiUrl(`/admin/users/${selectedUser._id}`);
+          : apiUrl(`/admin/users/${selectedUser!._id}`);
 
       const response = await fetch(endpoint, {
         method: formMode === "create" ? "POST" : "PATCH",
@@ -302,6 +319,39 @@ const ManageUsersPage = () => {
       setDeleting(false);
     }
   };
+
+  const handleImpersonate = useCallback(
+    async (user: UserRecord) => {
+      if (!user?._id) return;
+
+      setError(null);
+      setImpersonatingUserId(user._id);
+      try {
+        const response = await fetch(apiUrl("/admin/impersonation/start"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user._id }),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.message || "Unable to start impersonation.");
+        }
+
+        const redirectPath =
+          payload?.data?.redirectPath || getRoleDashboardPath(user.role);
+        dispatchAuthSessionChangedEvent();
+        router.replace(redirectPath);
+        router.refresh();
+      } catch (err) {
+        setError((err as Error).message || "Unable to start impersonation.");
+      } finally {
+        setImpersonatingUserId(null);
+      }
+    },
+    [router]
+  );
 
   const startIndex = total === 0 ? 0 : (page - 1) * limit + 1;
   const endIndex = total === 0 ? 0 : Math.min(page * limit, total);
@@ -436,9 +486,9 @@ const ManageUsersPage = () => {
                     <td className="px-6 py-4 text-slate-700 dark:text-slate-200">
                       {formatDate(user.updatedAt)}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
+	                    <td className="px-6 py-4">
+	                      <div className="flex flex-wrap items-center gap-2">
+	                        <button
                           type="button"
                           onClick={() => openView(user)}
                           className="inline-flex items-center gap-1 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200"
@@ -460,11 +510,30 @@ const ManageUsersPage = () => {
                           className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:-translate-y-0.5 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+	                          Delete
+	                        </button>
+	                        {IMPERSONATABLE_ROLES.has(
+	                          String(user.role || "").toLowerCase()
+	                        ) ? (
+	                          <button
+	                            type="button"
+	                            onClick={() => void handleImpersonate(user)}
+	                            disabled={
+	                              impersonatingUserId === user._id ||
+	                              user.isActive === false ||
+	                              user.isBlocked === true
+	                            }
+	                            className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-500/40 dark:bg-indigo-500/15 dark:text-indigo-200"
+	                          >
+	                            <LogIn className="h-3.5 w-3.5" />
+	                            {impersonatingUserId === user._id
+	                              ? "Impersonating..."
+	                              : "Impersonate"}
+	                          </button>
+	                        ) : null}
+	                      </div>
+	                    </td>
+	                  </tr>
                 ))
               )}
             </tbody>

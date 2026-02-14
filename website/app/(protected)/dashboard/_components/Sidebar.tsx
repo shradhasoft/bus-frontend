@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   BadgeCheck,
@@ -12,7 +12,10 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  Loader2,
   LogIn,
+  LogOut,
+  MapPinned,
   MessageSquareText,
   Moon,
   Sun,
@@ -23,16 +26,32 @@ import {
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/api";
+import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
 
 type NavItem = {
   label: string;
   icon: LucideIcon;
 };
 
+type ImpersonationStatus = {
+  active: boolean;
+  actor?: {
+    _id?: string | null;
+    fullName?: string | null;
+    role?: string | null;
+  } | null;
+  target?: {
+    _id?: string | null;
+    fullName?: string | null;
+    role?: string | null;
+  } | null;
+};
+
 const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   superadmin: [
     { label: "Dashboard", icon: Activity },
     { label: "Manage Buses", icon: Bus },
+    { label: "Track Bus", icon: MapPinned },
     { label: "Manage Bookings", icon: ClipboardList },
     { label: "Manage Users", icon: Users },
     { label: "Manage Offers", icon: BadgeCheck },
@@ -44,7 +63,9 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   admin: [
     { label: "Dashboard", icon: Activity },
     { label: "Manage Buses", icon: Bus },
+    { label: "Track Bus", icon: MapPinned },
     { label: "Manage Bookings", icon: ClipboardList },
+    { label: "Manage Users", icon: Users },
     { label: "Manage Offers", icon: BadgeCheck },
     { label: "Manage Transactions", icon: Banknote },
     { label: "Callback Requests", icon: CalendarCheck2 },
@@ -54,11 +75,13 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   conductor: [
     { label: "Dashboard", icon: Activity },
     { label: "Manage Bus", icon: Bus },
+    { label: "Mark Offline Book", icon: FileText },
   ],
   owner: [
     { label: "Dashboard", icon: Activity },
     { label: "Manage conductor", icon: User },
     { label: "Manage Buses", icon: Bus },
+    { label: "Track Bus", icon: MapPinned },
   ],
 };
 
@@ -97,6 +120,10 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     : "Collapse (⌘/Ctrl + B)";
   const { setTheme, resolvedTheme } = useTheme();
   const [profileRole, setProfileRole] = useState<string | null>(null);
+  const [impersonationStatus, setImpersonationStatus] = useState<ImpersonationStatus>({
+    active: false,
+  });
+  const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
   const [activeItem, setActiveItem] = useState<string>("Dashboard");
   const themeReady = typeof resolvedTheme === "string";
   const isDark = resolvedTheme === "dark";
@@ -142,6 +169,48 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
+    const loadImpersonationStatus = async () => {
+      try {
+        const response = await fetch(apiUrl("/admin/impersonation/status"), {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (mounted) setImpersonationStatus({ active: false });
+          return;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        const data = payload?.data ?? {};
+        if (!mounted) return;
+
+        setImpersonationStatus({
+          active: data?.active === true,
+          actor: data?.actor ?? null,
+          target: data?.target ?? null,
+        });
+      } catch (error) {
+        if (mounted && (error as Error).name !== "AbortError") {
+          setImpersonationStatus({ active: false });
+        }
+      }
+    };
+
+    void loadImpersonationStatus();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [pathname]);
+
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark");
   };
@@ -158,6 +227,35 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     router.push("/profile");
   };
 
+  const handleStopImpersonation = useCallback(async () => {
+    if (stoppingImpersonation) return;
+    setStoppingImpersonation(true);
+
+    try {
+      const response = await fetch(apiUrl("/admin/impersonation/stop"), {
+        method: "POST",
+        credentials: "include",
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Unable to stop impersonation.");
+      }
+
+      setImpersonationStatus({ active: false });
+      const redirectPath = payload?.data?.redirectPath || "/admin/dashboard";
+      dispatchAuthSessionChangedEvent();
+      router.replace(redirectPath);
+      router.refresh();
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to stop impersonation:", error);
+      }
+    } finally {
+      setStoppingImpersonation(false);
+    }
+  }, [router, stoppingImpersonation]);
+
   const normalizedRole = normalizeRole(profileRole);
   const navItems = NAV_ITEMS_BY_ROLE[normalizedRole] ?? DEFAULT_NAV_ITEMS;
 
@@ -170,6 +268,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     Dashboard: basePath,
     "Manage Users": `${basePath}/manage-users`,
     "Manage Buses": `${basePath}/manage-buses`,
+    "Track Bus": `${basePath}/track-bus`,
     "Manage Bookings": `${basePath}/manage-bookings`,
     "Manage Offers": `${basePath}/manage-offers`,
     "Manage Transactions": `${basePath}/manage-transactions`,
@@ -267,6 +366,46 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           );
         })}
       </nav>
+
+      {impersonationStatus.active ? (
+        <div
+          className={`mb-3 rounded-2xl border border-indigo-200/80 bg-indigo-50 p-3 text-xs text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-100 ${
+            collapsed ? "flex flex-col items-center gap-2" : "space-y-2"
+          }`}
+        >
+          {collapsed ? null : (
+            <div className="space-y-1">
+              <p className="font-semibold uppercase tracking-[0.15em]">
+                Impersonating
+              </p>
+              <p>
+                {impersonationStatus.target?.fullName || "Target user"} (
+                {String(impersonationStatus.target?.role || "").toUpperCase() || "ROLE"})
+              </p>
+              <p className="text-[11px] opacity-80">
+                as {impersonationStatus.actor?.fullName || "Admin"}
+              </p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => void handleStopImpersonation()}
+            disabled={stoppingImpersonation}
+            title="Stop impersonation"
+            className={`inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-300/90 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 dark:border-indigo-400/40 dark:bg-indigo-950/40 dark:text-indigo-100 ${
+              collapsed ? "w-full px-2" : "w-full"
+            }`}
+          >
+            {stoppingImpersonation ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+            {!collapsed ? "Stop Impersonation" : null}
+          </button>
+        </div>
+      ) : null}
 
       <div
         className={`rounded-2xl border border-slate-200/80 bg-slate-100 p-3 text-xs text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 ${

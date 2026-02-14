@@ -14,6 +14,7 @@ import { Bus, Chrome, Phone, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api";
+import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { cn } from "@/lib/utils";
 
@@ -85,16 +86,18 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-      body: JSON.stringify({
-        token,
-        fullName: user.displayName || undefined,
-      }),
-    });
+        body: JSON.stringify({
+          token,
+          fullName: user.displayName || undefined,
+        }),
+      });
 
-    const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.message || "Authentication failed");
       }
+
+      dispatchAuthSessionChangedEvent();
     },
     []
   );

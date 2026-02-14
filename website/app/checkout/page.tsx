@@ -185,7 +185,7 @@ const CheckoutPage = () => {
 
   useEffect(() => {
     if (!busId || !travelDate) return;
-    const key = `checkout_session_${busId}_${travelDate}_${direction}_${seatKey}`;
+    const key = `checkout_session_${busId}_${travelDate}_${direction}_${boardingPoint}_${droppingPoint}_${seatKey}`;
     const stored = sessionStorage.getItem(key);
     if (stored) {
       setSessionId(stored);
@@ -194,7 +194,7 @@ const CheckoutPage = () => {
     const fresh = generateSessionId();
     sessionStorage.setItem(key, fresh);
     setSessionId(fresh);
-  }, [busId, travelDate, direction, seatKey]);
+  }, [busId, travelDate, direction, boardingPoint, droppingPoint, seatKey]);
 
   useEffect(() => {
     setPassengers((prev) =>
@@ -378,6 +378,8 @@ const CheckoutPage = () => {
           seatNumbers: seats,
           sessionId,
           direction,
+          boardingPoint,
+          droppingPoint,
         }),
       });
 
@@ -396,7 +398,7 @@ const CheckoutPage = () => {
         lockPayload?.data?.sessionId || lockPayload?.sessionId || sessionId;
 
       if (activeSessionId && activeSessionId !== sessionId) {
-        const key = `checkout_session_${busId}_${travelDate}_${direction}_${seatKey}`;
+        const key = `checkout_session_${busId}_${travelDate}_${direction}_${boardingPoint}_${droppingPoint}_${seatKey}`;
         sessionStorage.setItem(key, activeSessionId);
         setSessionId(activeSessionId);
       }

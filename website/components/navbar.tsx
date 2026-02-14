@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { apiUrl } from "@/lib/api";
+import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
 import { firebaseAuth } from "@/lib/firebase/client";
 
 const ROLE_SWITCH_TARGETS: Record<string, string> = {
@@ -231,6 +232,7 @@ const Navbar = () => {
 
       setCurrentUser(null);
       setProfileRole(null);
+      dispatchAuthSessionChangedEvent();
       router.replace("/");
       router.refresh();
     } finally {

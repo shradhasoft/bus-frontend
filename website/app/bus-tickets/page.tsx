@@ -677,7 +677,7 @@ const BusTicketsPage = () => {
 
   const toggleSeatLayout = async (bus: SearchResult) => {
     if (!bus?._id) return;
-    const key = `${bus._id}_${date}_${bus.direction || "forward"}`;
+    const key = `${bus._id}_${date}_${bus.direction || "forward"}_${bus.boardingPoint || ""}_${bus.droppingPoint || ""}`;
 
     if (expandedBusId === bus._id) {
       setExpandedBusId(null);
@@ -696,8 +696,20 @@ const BusTicketsPage = () => {
     }));
 
     try {
+      const seatLayoutParams = new URLSearchParams({
+        busId: bus._id,
+        travelDate: date,
+        direction: bus.direction || "forward",
+      });
+      if (bus.boardingPoint) {
+        seatLayoutParams.set("boardingPoint", bus.boardingPoint);
+      }
+      if (bus.droppingPoint) {
+        seatLayoutParams.set("droppingPoint", bus.droppingPoint);
+      }
+
       const response = await fetch(
-        `${apiUrl("/bus-seat-layout")}?busId=${bus._id}&travelDate=${date}&direction=${bus.direction || "forward"}`,
+        `${apiUrl("/bus-seat-layout")}?${seatLayoutParams.toString()}`,
         {
           method: "GET",
           credentials: "include",
@@ -1180,7 +1192,7 @@ const BusTicketsPage = () => {
                       {expandedBusId === bus._id ? (
                         <div className="mt-6 border-t border-slate-200 pt-6">
                           {(() => {
-                            const key = `${bus._id}_${date}_${bus.direction || "forward"}`;
+                            const key = `${bus._id}_${date}_${bus.direction || "forward"}_${bus.boardingPoint || ""}_${bus.droppingPoint || ""}`;
                             const state = seatLayouts[key];
                             if (!state || state.loading) {
                               return (

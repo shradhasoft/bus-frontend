@@ -18,6 +18,20 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Realtime Tracking Env
+
+- `NEXT_PUBLIC_API_BASE_URL` for REST endpoints.
+- `NEXT_PUBLIC_SOCKET_URL` for Socket.IO host/origin (recommended in production).
+- `NEXT_PUBLIC_SOCKET_PATH` for Socket.IO path (default: `/socket.io`).
+
+Example:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://api.example.com/v1
+NEXT_PUBLIC_SOCKET_URL=https://api.example.com
+NEXT_PUBLIC_SOCKET_PATH=/socket.io
+```
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

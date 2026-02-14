@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import Footer from "@/components/footer";
 import Navbar from "@/components/navbar";
+import { subscribeAuthSessionChanged } from "@/lib/auth-events";
 
 const HIDE_SHELL_ROUTES = [
   "/admin/dashboard",
@@ -15,14 +16,21 @@ const HIDE_SHELL_ROUTES = [
 
 const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
+  const [authSessionVersion, setAuthSessionVersion] = useState(0);
   const hideShell = HIDE_SHELL_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
+  useEffect(() => {
+    return subscribeAuthSessionChanged(() => {
+      setAuthSessionVersion((value) => value + 1);
+    });
+  }, []);
+
   return (
     <>
       {!hideShell && <Navbar />}
-      {children}
+      <React.Fragment key={authSessionVersion}>{children}</React.Fragment>
       {!hideShell && <Footer />}
     </>
   );
