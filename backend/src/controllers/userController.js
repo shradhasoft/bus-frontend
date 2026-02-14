@@ -31,6 +31,127 @@ const normalizeEmail = (email) => {
   return normalized || undefined;
 };
 
+const normalizePhone = (phone) => {
+  if (typeof phone !== "string") return undefined;
+  const normalized = phone.trim();
+  return normalized || undefined;
+};
+
+const ALLOWED_ROLES = new Set([
+  "user",
+  "admin",
+  "owner",
+  "superadmin",
+  "conductor",
+]);
+
+const getRequesterRole = (req) => String(req.user?.role || "").toLowerCase();
+
+const canAssignRole = (requesterRole, targetRole) => {
+  if (requesterRole === "superadmin") return true;
+  if (requesterRole === "admin") return targetRole !== "superadmin";
+  return false;
+};
+
+const canManageRole = (requesterRole, existingRole) => {
+  if (requesterRole === "superadmin") return true;
+  if (requesterRole === "admin") return existingRole !== "superadmin";
+  return false;
+};
+
+const respondFirebaseIdentityError = (res, error, { createPhase }) => {
+  const code = error?.code;
+  if (code === "auth/email-already-exists") {
+    return sendResponse(
+      res,
+      false,
+      "EMAIL_EXISTS",
+      "Email is already in use",
+      null,
+      409
+    );
+  }
+  if (code === "auth/phone-number-already-exists") {
+    return sendResponse(
+      res,
+      false,
+      "PHONE_EXISTS",
+      "Phone number is already in use",
+      null,
+      409
+    );
+  }
+  if (code === "auth/invalid-phone-number") {
+    return sendResponse(
+      res,
+      false,
+      "INVALID_PHONE",
+      "Phone number is not valid",
+      null,
+      400
+    );
+  }
+  if (code === "auth/invalid-email") {
+    return sendResponse(
+      res,
+      false,
+      "INVALID_EMAIL",
+      "Email is not valid",
+      null,
+      400
+    );
+  }
+
+  console.error(
+    createPhase ? "Firebase create user error:" : "Firebase update user error:",
+    error
+  );
+  return sendResponse(
+    res,
+    false,
+    createPhase ? "FIREBASE_CREATE_FAILED" : "FIREBASE_UPDATE_FAILED",
+    createPhase ? "Failed to create Firebase user" : "Failed to update Firebase user",
+    process.env.NODE_ENV === "development" ? error.message : undefined,
+    502
+  );
+};
+
+const respondMongoUniqueError = (res, error) => {
+  if (error?.code !== 11000) return false;
+
+  if (error?.keyPattern?.email) {
+    sendResponse(res, false, "EMAIL_EXISTS", "Email is already in use", null, 409);
+    return true;
+  }
+
+  if (error?.keyPattern?.phone) {
+    sendResponse(
+      res,
+      false,
+      "PHONE_EXISTS",
+      "Phone number is already in use",
+      null,
+      409
+    );
+    return true;
+  }
+
+  if (error?.keyPattern?.firebaseUID) {
+    sendResponse(
+      res,
+      false,
+      "FIREBASE_UID_EXISTS",
+      "Firebase account is already linked",
+      null,
+      409
+    );
+    return true;
+  }
+
+  sendResponse(res, false, "CONFLICT", "Resource conflict", null, 409);
+  return true;
+};
+
 export const listUsersController = async (req, res) => {
   try {
     const { page = 1, limit = 20, search, role } = req.query;
@@ -170,10 +291,18 @@ export const getUserController = async (req, res) => {
 export const createUserController = async (req, res) => {
   try {
     const { fullName, email, phone, role, isActive, isBlocked } = req.body;
+    const requesterRole = getRequesterRole(req);
 
     const normalizedEmail = normalizeEmail(email);
-    const normalizedPhone =
-      typeof phone === "string" && phone.trim() ? phone.trim() : undefined;
+    const normalizedPhone = normalizePhone(phone);
+    const normalizedRole =
+      typeof role === "string" && role.trim()
+        ? role.trim().toLowerCase()
+        : "user";
+    const trimmedFullName =
+      typeof fullName === "string" ? fullName.trim() || undefined : undefined;
+    const targetIsActive = typeof isActive === "boolean" ? isActive : true;
+    const targetIsBlocked = typeof isBlocked === "boolean" ? isBlocked : false;
 
     if (!normalizedEmail && !normalizedPhone) {
       return sendResponse(
@@ -186,32 +315,152 @@ export const createUserController = async (req, res) => {
       );
     }
 
-    if (normalizedEmail) {
-      const emailExists = await User.findOne({ email: normalizedEmail });
-      if (emailExists) {
-        return sendResponse(
-          res,
-          false,
-          "EMAIL_EXISTS",
-          "Email is already in use",
-          null,
-          409
-        );
-      }
+    if (!ALLOWED_ROLES.has(normalizedRole)) {
+      return sendResponse(
+        res,
+        false,
+        "INVALID_ROLE",
+        "Role is not valid",
+        null,
+        400
+      );
     }
 
-    if (normalizedPhone) {
-      const phoneExists = await User.findOne({ phone: normalizedPhone });
-      if (phoneExists) {
+    if (!canAssignRole(requesterRole, normalizedRole)) {
+      return sendResponse(
+        res,
+        false,
+        "ROLE_ASSIGNMENT_FORBIDDEN",
+        "You are not allowed to assign this role",
+        null,
+        403
+      );
+    }
+
+    const [existingByEmail, existingByPhone] = await Promise.all([
+      normalizedEmail ? User.findOne({ email: normalizedEmail }) : Promise.resolve(null),
+      normalizedPhone ? User.findOne({ phone: normalizedPhone }) : Promise.resolve(null),
+    ]);
+
+    if (
+      existingByEmail &&
+      existingByPhone &&
+      String(existingByEmail._id) !== String(existingByPhone._id)
+    ) {
+      return sendResponse(
+        res,
+        false,
+        "EMAIL_PHONE_DIFFERENT_ACCOUNTS",
+        "Email and phone belong to different accounts",
+        null,
+        409
+      );
+    }
+
+    const existingUser = existingByEmail || existingByPhone;
+
+    if (existingUser) {
+      const currentRole = String(existingUser.role || "user").toLowerCase();
+      const isRoleChange = currentRole !== normalizedRole;
+      const resolvedEmail = normalizedEmail ?? existingUser.email ?? undefined;
+      const resolvedPhone = normalizedPhone ?? existingUser.phone ?? undefined;
+      const resolvedDisplayName =
+        trimmedFullName ?? existingUser.fullName ?? undefined;
+
+      if (!canManageRole(requesterRole, currentRole)) {
         return sendResponse(
           res,
           false,
-          "PHONE_EXISTS",
-          "Phone number is already in use",
+          "INSUFFICIENT_PRIVILEGE",
+          "You are not allowed to manage this account",
+          null,
+          403
+        );
+      }
+
+      if (isRoleChange && currentRole !== "user") {
+        return sendResponse(
+          res,
+          false,
+          "ROLE_CONVERSION_NOT_ALLOWED",
+          "Cannot convert one privileged role to another through create API",
           null,
           409
         );
       }
+
+      try {
+        const firebaseUpdatePayload = {
+          disabled: targetIsActive === false || targetIsBlocked === true,
+          ...(resolvedDisplayName !== undefined
+            ? { displayName: resolvedDisplayName || null }
+            : {}),
+          ...(resolvedEmail !== undefined ? { email: resolvedEmail || null } : {}),
+          ...(resolvedPhone !== undefined
+            ? { phoneNumber: resolvedPhone || null }
+            : {}),
+        };
+        await firebaseAdminAuth.updateUser(
+          existingUser.firebaseUID,
+          firebaseUpdatePayload
+        );
+      } catch (error) {
+        if (error?.code === "auth/user-not-found") {
+          try {
+            const recreated = await firebaseAdminAuth.createUser({
+              email: resolvedEmail,
+              phoneNumber: resolvedPhone,
+              displayName: resolvedDisplayName,
+              disabled: targetIsActive === false || targetIsBlocked === true,
+            });
+            existingUser.firebaseUID = recreated.uid;
+          } catch (createError) {
+            return respondFirebaseIdentityError(res, createError, {
+              createPhase: true,
+            });
+          }
+        } else {
+          return respondFirebaseIdentityError(res, error, {
+            createPhase: false,
+          });
+        }
+      }
+
+      if (trimmedFullName !== undefined) {
+        existingUser.fullName = trimmedFullName;
+      }
+      if (normalizedEmail !== undefined) {
+        existingUser.email = normalizedEmail || undefined;
+      }
+      if (normalizedPhone !== undefined) {
+        existingUser.phone = normalizedPhone;
+      }
+      existingUser.role = normalizedRole;
+      existingUser.isActive = targetIsActive;
+      existingUser.isBlocked = targetIsBlocked;
+      if (!existingUser.createdBy) {
+        existingUser.createdBy = req.user?._id || null;
+      }
+
+      try {
+        await existingUser.save();
+      } catch (error) {
+        if (respondMongoUniqueError(res, error)) return;
+        throw error;
+      }
+
+      return sendResponse(
+        res,
+        true,
+        isRoleChange ? "USER_ROLE_UPGRADED" : "USER_UPDATED",
+        isRoleChange
+          ? "User role upgraded successfully"
+          : "User updated successfully",
+        {
+          user: existingUser,
+        },
+        200
+      );
     }
 
     let firebaseUser;
@@ -219,74 +468,24 @@ export const createUserController = async (req, res) => {
       firebaseUser = await firebaseAdminAuth.createUser({
         email: normalizedEmail,
         phoneNumber: normalizedPhone,
-        displayName:
-          typeof fullName === "string" ? fullName.trim() || undefined : undefined,
-        disabled: isActive === false || isBlocked === true,
+        displayName: trimmedFullName,
+        disabled: targetIsActive === false || targetIsBlocked === true,
       });
     } catch (error) {
-      const code = error?.code;
-      if (code === "auth/email-already-exists") {
-        return sendResponse(
-          res,
-          false,
-          "EMAIL_EXISTS",
-          "Email is already in use",
-          null,
-          409
-        );
-      }
-      if (code === "auth/phone-number-already-exists") {
-        return sendResponse(
-          res,
-          false,
-          "PHONE_EXISTS",
-          "Phone number is already in use",
-          null,
-          409
-        );
-      }
-      if (code === "auth/invalid-phone-number") {
-        return sendResponse(
-          res,
-          false,
-          "INVALID_PHONE",
-          "Phone number is not valid",
-          null,
-          400
-        );
-      }
-      if (code === "auth/invalid-email") {
-        return sendResponse(
-          res,
-          false,
-          "INVALID_EMAIL",
-          "Email is not valid",
-          null,
-          400
-        );
-      }
-
-      console.error("Firebase create user error:", error);
-      return sendResponse(
-        res,
-        false,
-        "FIREBASE_CREATE_FAILED",
-        "Failed to create Firebase user",
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-        502
-      );
+      return respondFirebaseIdentityError(res, error, { createPhase: true });
     }
 
     let newUser;
     try {
       newUser = await User.create({
-        fullName: typeof fullName === "string" ? fullName.trim() : undefined,
+        fullName: trimmedFullName,
         email: normalizedEmail || undefined,
         phone: normalizedPhone,
-        role: role || "user",
+        role: normalizedRole,
         firebaseUID: firebaseUser.uid,
-        isActive: typeof isActive === "boolean" ? isActive : true,
-        isBlocked: typeof isBlocked === "boolean" ? isBlocked : false,
+        isActive: targetIsActive,
+        isBlocked: targetIsBlocked,
+        createdBy: req.user?._id || null,
       });
     } catch (error) {
       if (firebaseUser?.uid) {
@@ -296,6 +495,7 @@ export const createUserController = async (req, res) => {
           console.error("Firebase cleanup error:", cleanupError);
         }
       }
+      if (respondMongoUniqueError(res, error)) return;
       throw error;
     }
 
@@ -324,6 +524,31 @@ export const createUserController = async (req, res) => {
 
 export const updateUserController = async (req, res) => {
   try {
+    const requesterRole = getRequesterRole(req);
+    const existingUser = await User.findById(req.params.id);
+    if (!existingUser) {
+      return sendResponse(
+        res,
+        false,
+        "USER_NOT_FOUND",
+        "User not found",
+        null,
+        404
+      );
+    }
+
+    const existingRole = String(existingUser.role || "user").toLowerCase();
+    if (!canManageRole(requesterRole, existingRole)) {
+      return sendResponse(
+        res,
+        false,
+        "INSUFFICIENT_PRIVILEGE",
+        "You are not allowed to manage this account",
+        null,
+        403
+      );
+    }
+
     const allowedUpdates = [
       "fullName",
       "email",
@@ -351,6 +576,50 @@ export const updateUserController = async (req, res) => {
       );
     }
 
+    if ("role" in updates) {
+      updates.role =
+        typeof updates.role === "string" && updates.role.trim()
+          ? updates.role.trim().toLowerCase()
+          : undefined;
+
+      if (!updates.role || !ALLOWED_ROLES.has(updates.role)) {
+        return sendResponse(
+          res,
+          false,
+          "INVALID_ROLE",
+          "Role is not valid",
+          null,
+          400
+        );
+      }
+
+      if (!canAssignRole(requesterRole, updates.role)) {
+        return sendResponse(
+          res,
+          false,
+          "ROLE_ASSIGNMENT_FORBIDDEN",
+          "You are not allowed to assign this role",
+          null,
+          403
+        );
+      }
+
+      if (
+        requesterRole !== "superadmin" &&
+        updates.role !== existingRole &&
+        existingRole !== "user"
+      ) {
+        return sendResponse(
+          res,
+          false,
+          "ROLE_CONVERSION_NOT_ALLOWED",
+          "Cannot convert one privileged role to another",
+          null,
+          409
+        );
+      }
+    }
+
     if ("email" in updates) {
       updates.email = normalizeEmail(updates.email) || undefined;
       if (updates.email) {
@@ -372,10 +641,7 @@ export const updateUserController = async (req, res) => {
     }
 
     if ("phone" in updates) {
-      updates.phone =
-        typeof updates.phone === "string" && updates.phone.trim()
-          ? updates.phone.trim()
-          : undefined;
+      updates.phone = normalizePhone(updates.phone);
     }
 
     if (updates.phone) {
@@ -402,24 +668,64 @@ export const updateUserController = async (req, res) => {
           : undefined;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      updates,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const nextIsActive =
+      "isActive" in updates ? updates.isActive === true : existingUser.isActive;
+    const nextIsBlocked =
+      "isBlocked" in updates ? updates.isBlocked === true : existingUser.isBlocked;
 
-    if (!updatedUser) {
-      return sendResponse(
-        res,
-        false,
-        "USER_NOT_FOUND",
-        "User not found",
-        null,
-        404
-      );
+    const shouldSyncFirebase =
+      existingUser.firebaseUID &&
+      ("fullName" in updates ||
+        "email" in updates ||
+        "phone" in updates ||
+        "isActive" in updates ||
+        "isBlocked" in updates);
+
+    if (shouldSyncFirebase) {
+      const firebasePayload = {
+        ...("fullName" in updates
+          ? { displayName: updates.fullName || null }
+          : {}),
+        ...("email" in updates ? { email: updates.email || null } : {}),
+        ...("phone" in updates ? { phoneNumber: updates.phone || null } : {}),
+        disabled: nextIsActive === false || nextIsBlocked === true,
+      };
+
+      try {
+        await firebaseAdminAuth.updateUser(existingUser.firebaseUID, firebasePayload);
+      } catch (error) {
+        if (error?.code === "auth/user-not-found") {
+          try {
+            const recreated = await firebaseAdminAuth.createUser({
+              email:
+                ("email" in updates ? updates.email : existingUser.email) || undefined,
+              phoneNumber:
+                ("phone" in updates ? updates.phone : existingUser.phone) || undefined,
+              displayName:
+                ("fullName" in updates ? updates.fullName : existingUser.fullName) ||
+                undefined,
+              disabled: nextIsActive === false || nextIsBlocked === true,
+            });
+            existingUser.firebaseUID = recreated.uid;
+          } catch (createError) {
+            return respondFirebaseIdentityError(res, createError, {
+              createPhase: true,
+            });
+          }
+        } else {
+          return respondFirebaseIdentityError(res, error, { createPhase: false });
+        }
+      }
+    }
+
+    Object.assign(existingUser, updates);
+
+    let updatedUser;
+    try {
+      updatedUser = await existingUser.save();
+    } catch (error) {
+      if (respondMongoUniqueError(res, error)) return;
+      throw error;
     }
 
     return sendResponse(
@@ -444,6 +750,7 @@ export const updateUserController = async (req, res) => {
 
 export const deleteUserController = async (req, res) => {
   try {
+    const requesterRole = getRequesterRole(req);
     const existingUser = await User.findById(req.params.id);
     if (!existingUser) {
       return sendResponse(
@@ -453,6 +760,18 @@ export const deleteUserController = async (req, res) => {
         "User not found",
         null,
         404
+      );
+    }
+
+    const existingRole = String(existingUser.role || "user").toLowerCase();
+    if (!canManageRole(requesterRole, existingRole)) {
+      return sendResponse(
+        res,
+        false,
+        "INSUFFICIENT_PRIVILEGE",
+        "You are not allowed to delete this account",
+        null,
+        403
       );
     }
 

@@ -1,7 +1,6 @@
 // src/socket/socketServer.js
 import { Server } from "socket.io";
 import { Bus } from "../models/bus.js";
-import { BusLiveLocation } from "../models/busLiveLocation.js";
 import { User } from "../models/user.js";
 
 // Firebase Admin Auth (same import style you used in authMiddleware)
@@ -9,12 +8,16 @@ import { auth as firebaseAdminAuth } from "../utils/firebase-admin.js";
 
 // cookie parser (tiny)
 import cookie from "cookie";
-
-const isValidLatLng = (lat, lng) => {
-  if (typeof lat !== "number" || typeof lng !== "number") return false;
-  if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
-  return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-};
+import { ingestLocationBatch } from "../services/tracking/ingestionService.js";
+import {
+  getLatestBusLocation,
+  getLatestTripLocation,
+} from "../services/tracking/readService.js";
+import {
+  getRedisSubscriberClient,
+  isRedisReady,
+} from "../config/redis.js";
+import { TRACKING_CHANNEL } from "../services/tracking/keys.js";
 
 const normalizeBusNumber = (busNumber) =>
   String(busNumber || "")
@@ -39,16 +42,97 @@ const getTokenFromSocket = (socket) => {
   return { token: parsed?.token || null, source: "cookie" }; // change cookie name if yours differs
 };
 
-export const initSocketServer = (httpServer, corsOrigin) => {
+const emitTrackingPayload = (privateNamespace, trackingNamespace, payload) => {
+  if (!payload?.busNumber) return;
+
+  privateNamespace.to(`bus:${payload.busNumber}`).emit("tracking.location", payload);
+  privateNamespace.to(`bus:${payload.busNumber}`).emit("bus:location", {
+    busNumber: payload.busNumber,
+    lat: payload.lat,
+    lng: payload.lng,
+    accuracy: payload.accuracy ?? null,
+    speed: payload.speed ?? null,
+    heading: payload.heading ?? null,
+    recordedAt: payload.recordedAt,
+    tripKey: payload.tripKey ?? null,
+    confidence: payload.confidence ?? "unknown",
+    source: payload.source ?? null,
+  });
+
+  trackingNamespace.to(`bus:${payload.busNumber}`).emit("tracking.location", payload);
+
+  if (payload.tripKey) {
+    privateNamespace.to(`trip:${payload.tripKey}`).emit("tracking.location", payload);
+    trackingNamespace.to(`trip:${payload.tripKey}`).emit("tracking.location", payload);
+  }
+};
+
+const subscribeToTrackingPubSub = async (privateNamespace, trackingNamespace) => {
+  if (!isRedisReady()) {
+    console.warn("[Socket] Redis is not ready; pub/sub fanout disabled");
+    return;
+  }
+
+  const subscriber = getRedisSubscriberClient();
+  if (!subscriber) {
+    console.warn("[Socket] Missing Redis subscriber; pub/sub fanout disabled");
+    return;
+  }
+
+  try {
+    await subscriber.subscribe(TRACKING_CHANNEL, (message) => {
+      try {
+        const payload = JSON.parse(message);
+        emitTrackingPayload(privateNamespace, trackingNamespace, payload);
+      } catch (error) {
+        console.error("[Socket] Invalid pub/sub payload", error);
+      }
+    });
+    console.log(`[Socket] Subscribed to ${TRACKING_CHANNEL}`);
+  } catch (error) {
+    console.error("[Socket] Failed to subscribe tracking channel:", error);
+  }
+};
+
+export const initSocketServer = (httpServer, socketOptions = {}) => {
+  const allowedOrigins = Array.isArray(socketOptions.allowedOrigins)
+    ? socketOptions.allowedOrigins
+    : [];
+  const isAllowedOrigin =
+    typeof socketOptions.isAllowedOrigin === "function"
+      ? socketOptions.isAllowedOrigin
+      : (origin) => allowedOrigins.includes(origin);
+  const socketPath =
+    typeof socketOptions.socketPath === "string" &&
+    String(socketOptions.socketPath).trim()
+      ? String(socketOptions.socketPath).trim()
+      : "/socket.io";
+  const pingInterval = Number.isFinite(socketOptions.pingInterval)
+    ? socketOptions.pingInterval
+    : undefined;
+  const pingTimeout = Number.isFinite(socketOptions.pingTimeout)
+    ? socketOptions.pingTimeout
+    : undefined;
+
   const io = new Server(httpServer, {
+    path: socketPath,
+    pingInterval,
+    pingTimeout,
     cors: {
-      origin: corsOrigin,
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        if (isAllowedOrigin(origin)) return cb(null, true);
+        return cb(new Error("Not allowed by CORS"));
+      },
       credentials: true,
     },
   });
 
-  // ✅ Firebase Auth middleware for sockets (matches your REST protect middleware)
-  io.use(async (socket, next) => {
+  const privateNamespace = io.of("/");
+  const trackingNamespace = io.of("/tracking");
+
+  // Firebase Auth middleware for private namespace only.
+  privateNamespace.use(async (socket, next) => {
     try {
       const { token, source } = getTokenFromSocket(socket);
       if (!token) return next(new Error("UNAUTHENTICATED"));
@@ -65,10 +149,7 @@ export const initSocketServer = (httpServer, corsOrigin) => {
       );
 
       if (!dbUser) return next(new Error("USER_NOT_FOUND"));
-
-      // ✅ Match REST rules (recommended)
-      if (dbUser.isActive === false)
-        return next(new Error("ACCOUNT_DEACTIVATED"));
+      if (dbUser.isActive === false) return next(new Error("ACCOUNT_DEACTIVATED"));
       if (dbUser.isBlocked === true) return next(new Error("ACCOUNT_BLOCKED"));
 
       socket.user = {
@@ -78,21 +159,17 @@ export const initSocketServer = (httpServer, corsOrigin) => {
       };
 
       return next();
-    } catch (err) {
+    } catch {
       return next(new Error("UNAUTHENTICATED"));
     }
   });
 
-  io.on("connection", (socket) => {
-    // =========================
-    // USER subscribes to bus room
-    // Supports busNumber OR busName
-    // =========================
+  privateNamespace.on("connection", (socket) => {
+    // USER subscribes to bus room. Supports busNumber OR busName.
     socket.on("user:subscribe", async ({ busNumber, busName }, ack) => {
       try {
         let bn = normalizeBusNumber(busNumber);
 
-        // If user passed busName, resolve to busNumber
         if (!bn && busName) {
           const name = normalizeBusName(busName);
 
@@ -108,26 +185,28 @@ export const initSocketServer = (httpServer, corsOrigin) => {
 
         if (!bn) throw new Error("BUS_NUMBER_REQUIRED");
 
-        const room = `bus:${bn}`;
-        socket.join(room);
+        socket.join(`bus:${bn}`);
 
-        // Send current location immediately (if any)
-        const live = await BusLiveLocation.findOne({ busNumber: bn }).lean();
-        if (live?.location?.coordinates?.length === 2) {
+        const latest = await getLatestBusLocation(bn);
+        if (latest) {
+          socket.emit("tracking.location", latest);
           socket.emit("bus:location", {
-            busNumber: bn,
-            lat: live.location.coordinates[1],
-            lng: live.location.coordinates[0],
-            accuracy: live.accuracy ?? null,
-            speed: live.speed ?? null,
-            heading: live.heading ?? null,
-            recordedAt: live.recordedAt,
+            busNumber: latest.busNumber,
+            lat: latest.lat,
+            lng: latest.lng,
+            accuracy: latest.accuracy ?? null,
+            speed: latest.speed ?? null,
+            heading: latest.heading ?? null,
+            recordedAt: latest.recordedAt,
+            tripKey: latest.tripKey ?? null,
+            confidence: latest.confidence ?? "unknown",
+            source: latest.source ?? null,
           });
         }
 
         ack?.({ success: true, busNumber: bn });
-      } catch (e) {
-        ack?.({ success: false, message: e.message });
+      } catch (error) {
+        ack?.({ success: false, message: error?.message || "SUBSCRIBE_FAILED" });
       }
     });
 
@@ -137,9 +216,7 @@ export const initSocketServer = (httpServer, corsOrigin) => {
       ack?.({ success: true });
     });
 
-    // =========================================
     // CONDUCTOR starts tracking a bus (optional)
-    // =========================================
     socket.on("conductor:start", async ({ busNumber }, ack) => {
       try {
         if (socket.user.role !== "conductor") {
@@ -157,11 +234,7 @@ export const initSocketServer = (httpServer, corsOrigin) => {
 
         if (!bus) return ack?.({ success: false, message: "BUS_NOT_FOUND" });
 
-        // Ensure bus is assigned to this conductor
-        if (
-          !bus.conductor ||
-          String(bus.conductor) !== String(socket.user.id)
-        ) {
+        if (!bus.conductor || String(bus.conductor) !== String(socket.user.id)) {
           return ack?.({ success: false, message: "BUS_NOT_ASSIGNED_TO_YOU" });
         }
 
@@ -169,90 +242,106 @@ export const initSocketServer = (httpServer, corsOrigin) => {
         socket.data.busId = bus._id;
 
         ack?.({ success: true });
-      } catch (e) {
-        ack?.({ success: false, message: e.message });
+      } catch (error) {
+        ack?.({ success: false, message: error?.message || "FAILED" });
       }
     });
 
-    // ============================
-    // CONDUCTOR sends live location
-    // ============================
+    // Legacy conductor uplink kept for compatibility.
     socket.on("conductor:location", async (payload, ack) => {
       try {
         if (socket.user.role !== "conductor") {
           return ack?.({ success: false, message: "FORBIDDEN" });
         }
 
-        const bn = normalizeBusNumber(
-          payload?.busNumber || socket.data.busNumber,
+        console.warn(
+          "[Socket] Deprecated 'conductor:location' event received; prefer POST /v1/telemetry/location",
         );
-        const lat = Number(payload?.lat);
-        const lng = Number(payload?.lng);
 
-        if (!bn) throw new Error("BUS_NUMBER_REQUIRED");
-        if (!isValidLatLng(lat, lng)) throw new Error("INVALID_LAT_LNG");
-
-        // Verify bus + assignment (server-side trust)
-        const bus = await Bus.findOne({
-          busNumber: bn,
-          isDeleted: false,
-          isActive: true,
-        }).select("_id busNumber conductor");
-
-        if (!bus) return ack?.({ success: false, message: "BUS_NOT_FOUND" });
-
-        if (
-          !bus.conductor ||
-          String(bus.conductor) !== String(socket.user.id)
-        ) {
-          return ack?.({ success: false, message: "BUS_NOT_ASSIGNED_TO_YOU" });
-        }
-
-        const update = {
-          bus: bus._id,
-          busNumber: bn,
-          conductor: socket.user.id,
-          location: { type: "Point", coordinates: [lng, lat] },
-          accuracy:
-            payload?.accuracy !== undefined && payload?.accuracy !== null
-              ? Number(payload.accuracy)
-              : null,
-          speed:
-            payload?.speed !== undefined && payload?.speed !== null
-              ? Number(payload.speed)
-              : null,
-          heading:
-            payload?.heading !== undefined && payload?.heading !== null
-              ? Number(payload.heading)
-              : null,
-          recordedAt: payload?.recordedAt
-            ? new Date(payload.recordedAt)
-            : new Date(),
+        const bn = normalizeBusNumber(payload?.busNumber || socket.data.busNumber);
+        const point = {
+          lat: payload?.lat,
+          lng: payload?.lng,
+          accuracy: payload?.accuracy,
+          speed: payload?.speed,
+          heading: payload?.heading,
+          recordedAt: payload?.recordedAt || new Date().toISOString(),
+          seq: payload?.seq,
         };
 
-        await BusLiveLocation.findOneAndUpdate(
-          { busNumber: bn },
-          { $set: update },
-          { upsert: true, new: true },
-        );
-
-        io.to(`bus:${bn}`).emit("bus:location", {
+        const result = await ingestLocationBatch({
+          conductorUser: socket.user,
           busNumber: bn,
-          lat,
-          lng,
-          accuracy: update.accuracy,
-          speed: update.speed,
-          heading: update.heading,
-          recordedAt: update.recordedAt,
+          tripKey: payload?.tripKey,
+          travelDate: payload?.travelDate,
+          direction: payload?.direction,
+          deviceId: payload?.deviceId || `legacy-socket-${socket.user.id}`,
+          seq: payload?.seq ?? Date.now(),
+          points: [point],
+          source: "socket-legacy",
         });
 
-        ack?.({ success: true });
-      } catch (e) {
-        ack?.({ success: false, message: e.message });
+        ack?.({
+          success: result.success && result.acceptedCount > 0,
+          message: result.message || null,
+          acceptedCount: result.acceptedCount,
+          rejectedCount: result.rejectedCount,
+          rejected: result.rejected,
+          duplicate: result.duplicate,
+        });
+      } catch (error) {
+        ack?.({ success: false, message: error?.message || "FAILED" });
+      }
+    });
+  });
+
+  // Public viewer namespace
+  trackingNamespace.on("connection", (socket) => {
+    socket.on("tracking:subscribe", async ({ busNumber, tripKey }, ack) => {
+      try {
+        const normalizedBus = normalizeBusNumber(busNumber);
+        const normalizedTrip = String(tripKey || "").trim();
+        if (!normalizedBus && !normalizedTrip) {
+          throw new Error("BUS_OR_TRIP_REQUIRED");
+        }
+
+        if (normalizedBus) {
+          socket.join(`bus:${normalizedBus}`);
+          const latest = await getLatestBusLocation(normalizedBus);
+          if (latest) {
+            socket.emit("tracking.location", latest);
+          }
+        }
+
+        if (normalizedTrip) {
+          socket.join(`trip:${normalizedTrip}`);
+          const latest = await getLatestTripLocation(normalizedTrip);
+          if (latest) {
+            socket.emit("tracking.location", latest);
+          }
+        }
+
+        ack?.({
+          success: true,
+          busNumber: normalizedBus || null,
+          tripKey: normalizedTrip || null,
+        });
+      } catch (error) {
+        ack?.({ success: false, message: error?.message || "SUBSCRIBE_FAILED" });
       }
     });
 
-    socket.on("disconnect", () => {});
+    socket.on("tracking:unsubscribe", ({ busNumber, tripKey }, ack) => {
+      const normalizedBus = normalizeBusNumber(busNumber);
+      const normalizedTrip = String(tripKey || "").trim();
+      if (normalizedBus) socket.leave(`bus:${normalizedBus}`);
+      if (normalizedTrip) socket.leave(`trip:${normalizedTrip}`);
+      ack?.({ success: true });
+    });
+  });
+
+  subscribeToTrackingPubSub(privateNamespace, trackingNamespace).catch((error) => {
+    console.error("[Socket] tracking pubsub subscription failed:", error);
   });
 
   return io;

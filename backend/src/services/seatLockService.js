@@ -4,11 +4,18 @@ import { Booking } from "../models/booking.js";
 import { SeatHold } from "../models/seatHold.js";
 import mongoose from "mongoose";
 import { customAlphabet } from "nanoid";
+import {
+  formatDateKey,
+  getRouteExtentSegment,
+  getSeatEntrySegment,
+  normalizeDirection,
+  normalizeSegmentBounds,
+  normalizeSeatToken,
+  resolveJourneySegment,
+  segmentsOverlap,
+} from "../utils/seatSegment.js";
 
 const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 12);
-
-const normalizeSeatToken = (value) =>
-  String(value || "").trim().toUpperCase();
 
 const resolveSeatIdsForInputs = (bus, seatInputs) => {
   const seats = Array.isArray(bus?.seatLayout?.seats) ? bus.seatLayout.seats : [];
@@ -29,26 +36,43 @@ const resolveSeatIdsForInputs = (bus, seatInputs) => {
   return { resolved, unknown };
 };
 
-const formatDateKey = (dateValue) => {
-  const date = new Date(dateValue);
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+const formatSegmentKeyPart = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return numeric.toFixed(3).replace(/\.?0+$/, "");
 };
 
-const buildTripKey = (busId, travelDate, direction) =>
-  `${busId}_${formatDateKey(travelDate)}_${direction}`;
+const buildTripKey = (
+  busId,
+  travelDate,
+  direction,
+  segmentStartKm = null,
+  segmentEndKm = null
+) => {
+  const baseKey = `${busId}_${formatDateKey(travelDate)}_${direction}`;
+  const normalizedSegment = normalizeSegmentBounds(segmentStartKm, segmentEndKm);
 
-const getBookedSeatIds = (bus, travelDate, direction) => {
-  if (!bus?.bookedSeats) return [];
-  const travelTime = new Date(travelDate).getTime();
+  if (!normalizedSegment) return baseKey;
+
+  const startToken = formatSegmentKeyPart(normalizedSegment.segmentStartKm);
+  const endToken = formatSegmentKeyPart(normalizedSegment.segmentEndKm);
+  if (!startToken || !endToken) return baseKey;
+
+  return `${baseKey}_${startToken}_${endToken}`;
+};
+
+const getBookedSeatIdsForTrip = (bus, travelDate, direction) => {
+  if (!Array.isArray(bus?.bookedSeats)) return [];
+  const dateKey = formatDateKey(travelDate);
+  const normalizedDirection = normalizeDirection(direction);
   return bus.bookedSeats
     .filter(
-      (bs) =>
-        bs.travelDate?.getTime() === travelTime && bs.direction === direction
+      (entry) =>
+        formatDateKey(entry?.travelDate) === dateKey &&
+        normalizeDirection(entry?.direction) === normalizedDirection,
     )
-    .map((bs) => bs.seatNumber);
+    .map((entry) => normalizeSeatToken(entry?.seatNumber))
+    .filter(Boolean);
 };
 
 // Default lock duration in minutes
@@ -58,6 +82,170 @@ const RETRY_DELAY_MS = 100;
 
 // Helper function to wait for a specified time
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const buildRequestedSegmentOrThrow = ({
+  route,
+  direction,
+  boardingPoint,
+  droppingPoint,
+}) => {
+  const normalizedDirection = normalizeDirection(direction);
+  const hasPoints = Boolean(boardingPoint || droppingPoint);
+
+  if (!hasPoints) {
+    return {
+      ...getRouteExtentSegment(route, normalizedDirection),
+      boardingPoint: null,
+      droppingPoint: null,
+      direction: normalizedDirection,
+      source: "full-route",
+    };
+  }
+
+  if (!boardingPoint || !droppingPoint) {
+    throw new Error("Both boardingPoint and droppingPoint are required");
+  }
+
+  const resolved = resolveJourneySegment({
+    route,
+    direction: normalizedDirection,
+    boardingPoint,
+    droppingPoint,
+  });
+
+  if (!resolved) {
+    throw new Error("Invalid boarding/dropping points for route");
+  }
+
+  return {
+    ...resolved,
+    boardingPoint: String(boardingPoint).trim(),
+    droppingPoint: String(droppingPoint).trim(),
+    direction: normalizedDirection,
+    source: "journey-segment",
+  };
+};
+
+const getEntryBookingId = (entry) => {
+  if (!entry?.bookingId) return "";
+  if (typeof entry.bookingId === "string") return entry.bookingId;
+  if (entry.bookingId?._id) return String(entry.bookingId._id);
+  return String(entry.bookingId);
+};
+
+const buildBookingSegmentMap = async ({ entries, session }) => {
+  const bookingIds = Array.from(
+    new Set(
+      (entries || [])
+        .map((entry) => getEntryBookingId(entry))
+        .filter(Boolean),
+    ),
+  ).filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  if (bookingIds.length === 0) return new Map();
+
+  const bookings = await Booking.find({ _id: { $in: bookingIds } })
+    .select("_id route direction boardingPoint droppingPoint")
+    .session(session)
+    .lean();
+
+  const bookingMap = new Map();
+  for (const booking of bookings) {
+    const segment = resolveJourneySegment({
+      route: booking?.route,
+      direction: normalizeDirection(booking?.direction),
+      boardingPoint: booking?.boardingPoint,
+      droppingPoint: booking?.droppingPoint,
+    });
+    if (segment) {
+      bookingMap.set(String(booking._id), segment);
+    }
+  }
+  return bookingMap;
+};
+
+const findBookedSeatConflicts = ({
+  bus,
+  travelDate,
+  direction,
+  seatIds,
+  requestedSegment,
+  bookingSegmentMap,
+}) => {
+  if (!Array.isArray(bus?.bookedSeats) || bus.bookedSeats.length === 0) {
+    return [];
+  }
+
+  const requestedDateKey = formatDateKey(travelDate);
+  const normalizedDirection = normalizeDirection(direction);
+  const requestedSet = new Set((seatIds || []).map((seat) => normalizeSeatToken(seat)));
+  const conflictSet = new Set();
+
+  for (const entry of bus.bookedSeats) {
+    const seatNumber = normalizeSeatToken(entry?.seatNumber);
+    if (!seatNumber || !requestedSet.has(seatNumber)) continue;
+    if (formatDateKey(entry?.travelDate) !== requestedDateKey) continue;
+    if (normalizeDirection(entry?.direction) !== normalizedDirection) continue;
+
+    const bookingSegment = bookingSegmentMap.get(getEntryBookingId(entry)) || null;
+    const entrySegment = getSeatEntrySegment({
+      seatEntry: entry,
+      route: bus.route,
+      direction: normalizedDirection,
+      bookingSegment,
+    });
+
+    if (
+      segmentsOverlap(
+        requestedSegment.segmentStartKm,
+        requestedSegment.segmentEndKm,
+        entrySegment.segmentStartKm,
+        entrySegment.segmentEndKm,
+      )
+    ) {
+      conflictSet.add(seatNumber);
+    }
+  }
+
+  return Array.from(conflictSet);
+};
+
+const findHoldSeatConflicts = ({
+  holds,
+  requestedSegment,
+  seatIds,
+  defaultRoute,
+  direction,
+}) => {
+  const requestedSet = new Set((seatIds || []).map((seat) => normalizeSeatToken(seat)));
+  const conflictSet = new Set();
+  const normalizedDirection = normalizeDirection(direction);
+
+  for (const hold of holds || []) {
+    const seatId = normalizeSeatToken(hold?.seatId);
+    if (!seatId || !requestedSet.has(seatId)) continue;
+
+    const entrySegment = getSeatEntrySegment({
+      seatEntry: hold,
+      route: defaultRoute,
+      direction: normalizedDirection,
+      bookingSegment: null,
+    });
+
+    if (
+      segmentsOverlap(
+        requestedSegment.segmentStartKm,
+        requestedSegment.segmentEndKm,
+        entrySegment.segmentStartKm,
+        entrySegment.segmentEndKm,
+      )
+    ) {
+      conflictSet.add(seatId);
+    }
+  }
+
+  return Array.from(conflictSet);
+};
 
 export class SeatLockService {
   /**
@@ -94,12 +282,15 @@ export class SeatLockService {
     userId,
     travelDate,
     direction = "forward",
+    boardingPoint = null,
+    droppingPoint = null,
     sessionId = null,
     lockDurationMinutes = DEFAULT_LOCK_DURATION,
   }) {
     // proactively cleanup expired locks so availability check is accurate
     await SeatLockService.cleanupExpiredLocks();
 
+    const normalizedDirection = normalizeDirection(direction);
     let attempt = 0;
     let lastError;
 
@@ -125,6 +316,13 @@ export class SeatLockService {
           throw new Error("Bus not found");
         }
 
+        const requestedSegment = buildRequestedSegmentOrThrow({
+          route: bus.route,
+          direction: normalizedDirection,
+          boardingPoint,
+          droppingPoint,
+        });
+
         const normalizedInputs = Array.isArray(seatNumbers)
           ? seatNumbers.map((seat) => normalizeSeatToken(seat))
           : [];
@@ -140,26 +338,66 @@ export class SeatLockService {
           throw new Error("Duplicate seats are not allowed");
         }
 
-        const bookedSeatIds = getBookedSeatIds(
+        const seatIdSet = new Set(seatIds);
+        const sameTripEntries = (bus.bookedSeats || []).filter(
+          (entry) =>
+            formatDateKey(entry?.travelDate) === formatDateKey(travelDateObj) &&
+            normalizeDirection(entry?.direction) === normalizedDirection &&
+            seatIdSet.has(normalizeSeatToken(entry?.seatNumber)),
+        );
+        const bookingSegmentMap = await buildBookingSegmentMap({
+          entries: sameTripEntries,
+          session,
+        });
+
+        const bookedConflicts = findBookedSeatConflicts({
           bus,
-          travelDateObj,
-          direction
-        );
-        const bookedConflicts = seatIds.filter((seatId) =>
-          bookedSeatIds.includes(seatId)
-        );
+          travelDate: travelDateObj,
+          direction: normalizedDirection,
+          seatIds,
+          requestedSegment,
+          bookingSegmentMap,
+        });
         if (bookedConflicts.length > 0) {
           throw new Error(
             `Seats ${bookedConflicts.join(", ")} are already booked`
           );
         }
 
-        const tripKey = buildTripKey(bus._id.toString(), travelDateObj, direction);
+        const tripKey = buildTripKey(
+          bus._id.toString(),
+          travelDateObj,
+          normalizedDirection,
+          requestedSegment.segmentStartKm,
+          requestedSegment.segmentEndKm
+        );
+
+        // Legacy cleanup: regular bookings should not stay as BOOKED holds.
+        await SeatHold.updateMany(
+          {
+            bus: busId,
+            travelDate: travelDateObj,
+            direction: normalizedDirection,
+            status: "BOOKED",
+            seatId: { $in: seatIds },
+            $or: [
+              { "metadata.source": { $exists: false } },
+              { "metadata.source": { $ne: "conductor-offline" } },
+            ],
+          },
+          {
+            $set: {
+              status: "CANCELLED",
+              expiresAt: now,
+            },
+          },
+          { session },
+        );
 
         await SeatHold.deleteMany({
           bus: busId,
           travelDate: travelDateObj,
-          direction,
+          direction: normalizedDirection,
           user: userId,
           sessionId,
           status: "HOLD",
@@ -169,31 +407,50 @@ export class SeatLockService {
         const activeHolds = await SeatHold.find({
           bus: busId,
           travelDate: travelDateObj,
-          direction,
+          direction: normalizedDirection,
           status: "HOLD",
           expiresAt: { $gt: now },
           seatId: { $in: seatIds },
-        }).session(session);
+        })
+          .session(session)
+          .lean();
 
-        if (activeHolds.length > 0) {
-          const lockedSeats = activeHolds.map((hold) => hold.seatId);
+        const holdConflicts = findHoldSeatConflicts({
+          holds: activeHolds,
+          requestedSegment,
+          seatIds,
+          defaultRoute: bus.route,
+          direction: normalizedDirection,
+        });
+
+        if (holdConflicts.length > 0) {
           throw new Error(
-            `Seats ${lockedSeats.join(", ")} are not available`
+            `Seats ${holdConflicts.join(", ")} are not available`
           );
         }
 
         const bookedHolds = await SeatHold.find({
           bus: busId,
           travelDate: travelDateObj,
-          direction,
+          direction: normalizedDirection,
           status: "BOOKED",
+          "metadata.source": "conductor-offline",
           seatId: { $in: seatIds },
-        }).session(session);
+        })
+          .session(session)
+          .lean();
 
-        if (bookedHolds.length > 0) {
-          const lockedSeats = bookedHolds.map((hold) => hold.seatId);
+        const bookedHoldConflicts = findHoldSeatConflicts({
+          holds: bookedHolds,
+          requestedSegment,
+          seatIds,
+          defaultRoute: bus.route,
+          direction: normalizedDirection,
+        });
+
+        if (bookedHoldConflicts.length > 0) {
           throw new Error(
-            `Seats ${lockedSeats.join(", ")} are already booked`
+            `Seats ${bookedHoldConflicts.join(", ")} are already booked`
           );
         }
 
@@ -201,12 +458,19 @@ export class SeatLockService {
           bus: busId,
           tripKey,
           travelDate: travelDateObj,
-          direction,
+          direction: normalizedDirection,
           seatId,
           status: "HOLD",
           expiresAt,
           user: userId,
           sessionId,
+          segmentStartKm: requestedSegment.segmentStartKm,
+          segmentEndKm: requestedSegment.segmentEndKm,
+          metadata: {
+            source: "checkout-lock",
+            boardingPoint: requestedSegment.boardingPoint,
+            droppingPoint: requestedSegment.droppingPoint,
+          },
         }));
 
         await SeatHold.insertMany(holds, { session, ordered: true });
@@ -498,6 +762,7 @@ export class SeatLockService {
     // Make sure expired locks are removed before conversion
     await SeatLockService.cleanupExpiredLocks();
 
+    const normalizedDirection = normalizeDirection(direction);
     let attempt = 0;
     let lastError;
 
@@ -515,53 +780,130 @@ export class SeatLockService {
           throw new Error("Bus not found");
         }
 
+        const booking = bookingId
+          ? await Booking.findById(bookingId)
+              .select(
+                "_id route direction boardingPoint droppingPoint passengers",
+              )
+              .session(session)
+          : null;
+        const effectiveDirection = booking
+          ? normalizeDirection(booking.direction || normalizedDirection)
+          : normalizedDirection;
+
         const holdsToConvert = await SeatHold.find({
           bus: busId,
           travelDate: travelDateObj,
-          direction,
+          direction: effectiveDirection,
           user: userId,
           sessionId,
           status: "HOLD",
           expiresAt: { $gt: now },
-        }).session(session);
+        })
+          .session(session)
+          .lean();
 
-        let seatIds = holdsToConvert.map((hold) => hold.seatId);
+        let seatIds = holdsToConvert
+          .map((hold) => normalizeSeatToken(hold?.seatId))
+          .filter(Boolean);
 
-        if (seatIds.length === 0) {
-          const booking = bookingId
-            ? await Booking.findById(bookingId).session(session)
-            : null;
-
-          if (!booking) {
-            throw new Error("No valid locks found to convert");
-          }
-
+        if (seatIds.length === 0 && booking) {
           seatIds = Array.isArray(booking.passengers)
             ? booking.passengers
                 .map((passenger) => normalizeSeatToken(passenger?.seatNumber))
                 .filter(Boolean)
             : [];
+        }
 
-          if (seatIds.length === 0) {
-            throw new Error("No seats found for booking");
-          }
+        if (seatIds.length === 0) {
+          throw new Error("No valid locks found to convert");
+        }
 
-          const bookedSeatSet = new Set(
-            getBookedSeatIds(bus, travelDateObj, direction),
-          );
-          const allBooked = seatIds.every((seatId) =>
-            bookedSeatSet.has(seatId),
-          );
+        if (new Set(seatIds).size !== seatIds.length) {
+          throw new Error("Duplicate seats found while converting locks");
+        }
 
-          if (allBooked) {
+        let requestedSegment = null;
+        if (booking) {
+          requestedSegment = resolveJourneySegment({
+            route: booking.route || bus.route,
+            direction: effectiveDirection,
+            boardingPoint: booking.boardingPoint,
+            droppingPoint: booking.droppingPoint,
+          });
+        }
+
+        if (!requestedSegment && holdsToConvert.length > 0) {
+          requestedSegment = getSeatEntrySegment({
+            seatEntry: holdsToConvert[0],
+            route: bus.route,
+            direction: effectiveDirection,
+            bookingSegment: null,
+          });
+        }
+
+        if (!requestedSegment) {
+          requestedSegment = getRouteExtentSegment(bus.route, effectiveDirection);
+        }
+
+        const seatSet = new Set(seatIds);
+        const sameTripEntries = (bus.bookedSeats || []).filter(
+          (entry) =>
+            formatDateKey(entry?.travelDate) === formatDateKey(travelDateObj) &&
+            normalizeDirection(entry?.direction) === effectiveDirection &&
+            seatSet.has(normalizeSeatToken(entry?.seatNumber)),
+        );
+        const bookingSegmentMap = await buildBookingSegmentMap({
+          entries: sameTripEntries,
+          session,
+        });
+
+        const bookedConflicts = findBookedSeatConflicts({
+          bus,
+          travelDate: travelDateObj,
+          direction: effectiveDirection,
+          seatIds,
+          requestedSegment,
+          bookingSegmentMap,
+        });
+
+        if (bookedConflicts.length > 0) {
+          const sameBookingAlreadyReserved = seatIds.every((seatId) => {
+            const reservedBySameBooking = sameTripEntries.some((entry) => {
+              if (normalizeSeatToken(entry?.seatNumber) !== seatId) return false;
+              if (String(entry?.bookingId || "") !== String(bookingId || "")) {
+                return false;
+              }
+              const bookingSegment =
+                bookingSegmentMap.get(getEntryBookingId(entry)) || null;
+              const entrySegment = getSeatEntrySegment({
+                seatEntry: entry,
+                route: bus.route,
+                direction: effectiveDirection,
+                bookingSegment,
+              });
+              return segmentsOverlap(
+                requestedSegment.segmentStartKm,
+                requestedSegment.segmentEndKm,
+                entrySegment.segmentStartKm,
+                entrySegment.segmentEndKm,
+              );
+            });
+            return reservedBySameBooking;
+          });
+
+          if (sameBookingAlreadyReserved) {
             await SeatHold.updateMany(
               {
-                bus: busId,
-                travelDate: travelDateObj,
-                direction,
-                seatId: { $in: seatIds },
+                _id: { $in: holdsToConvert.map((hold) => hold._id) },
               },
-              { $set: { status: "BOOKED", booking: bookingId, expiresAt: null } },
+              {
+                $set: {
+                  status: "CANCELLED",
+                  booking: bookingId || null,
+                  expiresAt: now,
+                },
+              },
               { session },
             );
 
@@ -574,163 +916,73 @@ export class SeatLockService {
             };
           }
 
-          const newBookedSeats = seatIds.map((seatNumber) => ({
-            seatNumber,
-            bookingId,
-            bookingDate: now,
-            travelDate: travelDateObj,
-            direction,
-          }));
-
-          const result = await Bus.findOneAndUpdate(
-            {
-              _id: busId,
-              availableSeats: { $gte: seatIds.length },
-              bookedSeats: {
-                $not: {
-                  $elemMatch: {
-                    seatNumber: { $in: seatIds },
-                    travelDate: travelDateObj,
-                    direction,
-                  },
-                },
-              },
-            },
-            {
-              $push: {
-                bookedSeats: { $each: newBookedSeats },
-              },
-              $inc: {
-                availableSeats: -seatIds.length,
-              },
-            },
-            {
-              session,
-              new: true,
-              runValidators: true,
-            },
-          );
-
-          if (!result) {
-            throw new Error("Seats are already booked or unavailable");
-          }
-
-          await SeatHold.updateMany(
-            {
-              bus: busId,
-              travelDate: travelDateObj,
-              direction,
-              seatId: { $in: seatIds },
-              status: "HOLD",
-            },
-            { $set: { status: "BOOKED", booking: bookingId, expiresAt: null } },
-            { session },
-          );
-
-          const tripKey = buildTripKey(
-            busId.toString ? busId.toString() : busId,
-            travelDateObj,
-            direction,
-          );
-
-          try {
-            await SeatHold.insertMany(
-              seatIds.map((seatId) => ({
-                bus: busId,
-                tripKey,
-                travelDate: travelDateObj,
-                direction,
-                seatId,
-                status: "BOOKED",
-                expiresAt: null,
-                user: userId,
-                sessionId,
-                booking: bookingId,
-              })),
-              { session, ordered: false },
-            );
-          } catch (insertError) {
-            if (insertError?.code !== 11000) {
-              throw insertError;
-            }
-          }
-
-          await session.commitTransaction();
-
-          return {
-            success: true,
-            convertedSeats: seatIds,
-            message: "Seats booked without active locks",
-          };
-        }
-        const bookedSeatIds = getBookedSeatIds(
-          bus,
-          travelDateObj,
-          direction
-        );
-        const bookedConflicts = seatIds.filter((seatId) =>
-          bookedSeatIds.includes(seatId)
-        );
-
-        if (bookedConflicts.length > 0) {
           throw new Error(
             `Seats ${bookedConflicts.join(", ")} are already booked`
           );
         }
 
-        const newBookedSeats = seatIds.map((seatNumber) => ({
+        const seatsToInsert = seatIds.filter((seatId) => {
+          return !sameTripEntries.some((entry) => {
+            if (normalizeSeatToken(entry?.seatNumber) !== seatId) return false;
+            if (String(entry?.bookingId || "") !== String(bookingId || "")) {
+              return false;
+            }
+            const bookingSegment =
+              bookingSegmentMap.get(getEntryBookingId(entry)) || null;
+            const entrySegment = getSeatEntrySegment({
+              seatEntry: entry,
+              route: bus.route,
+              direction: effectiveDirection,
+              bookingSegment,
+            });
+            return segmentsOverlap(
+              requestedSegment.segmentStartKm,
+              requestedSegment.segmentEndKm,
+              entrySegment.segmentStartKm,
+              entrySegment.segmentEndKm,
+            );
+          });
+        });
+
+        const newBookedSeats = seatsToInsert.map((seatNumber) => ({
           seatNumber,
           bookingId,
           bookingDate: now,
           travelDate: travelDateObj,
-          direction,
+          direction: effectiveDirection,
+          boardingPoint: booking?.boardingPoint || null,
+          droppingPoint: booking?.droppingPoint || null,
+          segmentStartKm: requestedSegment.segmentStartKm,
+          segmentEndKm: requestedSegment.segmentEndKm,
         }));
 
-        const result = await Bus.findOneAndUpdate(
-          {
-            _id: busId,
-            availableSeats: { $gte: seatIds.length },
-            bookedSeats: {
-              $not: {
-                $elemMatch: {
-                  seatNumber: { $in: seatIds },
-                  travelDate: travelDateObj,
-                  direction,
-                },
-              },
-            },
-          },
-          {
-            $push: {
-              bookedSeats: { $each: newBookedSeats },
-            },
-            $inc: {
-              availableSeats: -seatIds.length,
-            },
-          },
-          {
-            session,
-            new: true,
-            runValidators: true,
-          }
-        );
-
-        if (!result) {
-          throw new Error("Seats are already booked or unavailable");
+        if (newBookedSeats.length > 0) {
+          bus.bookedSeats.push(...newBookedSeats);
         }
 
         await SeatHold.updateMany(
           { _id: { $in: holdsToConvert.map((hold) => hold._id) } },
-          { $set: { status: "BOOKED", booking: bookingId, expiresAt: null } },
+          {
+            $set: {
+              status: "CANCELLED",
+              booking: bookingId || null,
+              expiresAt: now,
+            },
+          },
           { session }
         );
+
+        await bus.save({ session });
 
         await session.commitTransaction();
 
         return {
           success: true,
           convertedSeats: seatIds,
-          message: `${seatIds.length} seats converted to permanent booking`,
+          message:
+            holdsToConvert.length > 0
+              ? `${seatIds.length} seats converted to permanent booking`
+              : "Seats booked without active locks",
         };
       } catch (error) {
         await session.abortTransaction();
@@ -814,7 +1066,7 @@ export class SeatLockService {
       );
       const validSeatIds = resolved.filter(Boolean);
       const bookedSeatSet = new Set(
-        getBookedSeatIds(bus, travelDateObj, direction)
+        getBookedSeatIdsForTrip(bus, travelDateObj, direction)
       );
 
       const activeHolds = await SeatHold.find({

@@ -41,40 +41,97 @@ export const firebaseAuth = async (req, res) => {
     let user = await User.findOne({ firebaseUID });
 
     if (!user) {
-      user = new User({
-        firebaseUID,
-        ...(nameFromToken || fullName ? { fullName: nameFromToken || fullName } : {}),
-        ...(phoneFromToken && { phone: phoneFromToken }),
-        ...(emailFromToken && { email: emailFromToken }),
+      try {
+        user = new User({
+          firebaseUID,
+          ...(nameFromToken || fullName ? { fullName: nameFromToken || fullName } : {}),
+          ...(phoneFromToken && { phone: phoneFromToken }),
+          ...(emailFromToken && { email: emailFromToken }),
+        });
+        await user.save();
+      } catch (createError) {
+        // Handle concurrent create requests for the same Firebase account gracefully.
+        if (createError?.code === 11000) {
+          const existingByUID = await User.findOne({ firebaseUID });
+          if (existingByUID) {
+            user = existingByUID;
+          } else if (createError?.keyPattern?.phone) {
+            return res.status(409).json({
+              success: false,
+              message: "Phone number already linked to another account",
+              code: "PHONE_EXISTS",
+            });
+          } else if (createError?.keyPattern?.email) {
+            return res.status(409).json({
+              success: false,
+              message: "Email already linked to another account",
+              code: "EMAIL_EXISTS",
+            });
+          } else if (createError?.keyPattern?.firebaseUID) {
+            user = await User.findOne({ firebaseUID });
+            if (!user) {
+              return res.status(409).json({
+                success: false,
+                message: "Account already exists",
+                code: "ACCOUNT_EXISTS",
+              });
+            }
+          } else {
+            return res.status(409).json({
+              success: false,
+              message: "Account already exists",
+              code: "ACCOUNT_EXISTS",
+            });
+          }
+        } else {
+          throw createError;
+        }
+      }
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is deactivated. Please contact support.",
+        code: "ACCOUNT_DEACTIVATED",
       });
-      await user.save();
-    } else {
-      if (user.isActive === false) {
-        return res.status(403).json({
-          success: false,
-          message: "Your account is deactivated. Please contact support.",
-          code: "ACCOUNT_DEACTIVATED",
-        });
-      }
+    }
 
-      if (user.isBlocked === true) {
-        return res.status(403).json({
-          success: false,
-          message: "Your account is blocked. Please contact support.",
-          code: "ACCOUNT_BLOCKED",
-        });
-      }
+    if (user.isBlocked === true) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is blocked. Please contact support.",
+        code: "ACCOUNT_BLOCKED",
+      });
+    }
 
-      const updates = {};
-      if (!user.fullName && (nameFromToken || fullName)) {
-        updates.fullName = nameFromToken || fullName;
-      }
-      if (!user.email && emailFromToken) updates.email = emailFromToken;
-      if (!user.phone && phoneFromToken) updates.phone = phoneFromToken;
+    const updates = {};
+    if (!user.fullName && (nameFromToken || fullName)) {
+      updates.fullName = nameFromToken || fullName;
+    }
+    if (!user.email && emailFromToken) updates.email = emailFromToken;
+    if (!user.phone && phoneFromToken) updates.phone = phoneFromToken;
 
-      if (Object.keys(updates).length) {
+    if (Object.keys(updates).length) {
+      try {
         Object.assign(user, updates);
         await user.save();
+      } catch (updateError) {
+        if (updateError?.code === 11000 && updateError?.keyPattern?.phone) {
+          return res.status(409).json({
+            success: false,
+            message: "Phone number already linked to another account",
+            code: "PHONE_EXISTS",
+          });
+        }
+        if (updateError?.code === 11000 && updateError?.keyPattern?.email) {
+          return res.status(409).json({
+            success: false,
+            message: "Email already linked to another account",
+            code: "EMAIL_EXISTS",
+          });
+        }
+        throw updateError;
       }
     }
 
@@ -100,6 +157,10 @@ export const firebaseAuth = async (req, res) => {
     };
 
     res.cookie("token", sessionCookie, cookieOptions);
+    res.clearCookie("impersonation_token", {
+      ...cookieOptions,
+      expires: new Date(0),
+    });
 
     res.status(200).json({
       success: true,
@@ -179,6 +240,7 @@ export const logout = async (req, res) => {
     // Clear the 'token' cookie.
     // The name of the cookie ('token') must match the name used during login.
     res.clearCookie("token", cookieOptions);
+    res.clearCookie("impersonation_token", cookieOptions);
 
     // Send a success response to the client.
     // A 200 OK status indicates that the request was successful.

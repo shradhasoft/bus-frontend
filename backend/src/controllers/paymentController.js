@@ -308,6 +308,7 @@ const markPaymentFailed = async ({
         userId: booking.user,
         sessionId: booking.sessionId,
         travelDate: booking.travelDate,
+        direction: booking.direction || "forward",
       });
     } catch (lockError) {
       console.error("Error releasing locks on payment failure:", lockError);

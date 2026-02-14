@@ -1,9 +1,105 @@
 // src/middlewares/authMiddleware.js
 import asyncHandler from "express-async-handler";
+import jwt from "jsonwebtoken";
 import { User } from "../models/user.js";
 import { auth as firebaseAdminAuth } from "../utils/firebase-admin.js";
 
+const IMPERSONATION_COOKIE_NAME = "impersonation_token";
+
+const normalizeRole = (role) => String(role || "").toLowerCase();
+
+const isPrivilegedSupportRole = (role) => {
+  const normalized = normalizeRole(role);
+  return normalized === "admin" || normalized === "superadmin";
+};
+
+const resolveSecureCookieSettings = () => {
+  const secure =
+    process.env.COOKIE_SECURE === "true" ||
+    (process.env.COOKIE_SECURE !== "false" &&
+      process.env.NODE_ENV === "production");
+  const sameSite =
+    process.env.COOKIE_SAMESITE ||
+    (process.env.NODE_ENV === "production" ? "lax" : "lax");
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: "/",
+  };
+};
+
+const clearImpersonationCookie = (res) => {
+  res.clearCookie(IMPERSONATION_COOKIE_NAME, {
+    ...resolveSecureCookieSettings(),
+    expires: new Date(0),
+  });
+};
+
+const loadUserForAuth = (query) =>
+  User.findOne(query).select("-__v -createdAt -updatedAt");
+
+const tryApplyImpersonation = async (req, res) => {
+  const rawImpersonationToken = req.cookies?.[IMPERSONATION_COOKIE_NAME];
+  if (!rawImpersonationToken) return false;
+
+  const secret = process.env.IMPERSONATION_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    clearImpersonationCookie(res);
+    return false;
+  }
+
+  try {
+    const payload = jwt.verify(rawImpersonationToken, secret);
+    if (
+      payload?.typ !== "impersonation" ||
+      !payload?.actorUserId ||
+      !payload?.targetUserId
+    ) {
+      clearImpersonationCookie(res);
+      return false;
+    }
+
+    const [actorUser, targetUser] = await Promise.all([
+      loadUserForAuth({ _id: payload.actorUserId }),
+      loadUserForAuth({ _id: payload.targetUserId }),
+    ]);
+
+    if (
+      !actorUser ||
+      actorUser.isActive === false ||
+      actorUser.isBlocked === true ||
+      !isPrivilegedSupportRole(actorUser.role)
+    ) {
+      clearImpersonationCookie(res);
+      return false;
+    }
+
+    if (!targetUser || targetUser.isActive === false || targetUser.isBlocked === true) {
+      clearImpersonationCookie(res);
+      return false;
+    }
+
+    req.user = targetUser;
+    req.authActor = actorUser;
+    req.isImpersonating = true;
+    return true;
+  } catch (_error) {
+    clearImpersonationCookie(res);
+    return false;
+  }
+};
+
 const protect = asyncHandler(async (req, res, next) => {
+  const impersonationApplied = await tryApplyImpersonation(req, res);
+  if (impersonationApplied) {
+    return next();
+  }
+
+  req.authActor = null;
+  req.isImpersonating = false;
+
   let token;
   let source = "header";
 

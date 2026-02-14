@@ -891,6 +891,39 @@ const busSchema = new mongoose.Schema(
           required: true,
           default: "forward",
         },
+        boardingPoint: {
+          type: String,
+          trim: true,
+        },
+        droppingPoint: {
+          type: String,
+          trim: true,
+        },
+        segmentStartKm: {
+          type: Number,
+          min: [0, "Segment start cannot be negative"],
+        },
+        segmentEndKm: {
+          type: Number,
+          min: [0, "Segment end cannot be negative"],
+        },
+        source: {
+          type: String,
+          enum: ["booking", "offline"],
+          default: "booking",
+        },
+        markedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        markedAt: {
+          type: Date,
+        },
+        note: {
+          type: String,
+          trim: true,
+          maxlength: [160, "Offline booking note cannot exceed 160 characters"],
+        },
       },
     ],
     availableSeats: {

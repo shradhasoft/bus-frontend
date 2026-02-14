@@ -524,6 +524,10 @@ const buildSeatEntries = ({
   travelDateObj,
   direction,
   bookingDate = new Date(),
+  boardingPoint = null,
+  droppingPoint = null,
+  segmentStartKm = null,
+  segmentEndKm = null,
 }) =>
   seatIds.map((seatNumber) => ({
     seatNumber,
@@ -531,6 +535,12 @@ const buildSeatEntries = ({
     bookingDate,
     travelDate: travelDateObj,
     direction,
+    boardingPoint: boardingPoint || undefined,
+    droppingPoint: droppingPoint || undefined,
+    segmentStartKm:
+      Number.isFinite(Number(segmentStartKm)) ? Number(segmentStartKm) : undefined,
+    segmentEndKm:
+      Number.isFinite(Number(segmentEndKm)) ? Number(segmentEndKm) : undefined,
   }));
 
 const validateTravelDateValue = (value) => {
@@ -602,11 +612,15 @@ const resolveRouteAndFareSnapshot = ({
   const totalAmount = Number.parseFloat(
     (farePerPassenger * passengerCount).toFixed(2)
   );
+  const segmentStartKm = Math.min(boardingDistance, droppingDistance);
+  const segmentEndKm = Math.max(boardingDistance, droppingDistance);
 
   return {
     journeyDistance,
     farePerPassenger: Number.parseFloat(farePerPassenger.toFixed(2)),
     totalAmount,
+    segmentStartKm,
+    segmentEndKm,
     routeSnapshot: bus.route?.toObject ? bus.route.toObject() : bus.route,
   };
 };
@@ -620,6 +634,8 @@ export const lockSeatsForBooking = async (req, res) => {
       seatNumbers,
       sessionId,
       direction = "forward",
+      boardingPoint,
+      droppingPoint,
     } = req.body;
     const userId = req.user._id;
 
@@ -662,6 +678,8 @@ export const lockSeatsForBooking = async (req, res) => {
       travelDate,
       direction,
       sessionId,
+      boardingPoint,
+      droppingPoint,
       lockDurationMinutes: 10,
     });
 
@@ -700,6 +718,17 @@ export const lockSeatsForBooking = async (req, res) => {
         success: false,
         message: error.message,
         code: "INVALID_SEATS",
+      });
+    }
+
+    if (
+      error.message.includes("boardingPoint and droppingPoint") ||
+      error.message.includes("Invalid boarding/dropping points")
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code: "INVALID_POINT",
       });
     }
 
@@ -1047,6 +1076,30 @@ export const createBooking = async (req, res) => {
         success: false,
         message: "Boarding point must be before dropping point",
         code: "INVALID_POINT_ORDER",
+      });
+    }
+
+    const requestedSegmentStart = Math.min(boardingDistance, droppingDistance);
+    const requestedSegmentEnd = Math.max(boardingDistance, droppingDistance);
+    const lockSegmentMismatch = userLocks.some((lock) => {
+      const lockStart = Number(lock?.segmentStartKm);
+      const lockEnd = Number(lock?.segmentEndKm);
+      if (!Number.isFinite(lockStart) || !Number.isFinite(lockEnd)) {
+        return true;
+      }
+      return (
+        Math.abs(lockStart - requestedSegmentStart) > 0.0001 ||
+        Math.abs(lockEnd - requestedSegmentEnd) > 0.0001
+      );
+    });
+
+    if (lockSegmentMismatch) {
+      await session.abortTransaction();
+      return res.status(409).json({
+        success: false,
+        message:
+          "Seat locks do not match the selected boarding/dropping segment. Please reselect seats.",
+        code: "LOCK_SEGMENT_MISMATCH",
       });
     }
 
@@ -2672,42 +2725,14 @@ export const createAdminBooking = async (req, res) => {
           bookingId: booking._id,
           travelDateObj: parsedTravelDate,
           direction: normalizedDirection,
+          boardingPoint,
+          droppingPoint,
+          segmentStartKm: fareSnapshot.segmentStartKm,
+          segmentEndKm: fareSnapshot.segmentEndKm,
         })
       );
       bus.availableSeats -= seatIds.length;
       await bus.save({ session });
-
-      const tripKey = buildTripKey(
-        bus._id.toString(),
-        parsedTravelDate,
-        normalizedDirection
-      );
-
-      try {
-        await SeatHold.insertMany(
-          seatIds.map((seatId) => ({
-            bus: bus._id,
-            tripKey,
-            travelDate: parsedTravelDate,
-            direction: normalizedDirection,
-            seatId,
-            status: "BOOKED",
-            expiresAt: null,
-            user: user._id,
-            sessionId: adminSessionId,
-            booking: booking._id,
-            metadata: {
-              source: "admin",
-              createdBy: req.user?._id?.toString(),
-            },
-          })),
-          { session, ordered: false }
-        );
-      } catch (insertError) {
-        if (insertError?.code !== 11000) {
-          throw insertError;
-        }
-      }
     }
 
     if (normalizedPaymentStatus === "paid") {
@@ -3026,45 +3051,16 @@ export const updateAdminBooking = async (req, res) => {
           travelDateObj: nextTravelDate,
           direction: booking.direction || "forward",
           bookingDate: new Date(),
+          boardingPoint: nextBoardingPoint,
+          droppingPoint: nextDroppingPoint,
+          segmentStartKm: fareSnapshot.segmentStartKm,
+          segmentEndKm: fareSnapshot.segmentEndKm,
         })
       );
       bus.availableSeats -= nextSeatIds.length;
     }
 
     await SeatHold.deleteMany({ booking: booking._id }).session(session);
-    if (shouldReserve) {
-      const tripKey = buildTripKey(
-        bus._id.toString(),
-        nextTravelDate,
-        booking.direction || "forward"
-      );
-
-      try {
-        await SeatHold.insertMany(
-          nextSeatIds.map((seatId) => ({
-            bus: bus._id,
-            tripKey,
-            travelDate: nextTravelDate,
-            direction: booking.direction || "forward",
-            seatId,
-            status: "BOOKED",
-            expiresAt: null,
-            user: booking.user?._id || booking.user,
-            sessionId: booking.sessionId || `admin_${Date.now()}_${nanoid()}`,
-            booking: booking._id,
-            metadata: {
-              source: "admin-update",
-              updatedBy: req.user?._id?.toString(),
-            },
-          })),
-          { session, ordered: false }
-        );
-      } catch (insertError) {
-        if (insertError?.code !== 11000) {
-          throw insertError;
-        }
-      }
-    }
 
     booking.travelDate = nextTravelDate;
     booking.boardingPoint = nextBoardingPoint;

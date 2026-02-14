@@ -1,5 +1,6 @@
 import { Bus } from "../models/bus.js";
 import { BusLiveLocation } from "../models/busLiveLocation.js";
+import { getLatestBusLocation as getLatestBusLocationFromStore } from "../services/tracking/readService.js";
 
 // Search bus by busName or busNumber (normal user)
 export const searchBusForTracking = async (req, res) => {
@@ -67,6 +68,30 @@ export const getLatestBusLocation = async (req, res) => {
         success: false,
         message: "Bus not found",
         code: "BUS_NOT_FOUND",
+      });
+    }
+
+    const liveFromRedis = await getLatestBusLocationFromStore(busNumber);
+    if (liveFromRedis) {
+      return res.json({
+        success: true,
+        data: {
+          bus,
+          liveLocation: {
+            lat: liveFromRedis.lat,
+            lng: liveFromRedis.lng,
+            accuracy: liveFromRedis.accuracy,
+            speed: liveFromRedis.speed,
+            heading: liveFromRedis.heading,
+            recordedAt: liveFromRedis.recordedAt,
+            updatedAt: liveFromRedis.ingestedAt || liveFromRedis.recordedAt,
+            confidence: liveFromRedis.confidence,
+            ageSeconds: liveFromRedis.ageSeconds,
+            isStale: liveFromRedis.isStale,
+            tripKey: liveFromRedis.tripKey || null,
+            source: liveFromRedis.source || null,
+          },
+        },
       });
     }
 

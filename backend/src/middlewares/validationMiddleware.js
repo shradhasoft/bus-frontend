@@ -566,6 +566,14 @@ export const validateSeatLocking = [
 
       return true;
     }),
+  body("boardingPoint")
+    .trim()
+    .notEmpty()
+    .withMessage("Boarding point is required"),
+  body("droppingPoint")
+    .trim()
+    .notEmpty()
+    .withMessage("Dropping point is required"),
   body("sessionId")
     .optional()
     .trim()

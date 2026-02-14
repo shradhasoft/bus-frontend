@@ -1,6 +1,16 @@
 import { Bus } from "../models/bus.js";
+import { Booking } from "../models/booking.js";
 import { SeatHold } from "../models/seatHold.js";
 import mongoose from "mongoose";
+import {
+  formatDateKey,
+  getRouteExtentSegment,
+  getSeatEntrySegment,
+  normalizeDirection,
+  normalizeSeatToken,
+  resolveJourneySegment,
+  segmentsOverlap,
+} from "../utils/seatSegment.js";
 
 // Helper function to convert time object to minutes for comparison
 const timeToMinutes = (timeObj) => {
@@ -71,6 +81,137 @@ const buildRouteInfo = (route, direction) => {
   };
 };
 
+const buildBookingSegmentMapForEntries = async (entries = []) => {
+  const bookingIds = Array.from(
+    new Set(
+      entries
+        .map((entry) => {
+          if (!entry?.bookingId) return "";
+          if (typeof entry.bookingId === "string") return entry.bookingId;
+          if (entry.bookingId?._id) return String(entry.bookingId._id);
+          return String(entry.bookingId);
+        })
+        .filter(Boolean),
+    ),
+  ).filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  if (bookingIds.length === 0) return new Map();
+
+  const bookings = await Booking.find({ _id: { $in: bookingIds } })
+    .select("_id route direction boardingPoint droppingPoint")
+    .lean();
+
+  const segmentMap = new Map();
+  for (const booking of bookings) {
+    const segment = resolveJourneySegment({
+      route: booking?.route,
+      direction: normalizeDirection(booking?.direction),
+      boardingPoint: booking?.boardingPoint,
+      droppingPoint: booking?.droppingPoint,
+    });
+    if (segment) {
+      segmentMap.set(String(booking._id), segment);
+    }
+  }
+  return segmentMap;
+};
+
+const hasSegmentBounds = (entry) =>
+  Number.isFinite(Number(entry?.segmentStartKm)) &&
+  Number.isFinite(Number(entry?.segmentEndKm));
+
+const resolveBookingSegmentMapIfNeeded = async (entries = []) => {
+  const requiresLookup = entries.some(
+    (entry) => entry?.bookingId && !hasSegmentBounds(entry),
+  );
+  if (!requiresLookup) return new Map();
+  return buildBookingSegmentMapForEntries(entries);
+};
+
+const collectBookedSeatsForSegment = ({
+  entries,
+  travelDate,
+  direction,
+  requestedSegment,
+  defaultRoute,
+  bookingSegmentMap = new Map(),
+}) => {
+  const result = new Set();
+  const dateKey = formatDateKey(travelDate);
+  const normalizedDirection = normalizeDirection(direction);
+
+  for (const entry of entries || []) {
+    const seatId = normalizeSeatToken(entry?.seatNumber);
+    if (!seatId) continue;
+    if (formatDateKey(entry?.travelDate) !== dateKey) continue;
+    if (normalizeDirection(entry?.direction) !== normalizedDirection) continue;
+
+    const bookingId =
+      typeof entry?.bookingId === "string"
+        ? entry.bookingId
+        : entry?.bookingId?._id
+          ? String(entry.bookingId._id)
+          : entry?.bookingId
+            ? String(entry.bookingId)
+            : "";
+    const bookingSegment = bookingSegmentMap.get(bookingId) || null;
+    const entrySegment = getSeatEntrySegment({
+      seatEntry: entry,
+      route: defaultRoute,
+      direction: normalizedDirection,
+      bookingSegment,
+    });
+
+    if (
+      segmentsOverlap(
+        requestedSegment.segmentStartKm,
+        requestedSegment.segmentEndKm,
+        entrySegment.segmentStartKm,
+        entrySegment.segmentEndKm,
+      )
+    ) {
+      result.add(seatId);
+    }
+  }
+
+  return Array.from(result);
+};
+
+const collectHeldSeatsForSegment = ({
+  holds,
+  requestedSegment,
+  defaultRoute,
+  direction,
+}) => {
+  const result = new Set();
+  const normalizedDirection = normalizeDirection(direction);
+
+  for (const hold of holds || []) {
+    const seatId = normalizeSeatToken(hold?.seatId);
+    if (!seatId) continue;
+
+    const entrySegment = getSeatEntrySegment({
+      seatEntry: hold,
+      route: defaultRoute,
+      direction: normalizedDirection,
+      bookingSegment: null,
+    });
+
+    if (
+      segmentsOverlap(
+        requestedSegment.segmentStartKm,
+        requestedSegment.segmentEndKm,
+        entrySegment.segmentStartKm,
+        entrySegment.segmentEndKm,
+      )
+    ) {
+      result.add(seatId);
+    }
+  }
+
+  return Array.from(result);
+};
+
 const buildSeatStatusMap = (seatIds, bookedSeats, lockedSeats) => {
   const statusMap = new Map();
   for (const seatId of seatIds) {
@@ -124,36 +265,42 @@ const buildSeatLayoutResponse = (seatLayout, bookedSeats, lockedSeats) => {
   };
 };
 
-const buildHoldCountMap = async (busIds, travelDate) => {
+const buildUtcDayRange = (dateValue) => {
+  const date = new Date(dateValue);
+  const dayStart = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const dayEnd = new Date(dayStart);
+  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+  return { dayStart, dayEnd };
+};
+
+const buildActiveHoldMap = async (busIds, travelDate) => {
   if (!busIds.length) return new Map();
   const now = new Date();
-  const travelDateObj = new Date(travelDate);
-  const results = await SeatHold.aggregate([
-    {
-      $match: {
-        bus: { $in: busIds },
-        travelDate: travelDateObj,
-        status: "HOLD",
-        expiresAt: { $gt: now },
-      },
-    },
-    {
-      $group: {
-        _id: { bus: "$bus", direction: "$direction" },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
+  const { dayStart, dayEnd } = buildUtcDayRange(travelDate);
+  const results = await SeatHold.find({
+    bus: { $in: busIds },
+    travelDate: { $gte: dayStart, $lt: dayEnd },
+    status: "HOLD",
+    expiresAt: { $gt: now },
+  })
+    .select("bus direction seatId segmentStartKm segmentEndKm metadata")
+    .lean();
 
   const map = new Map();
   for (const row of results) {
-    map.set(`${row._id.bus.toString()}_${row._id.direction}`, row.count);
+    const key = `${row.bus.toString()}_${normalizeDirection(row.direction)}`;
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+    map.get(key).push(row);
   }
   return map;
 };
 
-const getHoldCount = (map, busId, direction) =>
-  map.get(`${busId}_${direction}`) || 0;
+const getHoldsForBusDirection = (map, busId, direction) =>
+  map.get(`${busId}_${normalizeDirection(direction)}`) || [];
 
 export const searchBuses = async (req, res) => {
   try {
@@ -187,6 +334,13 @@ export const searchBuses = async (req, res) => {
     }
 
     const searchDate = new Date(date);
+    if (Number.isNaN(searchDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date value",
+        code: "INVALID_DATE",
+      });
+    }
     const dayOfWeek = [
       "Sunday",
       "Monday",
@@ -215,7 +369,7 @@ export const searchBuses = async (req, res) => {
       });
     }
 
-    const holdCountMap = await buildHoldCountMap(
+    const activeHoldMap = await buildActiveHoldMap(
       matchingBuses.map((bus) => bus._id),
       searchDate
     );
@@ -280,16 +434,32 @@ export const searchBuses = async (req, res) => {
           continue;
         }
 
-        const bookedSeats =
-          bus.bookedSeats
-            ?.filter(
-              (bs) =>
-                bs.travelDate &&
-                isSameDate(new Date(bs.travelDate), searchDate) &&
-                bs.direction === dir
-            )
-            .map((bs) => bs.seatNumber) || [];
-        const holdCount = getHoldCount(holdCountMap, bus._id, dir);
+        const requestedSegment = {
+          segmentStartKm: Math.min(originDistance, destinationDistance),
+          segmentEndKm: Math.max(originDistance, destinationDistance),
+        };
+        const sameTripEntries = (bus.bookedSeats || []).filter(
+          (entry) =>
+            formatDateKey(entry?.travelDate) === formatDateKey(searchDate) &&
+            normalizeDirection(entry?.direction) === dir,
+        );
+        const bookingSegmentMap =
+          await resolveBookingSegmentMapIfNeeded(sameTripEntries);
+        const bookedSeats = collectBookedSeatsForSegment({
+          entries: sameTripEntries,
+          travelDate: searchDate,
+          direction: dir,
+          requestedSegment,
+          defaultRoute: bus.route,
+          bookingSegmentMap,
+        });
+        const heldSeats = collectHeldSeatsForSegment({
+          holds: getHoldsForBusDirection(activeHoldMap, bus._id, dir),
+          requestedSegment,
+          defaultRoute: bus.route,
+          direction: dir,
+        });
+        const unavailableSeatCount = new Set([...bookedSeats, ...heldSeats]).size;
 
         const departureDateTime = createDateTime(
           date,
@@ -324,16 +494,13 @@ export const searchBuses = async (req, res) => {
           busNumber: bus.busNumber,
           operator: bus.operator,
           totalSeats: bus.totalSeats,
-          availableSeats: Math.max(
-            0,
-            bus.totalSeats - bookedSeats.length - holdCount
-          ),
+          availableSeats: Math.max(0, bus.totalSeats - unavailableSeatCount),
           amenities: bus.amenities,
           features: bus.features,
           farePerKm: bus.farePerKm,
           operatingDays: bus.operatingDays,
           bookedSeats,
-          heldSeats: holdCount,
+          heldSeats: heldSeats.length,
           direction: dir,
           route: buildRouteInfo(route, dir),
           boardingPoint: boardingStop.city,
@@ -409,6 +576,13 @@ export const searchBusesFlexible = async (req, res) => {
     }
 
     const searchDate = new Date(date);
+    if (Number.isNaN(searchDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date value",
+        code: "INVALID_DATE",
+      });
+    }
     const dayOfWeek = [
       "Sunday",
       "Monday",
@@ -437,7 +611,7 @@ export const searchBusesFlexible = async (req, res) => {
       });
     }
 
-    const holdCountMap = await buildHoldCountMap(
+    const activeHoldMap = await buildActiveHoldMap(
       matchingBuses.map((bus) => bus._id),
       searchDate
     );
@@ -500,16 +674,32 @@ export const searchBusesFlexible = async (req, res) => {
           continue;
         }
 
-        const bookedSeats =
-          bus.bookedSeats
-            ?.filter(
-              (bs) =>
-                bs.travelDate &&
-                isSameDate(new Date(bs.travelDate), searchDate) &&
-                bs.direction === dir
-            )
-            .map((bs) => bs.seatNumber) || [];
-        const holdCount = getHoldCount(holdCountMap, bus._id, dir);
+        const requestedSegment = {
+          segmentStartKm: Math.min(originDistance, destinationDistance),
+          segmentEndKm: Math.max(originDistance, destinationDistance),
+        };
+        const sameTripEntries = (bus.bookedSeats || []).filter(
+          (entry) =>
+            formatDateKey(entry?.travelDate) === formatDateKey(searchDate) &&
+            normalizeDirection(entry?.direction) === dir,
+        );
+        const bookingSegmentMap =
+          await resolveBookingSegmentMapIfNeeded(sameTripEntries);
+        const bookedSeats = collectBookedSeatsForSegment({
+          entries: sameTripEntries,
+          travelDate: searchDate,
+          direction: dir,
+          requestedSegment,
+          defaultRoute: bus.route,
+          bookingSegmentMap,
+        });
+        const heldSeats = collectHeldSeatsForSegment({
+          holds: getHoldsForBusDirection(activeHoldMap, bus._id, dir),
+          requestedSegment,
+          defaultRoute: bus.route,
+          direction: dir,
+        });
+        const unavailableSeatCount = new Set([...bookedSeats, ...heldSeats]).size;
 
         const departureDateTime = createDateTime(
           date,
@@ -544,16 +734,13 @@ export const searchBusesFlexible = async (req, res) => {
           busNumber: bus.busNumber,
           operator: bus.operator,
           totalSeats: bus.totalSeats,
-          availableSeats: Math.max(
-            0,
-            bus.totalSeats - bookedSeats.length - holdCount
-          ),
+          availableSeats: Math.max(0, bus.totalSeats - unavailableSeatCount),
           amenities: bus.amenities,
           features: bus.features,
           farePerKm: bus.farePerKm,
           operatingDays: bus.operatingDays,
           bookedSeats,
-          heldSeats: holdCount,
+          heldSeats: heldSeats.length,
           direction: dir,
           route: buildRouteInfo(route, dir),
           boardingPoint: boardingStop.city,
@@ -757,7 +944,13 @@ export const getRouteOccupancy = async (req, res) => {
 
 export const getBusSeatLayout = async (req, res) => {
   try {
-    const { busId, travelDate, direction = "forward" } = req.query;
+    const {
+      busId,
+      travelDate,
+      direction = "forward",
+      boardingPoint,
+      droppingPoint,
+    } = req.query;
 
     if (!busId || !travelDate) {
       return res.status(400).json({
@@ -775,6 +968,14 @@ export const getBusSeatLayout = async (req, res) => {
       });
     }
 
+    if ((boardingPoint && !droppingPoint) || (!boardingPoint && droppingPoint)) {
+      return res.status(400).json({
+        success: false,
+        message: "Both boardingPoint and droppingPoint are required",
+        code: "INVALID_POINT",
+      });
+    }
+
     const bus = await Bus.findById(busId);
 
     if (!bus) {
@@ -782,6 +983,25 @@ export const getBusSeatLayout = async (req, res) => {
         success: false,
         message: "Bus not found",
         code: "BUS_NOT_FOUND",
+      });
+    }
+
+    const normalizedDirection = normalizeDirection(direction);
+    const requestedSegment =
+      boardingPoint && droppingPoint
+        ? resolveJourneySegment({
+            route: bus.route,
+            direction: normalizedDirection,
+            boardingPoint,
+            droppingPoint,
+          })
+        : getRouteExtentSegment(bus.route, normalizedDirection);
+
+    if (!requestedSegment) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid boarding/dropping point",
+        code: "INVALID_POINT",
       });
     }
 
@@ -793,37 +1013,50 @@ export const getBusSeatLayout = async (req, res) => {
       targetDate.getUTCDate()
     );
 
-    // Get booked seats for this date and direction
-    const bookedSeats = bus.bookedSeats
-      .filter((bs) => {
-        const bsDate = new Date(bs.travelDate);
-        const bsUTCDate = Date.UTC(
-          bsDate.getUTCFullYear(),
-          bsDate.getUTCMonth(),
-          bsDate.getUTCDate()
-        );
-        return bsUTCDate === targetUTCDate && bs.direction === direction;
-      })
-      .map((bs) => bs.seatNumber);
+    const sameTripEntries = (bus.bookedSeats || []).filter((entry) => {
+      const entryDate = new Date(entry?.travelDate);
+      const entryUTCDate = Date.UTC(
+        entryDate.getUTCFullYear(),
+        entryDate.getUTCMonth(),
+        entryDate.getUTCDate(),
+      );
+      return (
+        entryUTCDate === targetUTCDate &&
+        normalizeDirection(entry?.direction) === normalizedDirection
+      );
+    });
+    const bookingSegmentMap = await resolveBookingSegmentMapIfNeeded(
+      sameTripEntries,
+    );
+    const bookedSeats = collectBookedSeatsForSegment({
+      entries: sameTripEntries,
+      travelDate: targetDate,
+      direction: normalizedDirection,
+      requestedSegment,
+      defaultRoute: bus.route,
+      bookingSegmentMap,
+    });
 
-    // Get temporarily locked seats for this date and direction
+    // Get temporarily locked seats for this date, direction and requested segment
     const now = new Date();
-    const dayStart = new Date(travelDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+    const { dayStart, dayEnd } = buildUtcDayRange(travelDate);
 
     const temporarilyLockedSeats = await SeatHold.find({
       bus: bus._id,
-      direction,
+      direction: normalizedDirection,
       status: "HOLD",
       expiresAt: { $gt: now },
       travelDate: { $gte: dayStart, $lt: dayEnd },
     })
-      .select("seatId")
+      .select("seatId segmentStartKm segmentEndKm metadata")
       .lean();
 
-    const lockedSeatIds = temporarilyLockedSeats.map((lock) => lock.seatId);
+    const lockedSeatIds = collectHeldSeatsForSegment({
+      holds: temporarilyLockedSeats,
+      requestedSegment,
+      defaultRoute: bus.route,
+      direction: normalizedDirection,
+    });
 
     // Combine booked and locked seats
     const unavailableSeats = [
@@ -837,7 +1070,7 @@ export const getBusSeatLayout = async (req, res) => {
     );
 
     // Get timing for the requested direction
-    const timing = bus.getTimingForDirection(direction);
+    const timing = bus.getTimingForDirection(normalizedDirection);
 
     res.json({
       success: true,
@@ -851,7 +1084,7 @@ export const getBusSeatLayout = async (req, res) => {
         bookedSeats: bookedSeats.length,
         temporarilyLocked: lockedSeatIds.length,
         seatLayout: seatLayoutWithAvailability,
-        direction,
+        direction: normalizedDirection,
         timing: {
           departureTime: formatTime(timing.departureTime),
           arrivalTime: formatTime(timing.arrivalTime),
@@ -860,16 +1093,18 @@ export const getBusSeatLayout = async (req, res) => {
           ? {
               routeCode: bus.route.routeCode,
               origin:
-                direction === "forward"
+                normalizedDirection === "forward"
                   ? bus.route.origin
                   : bus.route.destination,
               destination:
-                direction === "forward"
+                normalizedDirection === "forward"
                   ? bus.route.destination
                   : bus.route.origin,
             }
           : null,
         travelDate,
+        boardingPoint: boardingPoint || null,
+        droppingPoint: droppingPoint || null,
       },
     });
   } catch (error) {
