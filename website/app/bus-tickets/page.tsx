@@ -3,7 +3,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Bus, Check, Clock, Filter, MapPin, Star, X } from "lucide-react";
+import {
+  ArrowRight,
+  Bus,
+  Check,
+  Clock,
+  Filter,
+  MapPin,
+  Star,
+  X,
+} from "lucide-react";
 
 import BusSearchForm from "@/components/bus-search-form";
 import { Button } from "@/components/ui/button";
@@ -206,7 +215,9 @@ const parseTimeToMinutes = (value?: string) => {
   return hours * 60 + minutes;
 };
 
-const formatDuration = (value?: { hours?: number; minutes?: number } | null) => {
+const formatDuration = (
+  value?: { hours?: number; minutes?: number } | null,
+) => {
   if (!value) return "--";
   const hours = Number(value.hours ?? 0);
   const minutes = Number(value.minutes ?? 0);
@@ -305,42 +316,42 @@ const getSeatElementClasses = (
   const type = normalizeSeatToken(element.type);
   if (type !== "SEAT") {
     if (type === "AISLE") {
-      return "bg-slate-100 border border-dashed border-slate-200 text-[10px] text-slate-300";
+      return "bg-slate-100 dark:bg-slate-700/30 border border-dashed border-slate-200 dark:border-slate-600 text-[10px] text-slate-300 dark:text-slate-500";
     }
     if (type === "DRIVER") {
-      return "bg-slate-100 border border-slate-300 text-slate-500";
+      return "bg-slate-100 dark:bg-slate-700/40 border border-slate-300 dark:border-slate-500 text-slate-500 dark:text-slate-400";
     }
-    return "bg-slate-200 text-[10px] text-slate-500 uppercase tracking-[0.1em]";
+    return "bg-slate-200 dark:bg-slate-700/30 text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]";
   }
 
   const status = element.status || "available";
   const flags = element.seat?.flags || {};
 
   if (isSelected) {
-    return "bg-rose-500 border border-rose-500 text-white shadow-sm";
+    return "bg-rose-500 border border-rose-500 text-white shadow-sm shadow-rose-500/20";
   }
 
   if (flags.blocked) {
-    return "bg-slate-200 border border-slate-300 text-slate-400";
+    return "bg-slate-200 dark:bg-slate-700/40 border border-slate-300 dark:border-slate-500 text-slate-400";
   }
 
   if (status === "booked") {
-    return "bg-slate-300 border border-slate-300 text-slate-500 line-through";
+    return "bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-500 dark:text-slate-400 line-through";
   }
 
   if (status === "locked") {
-    return "bg-amber-100 border border-amber-300 text-amber-700";
+    return "bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400";
   }
 
   if (flags.ladiesSeat) {
-    return "bg-rose-50 border border-rose-400 text-rose-600";
+    return "bg-rose-50 dark:bg-rose-900/20 border border-rose-400 dark:border-rose-500 text-rose-600 dark:text-rose-400";
   }
 
   if (flags.accessible) {
-    return "bg-sky-50 border border-sky-400 text-sky-700";
+    return "bg-sky-50 dark:bg-sky-900/20 border border-sky-400 dark:border-sky-500 text-sky-700 dark:text-sky-400";
   }
 
-  return "bg-white border border-slate-300 text-slate-800";
+  return "bg-white dark:bg-slate-700/40 border border-slate-300 dark:border-slate-500 text-slate-800 dark:text-slate-200";
 };
 
 const isSeatSelectable = (element: SeatLayoutElement) => {
@@ -780,10 +791,9 @@ const BusTicketsPage = () => {
     detailsData?.timing?.departureTime ?? selectedBus?.departureTime;
   const arrivalTime =
     detailsData?.timing?.arrivalTime ?? selectedBus?.arrivalTime;
-  const durationLabel =
-    detailsData?.route?.duration
-      ? formatDuration(detailsData.route.duration)
-      : selectedBus?.journeyDuration?.formatted || "--";
+  const durationLabel = detailsData?.route?.duration
+    ? formatDuration(detailsData.route.duration)
+    : selectedBus?.journeyDuration?.formatted || "--";
   const availableSeats =
     selectedBus?.availableSeats ?? detailsData?.availableSeats;
   const totalSeats = selectedBus?.totalSeats ?? detailsData?.totalSeats;
@@ -791,7 +801,7 @@ const BusTicketsPage = () => {
     detailsData?.operatingDays ?? selectedBus?.operatingDays,
   );
   const routeStops = Array.isArray(routeInfo?.stops)
-    ? routeInfo?.stops ?? []
+    ? (routeInfo?.stops ?? [])
     : [];
   const farePerPassengerLabel =
     typeof selectedBus?.farePerPassenger === "number"
@@ -806,7 +816,8 @@ const BusTicketsPage = () => {
     },
     {
       label: "Bus ID",
-      value: typeof detailsData?.busId === "number" ? `${detailsData.busId}` : "",
+      value:
+        typeof detailsData?.busId === "number" ? `${detailsData.busId}` : "",
     },
     {
       label: "Decks",
@@ -821,24 +832,24 @@ const BusTicketsPage = () => {
     },
   ].filter((row) => row.value);
   const detailsTabClass =
-    "rounded-full border border-slate-200 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 data-[state=active]:border-rose-500 data-[state=active]:bg-rose-500 data-[state=active]:text-white";
+    "rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300 data-[state=active]:border-rose-500 data-[state=active]:bg-rose-500 data-[state=active]:text-white";
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] pb-16 pt-24">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-rose-50/30 dark:from-[#0b1020] dark:via-slate-900 dark:to-slate-900 pb-16 pt-24">
       <div className="mx-auto w-full max-w-7xl px-6">
         <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-500 dark:text-rose-400">
             Bus Tickets
           </p>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+          <h1 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
             Find buses for your route
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             Use the search below to view available buses and timings.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4 shadow-sm dark:shadow-black/20 backdrop-blur-sm">
           <BusSearchForm
             initialFrom={origin}
             initialTo={destination}
@@ -850,16 +861,16 @@ const BusTicketsPage = () => {
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[280px_1fr]">
           <aside className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4 shadow-sm dark:shadow-black/20 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-white">
                   <Filter className="h-4 w-4" />
                   Filters
                 </div>
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="text-xs font-semibold text-rose-500"
+                  className="text-xs font-semibold text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 transition-colors"
                 >
                   Clear all
                 </button>
@@ -883,7 +894,7 @@ const BusTicketsPage = () => {
                         {busTypeOptions.map((type) => (
                           <label
                             key={type}
-                            className="flex items-center gap-2 text-sm text-slate-600"
+                            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
                           >
                             <Checkbox
                               checked={selectedBusTypes.includes(type)}
@@ -916,7 +927,7 @@ const BusTicketsPage = () => {
                           }
                           disabled={priceBounds.max === 0}
                         />
-                        <div className="flex items-center justify-between text-xs text-slate-500">
+                        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                           <span>₹{priceRange[0]}</span>
                           <span>₹{priceRange[1]}</span>
                         </div>
@@ -931,7 +942,7 @@ const BusTicketsPage = () => {
                         {DEPARTURE_SLOTS.map((slot) => (
                           <label
                             key={slot.id}
-                            className="flex items-center gap-2 text-sm text-slate-600"
+                            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
                           >
                             <Checkbox
                               checked={selectedDepartureSlots.includes(slot.id)}
@@ -957,7 +968,7 @@ const BusTicketsPage = () => {
                         {AMENITY_OPTIONS.map((item) => (
                           <label
                             key={item.key}
-                            className="flex items-center gap-2 text-sm text-slate-600"
+                            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
                           >
                             <Checkbox
                               checked={selectedAmenities.includes(item.key)}
@@ -988,7 +999,7 @@ const BusTicketsPage = () => {
                           operatorOptions.map((operator) => (
                             <label
                               key={operator}
-                              className="flex items-center gap-2 text-sm text-slate-600"
+                              className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
                             >
                               <Checkbox
                                 checked={selectedOperators.includes(operator)}
@@ -1016,20 +1027,20 @@ const BusTicketsPage = () => {
 
           <section className="space-y-4">
             {!loading && !error && results.length > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <span>{filteredResults.length} buses found</span>
                 <span>Sorted by departure time</span>
               </div>
             ) : null}
 
             {loading && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-6 text-sm text-slate-500 dark:text-slate-400">
                 Loading available buses...
               </div>
             )}
 
             {!loading && error && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+              <div className="rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 p-6 text-sm text-rose-700 dark:text-rose-400">
                 <p>{error.message}</p>
                 {error.status === 401 && (
                   <div className="mt-4">
@@ -1042,7 +1053,7 @@ const BusTicketsPage = () => {
             )}
 
             {!loading && !error && results.length === 0 && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-6 text-sm text-slate-500 dark:text-slate-400">
                 No buses found for this route and date. Try another date or city
                 pair.
               </div>
@@ -1052,7 +1063,7 @@ const BusTicketsPage = () => {
               !error &&
               results.length > 0 &&
               filteredResults.length === 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-6 text-sm text-slate-500 dark:text-slate-400">
                   No buses match the selected filters.
                 </div>
               )}
@@ -1070,48 +1081,48 @@ const BusTicketsPage = () => {
                   return (
                     <div
                       key={bus._id}
-                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                      className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-5 shadow-sm dark:shadow-black/20 backdrop-blur-sm transition-all hover:shadow-md dark:hover:shadow-black/30 hover:border-slate-300 dark:hover:border-slate-600"
                     >
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                         <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                             <span>{bus.route?.routeCode || "Route"}</span>
                             {bus.direction && (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
+                              <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] text-slate-600 dark:text-slate-300">
                                 {bus.direction === "return"
                                   ? "Return"
                                   : "Forward"}
                               </span>
                             )}
                             {bus.dayOfWeek && (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
+                              <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] text-slate-600 dark:text-slate-300">
                                 {bus.dayOfWeek}
                               </span>
                             )}
                           </div>
-                          <h2 className="mt-2 text-lg font-semibold text-slate-900">
+                          <h2 className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
                             {bus.busName || "Bus Service"}
                           </h2>
-                          <p className="mt-1 text-sm text-slate-500">
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                             {bus.operator || "Operator"}
                             {bus.features?.busType
                               ? ` • ${bus.features.busType}`
                               : ""}
                           </p>
-                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1">
                               <MapPin className="h-3.5 w-3.5" />
                               {bus.boardingPoint || origin} →{" "}
                               {bus.droppingPoint || destination}
                             </span>
                             {bus.busNumber ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1">
                                 <Bus className="h-3.5 w-3.5" />
                                 {bus.busNumber}
                               </span>
                             ) : null}
                             {bus.travelDate ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1">
                                 <Clock className="h-3.5 w-3.5" />
                                 {bus.travelDate}
                               </span>
@@ -1119,32 +1130,32 @@ const BusTicketsPage = () => {
                           </div>
                         </div>
 
-                        <div className="min-w-[260px] flex items-center justify-between gap-4 border-t border-slate-200 pt-4 text-sm text-slate-600 lg:border-t-0 lg:border-l lg:border-r lg:px-4 lg:pt-0">
+                        <div className="min-w-[260px] flex items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700 pt-4 text-sm text-slate-600 dark:text-slate-300 lg:border-t-0 lg:border-l lg:border-r lg:px-4 lg:pt-0">
                           <div>
-                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                               Depart
                             </p>
-                            <p className="mt-1 text-base font-semibold text-slate-900">
+                            <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
                               {formatClockTime(bus.departureTime)}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-slate-400 dark:text-slate-500">
                               {bus.boardingPoint || origin}
                             </p>
                           </div>
-                          <div className="flex flex-col items-center gap-2 text-xs text-slate-400">
+                          <div className="flex flex-col items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
                             <span>
                               {bus.journeyDuration?.formatted || "--"}
                             </span>
-                            <span className="h-px w-16 bg-slate-200" />
+                            <span className="h-px w-16 bg-slate-200 dark:bg-slate-600" />
                           </div>
                           <div>
-                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                               Arrive
                             </p>
-                            <p className="mt-1 text-base font-semibold text-slate-900">
+                            <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
                               {formatClockTime(bus.arrivalTime)}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-slate-400 dark:text-slate-500">
                               {bus.droppingPoint || destination}
                             </p>
                           </div>
@@ -1152,15 +1163,15 @@ const BusTicketsPage = () => {
 
                         <div className="flex flex-col items-start gap-3 lg:items-end">
                           <div className="text-right">
-                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                               From
                             </p>
-                            <p className="mt-1 text-lg font-semibold text-slate-900">
+                            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
                               {formatFare(bus.farePerPassenger)}
                             </p>
                           </div>
                           <Button
-                            className="rounded-full bg-rose-500 hover:bg-rose-600"
+                            className="rounded-full bg-rose-500 hover:bg-rose-600 dark:bg-rose-600 dark:hover:bg-rose-500 shadow-sm shadow-rose-500/20"
                             onClick={() => toggleSeatLayout(bus)}
                           >
                             {expandedBusId === bus._id
@@ -1171,18 +1182,18 @@ const BusTicketsPage = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="rounded-full border-slate-200 text-slate-700 hover:border-rose-300 hover:text-rose-600"
+                            className="rounded-full border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-rose-300 hover:text-rose-600 dark:hover:border-rose-500 dark:hover:text-rose-400"
                             onClick={() => openBusDetails(bus)}
                           >
                             Bus details
                           </Button>
                           {seatsLeft !== null && totalSeats !== null ? (
-                            <div className="text-xs text-emerald-600">
+                            <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                               {seatsLeft} seats left
                             </div>
                           ) : null}
                           {seatsLeft !== null && totalSeats !== null ? (
-                            <div className="text-xs text-slate-400">
+                            <div className="text-xs text-slate-400 dark:text-slate-500">
                               {seatsLeft}/{totalSeats} available
                             </div>
                           ) : null}
@@ -1190,20 +1201,20 @@ const BusTicketsPage = () => {
                       </div>
 
                       {expandedBusId === bus._id ? (
-                        <div className="mt-6 border-t border-slate-200 pt-6">
+                        <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
                           {(() => {
                             const key = `${bus._id}_${date}_${bus.direction || "forward"}_${bus.boardingPoint || ""}_${bus.droppingPoint || ""}`;
                             const state = seatLayouts[key];
                             if (!state || state.loading) {
                               return (
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-6 text-sm text-slate-500 dark:text-slate-400">
                                   Loading seat layout...
                                 </div>
                               );
                             }
                             if (state.error) {
                               return (
-                                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+                                <div className="rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 p-6 text-sm text-rose-700 dark:text-rose-400">
                                   {state.error}
                                 </div>
                               );
@@ -1212,7 +1223,7 @@ const BusTicketsPage = () => {
                             const decks = layout?.decks || [];
                             if (!layout || decks.length === 0) {
                               return (
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-6 text-sm text-slate-500 dark:text-slate-400">
                                   Seat layout not available.
                                 </div>
                               );
@@ -1253,24 +1264,24 @@ const BusTicketsPage = () => {
                               <div className="space-y-4">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600">
+                                    <span className="rounded-full border border-rose-200 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/30 px-3 py-1 text-xs font-semibold text-rose-600 dark:text-rose-400">
                                       All
                                     </span>
                                     {fareChip !== "N/A" ? (
-                                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                      <span className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/40 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                                         {fareChip}
                                       </span>
                                     ) : null}
                                   </div>
                                   {seatCategories.length > 0 ? (
-                                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                                      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                                         Seat categories
                                       </span>
                                       {seatCategories.map((category) => (
                                         <span
                                           key={category}
-                                          className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600"
+                                          className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/40 px-3 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300"
                                         >
                                           {category}
                                         </span>
@@ -1279,21 +1290,21 @@ const BusTicketsPage = () => {
                                   ) : null}
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-500">
+                                <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
                                   <div className="flex items-center gap-2">
-                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-slate-300 bg-white" />
+                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700/40" />
                                     Available
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-rose-400 bg-rose-50" />
+                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-rose-400 dark:border-rose-500 bg-rose-50 dark:bg-rose-900/20" />
                                     For Female
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-amber-300 bg-amber-100" />
+                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-amber-300 dark:border-amber-600 bg-amber-100 dark:bg-amber-900/30" />
                                     Locked
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-slate-300 bg-slate-300" />
+                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-slate-300 dark:border-slate-500 bg-slate-300 dark:bg-slate-600" />
                                     Booked
                                   </div>
                                 </div>
@@ -1310,7 +1321,7 @@ const BusTicketsPage = () => {
                                         <TabsTrigger
                                           key={label}
                                           value={deck.deck || `deck-${index}`}
-                                          className="rounded-full border border-slate-200 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 data-[state=active]:border-rose-500 data-[state=active]:bg-rose-500 data-[state=active]:text-white"
+                                          className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300 data-[state=active]:border-rose-500 data-[state=active]:bg-rose-500 data-[state=active]:text-white"
                                         >
                                           {label}
                                         </TabsTrigger>
@@ -1429,7 +1440,8 @@ const BusTicketsPage = () => {
 
                                                 if (
                                                   !bestPair ||
-                                                  distance < bestPair.distance ||
+                                                  distance <
+                                                    bestPair.distance ||
                                                   (distance ===
                                                     bestPair.distance &&
                                                     sideBias <
@@ -1549,15 +1561,18 @@ const BusTicketsPage = () => {
                                         key={deckKey}
                                         value={deckKey}
                                       >
-                                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                          <div className="mb-4 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4 shadow-sm dark:shadow-black/20">
+                                          <div className="mb-4 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                                             <span>{deck.deck || "Deck"}</span>
                                             <span>
                                               {rows} x {cols}
                                             </span>
                                           </div>
                                           <div
-                                            className={cn("relative", driverPadClass)}
+                                            className={cn(
+                                              "relative",
+                                              driverPadClass,
+                                            )}
                                           >
                                             <div
                                               className="grid gap-2"
@@ -1568,7 +1583,7 @@ const BusTicketsPage = () => {
                                             >
                                               {driverBadgePlacement ? (
                                                 <div
-                                                  className="pointer-events-none z-10 flex h-10 w-10 items-center justify-center justify-self-center self-start rounded-lg border border-slate-300 bg-slate-100 text-slate-500 shadow-sm -translate-y-full"
+                                                  className="pointer-events-none z-10 flex h-10 w-10 items-center justify-center justify-self-center self-start rounded-lg border border-slate-300 dark:border-slate-500 bg-slate-100 dark:bg-slate-700/40 text-slate-500 dark:text-slate-400 shadow-sm -translate-y-full"
                                                   style={{
                                                     gridColumn: `${driverBadgePlacement.colStart + 1} / span ${driverBadgePlacement.colSpan}`,
                                                     gridRow: `${driverBadgePlacement.rowStart + 1} / span 1`,
@@ -1608,10 +1623,10 @@ const BusTicketsPage = () => {
                                                   </span>
                                                 </div>
                                               ) : null}
-                                            {deckElements.map(
-                                              (element, elementIndex) => {
-                                                const x =
-                                                  element.position?.x ?? 0;
+                                              {deckElements.map(
+                                                (element, elementIndex) => {
+                                                  const x =
+                                                    element.position?.x ?? 0;
                                                   const y =
                                                     element.position?.y ?? 0;
                                                   const w =
@@ -1619,7 +1634,7 @@ const BusTicketsPage = () => {
                                                   const h =
                                                     element.size?.h ?? 1;
                                                   const label =
-                                                  getSeatElementLabel(
+                                                    getSeatElementLabel(
                                                       element,
                                                     );
                                                   const elementType =
@@ -1677,10 +1692,16 @@ const BusTicketsPage = () => {
                                                       <button
                                                         key={`${deckKey}-${elementIndex}`}
                                                         type="button"
-                                                        className={elementClassName}
+                                                        className={
+                                                          elementClassName
+                                                        }
                                                         style={gridStyle}
-                                                        disabled={!seatSelectable}
-                                                        aria-pressed={seatSelected}
+                                                        disabled={
+                                                          !seatSelectable
+                                                        }
+                                                        aria-pressed={
+                                                          seatSelected
+                                                        }
                                                         onClick={() => {
                                                           if (!seatSelectable)
                                                             return;
@@ -1694,14 +1715,17 @@ const BusTicketsPage = () => {
                                                                     seat.key ===
                                                                     seatKey,
                                                                 );
-                                                              if (alreadySelected) {
+                                                              if (
+                                                                alreadySelected
+                                                              ) {
                                                                 return {
                                                                   ...prev,
-                                                                  [key]: current.filter(
-                                                                    (seat) =>
-                                                                      seat.key !==
-                                                                      seatKey,
-                                                                  ),
+                                                                  [key]:
+                                                                    current.filter(
+                                                                      (seat) =>
+                                                                        seat.key !==
+                                                                        seatKey,
+                                                                    ),
                                                                 };
                                                               }
                                                               return {
@@ -1714,8 +1738,7 @@ const BusTicketsPage = () => {
                                                                       seatLabel,
                                                                     seatId:
                                                                       element.seatId,
-                                                                    deck:
-                                                                      deckLabel,
+                                                                    deck: deckLabel,
                                                                     fare:
                                                                       seatFareValue ??
                                                                       undefined,
@@ -1743,7 +1766,9 @@ const BusTicketsPage = () => {
                                                   return (
                                                     <div
                                                       key={`${deckKey}-${elementIndex}`}
-                                                      className={elementClassName}
+                                                      className={
+                                                        elementClassName
+                                                      }
                                                       style={gridStyle}
                                                     >
                                                       {isDriver ? (
@@ -1791,7 +1816,7 @@ const BusTicketsPage = () => {
                                             !driverBadgePlacement ? (
                                               <div
                                                 className={cn(
-                                                  "pointer-events-none absolute z-10 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-500 shadow-sm",
+                                                  "pointer-events-none absolute z-10 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-500 bg-slate-100 dark:bg-slate-700/40 text-slate-500 dark:text-slate-400 shadow-sm",
                                                   "top-2",
                                                   driverSide === "RIGHT"
                                                     ? "right-2"
@@ -1838,25 +1863,25 @@ const BusTicketsPage = () => {
                                 </Tabs>
 
                                 {selectedSeats.length > 0 ? (
-                                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4 shadow-sm dark:shadow-black/20">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                       <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                                           Selected seats
                                         </p>
                                         <div className="mt-2 flex flex-wrap gap-2">
                                           {selectedSeats.map((seat) => (
                                             <span
                                               key={seat.key}
-                                              className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600"
+                                              className="rounded-full border border-rose-200 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/30 px-3 py-1 text-xs font-semibold text-rose-600 dark:text-rose-400"
                                             >
                                               {seat.label}
                                             </span>
                                           ))}
                                         </div>
-                                        <p className="mt-3 text-sm text-slate-600">
+                                        <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
                                           Total fare{" "}
-                                          <span className="font-semibold text-slate-900">
+                                          <span className="font-semibold text-slate-900 dark:text-white">
                                             {totalFareValue !== null
                                               ? formatFare(totalFareValue)
                                               : "N/A"}
@@ -1864,7 +1889,7 @@ const BusTicketsPage = () => {
                                         </p>
                                       </div>
                                       <Button
-                                        className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                                        className="rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-sm shadow-emerald-500/20"
                                         onClick={() => {
                                           const seatTokens = selectedSeats
                                             .map((seat) => seat.label)
@@ -1885,7 +1910,10 @@ const BusTicketsPage = () => {
                                             params.set("busName", bus.busName);
                                           }
                                           if (bus.operator) {
-                                            params.set("operator", bus.operator);
+                                            params.set(
+                                              "operator",
+                                              bus.operator,
+                                            );
                                           }
                                           if (
                                             typeof bus.farePerPassenger ===
@@ -1907,7 +1935,7 @@ const BusTicketsPage = () => {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                                  <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/40 p-4 text-sm text-slate-500 dark:text-slate-400">
                                     Select seats to continue.
                                   </div>
                                 )}
@@ -1925,37 +1953,39 @@ const BusTicketsPage = () => {
         </div>
       </div>
       <Dialog open={detailsOpen} onOpenChange={handleDetailsOpenChange}>
-        <DialogContent className="left-auto right-0 top-0 h-screen w-full max-w-xl translate-x-0 translate-y-0 rounded-none border-l bg-white p-0 sm:rounded-none">
+        <DialogContent className="left-auto right-0 top-0 h-screen w-full max-w-xl translate-x-0 translate-y-0 rounded-none border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-0 sm:rounded-none">
           <div className="flex h-full flex-col">
-            <div className="border-b border-slate-200 px-6 py-4 pr-12">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+            <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 pr-12">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
                 Bus Details
               </p>
-              <DialogTitle className="mt-2 text-lg font-semibold text-slate-900">
+              <DialogTitle className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
                 {selectedBus ? busName : "Bus Details"}
               </DialogTitle>
               {selectedBus ? (
-                <p className="mt-1 text-sm text-slate-500">{operatorName}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  {operatorName}
+                </p>
               ) : null}
               {selectedBus ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                   {busNumber ? (
-                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold">
+                    <span className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1 font-semibold">
                       {busNumber}
                     </span>
                   ) : null}
                   {busType ? (
-                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold">
+                    <span className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1 font-semibold">
                       {busType}
                     </span>
                   ) : null}
                   {typeof deckCount === "number" ? (
-                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold">
+                    <span className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1 font-semibold">
                       {deckCount} deck{deckCount === 1 ? "" : "s"}
                     </span>
                   ) : null}
                   {selectedBus?.direction ? (
-                    <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">
+                    <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 font-semibold text-slate-600 dark:text-slate-300">
                       {selectedBus.direction === "return"
                         ? "Return"
                         : "Forward"}{" "}
@@ -1963,12 +1993,12 @@ const BusTicketsPage = () => {
                     </span>
                   ) : null}
                   {travelDateLabel ? (
-                    <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">
+                    <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 font-semibold text-slate-600 dark:text-slate-300">
                       {travelDateLabel}
                     </span>
                   ) : null}
                   {ratingValue !== null ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 font-semibold text-amber-700 dark:text-amber-400">
                       <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
                       {ratingValue.toFixed(1)}
                       {reviewCount ? (
@@ -1983,27 +2013,27 @@ const BusTicketsPage = () => {
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5">
               {!selectedBus ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-4 text-sm text-slate-500 dark:text-slate-400">
                   Select a bus to view details.
                 </div>
               ) : !selectedDetailsState || selectedDetailsState.loading ? (
                 <div className="space-y-4">
-                  <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+                  <div className="h-4 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="h-20 rounded-2xl bg-slate-100 animate-pulse" />
-                    <div className="h-20 rounded-2xl bg-slate-100 animate-pulse" />
-                    <div className="h-20 rounded-2xl bg-slate-100 animate-pulse" />
-                    <div className="h-20 rounded-2xl bg-slate-100 animate-pulse" />
+                    <div className="h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                    <div className="h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                    <div className="h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                    <div className="h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
                   </div>
-                  <div className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
+                  <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
                 </div>
               ) : selectedDetailsState.error ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                <div className="rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 p-4 text-sm text-rose-700 dark:text-rose-400">
                   <p>{selectedDetailsState.error}</p>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-3 border-rose-200 text-rose-700 hover:border-rose-300"
+                    className="mt-3 border-rose-200 dark:border-rose-700 text-rose-700 dark:text-rose-400 hover:border-rose-300 dark:hover:border-rose-600"
                     onClick={() => {
                       if (selectedBus) {
                         void loadBusDetails(selectedBus, true);
@@ -2014,7 +2044,7 @@ const BusTicketsPage = () => {
                   </Button>
                 </div>
               ) : !detailsData ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-4 text-sm text-slate-500 dark:text-slate-400">
                   Bus details are not available right now.
                 </div>
               ) : (
@@ -2036,106 +2066,108 @@ const BusTicketsPage = () => {
 
                   <TabsContent value="overview" className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                           Departure
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                        <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
                           {formatClockTime(departureTime)}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           {selectedBus?.boardingPoint ||
                             routeInfo?.origin ||
                             origin}
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                           Arrival
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                        <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
                           {formatClockTime(arrivalTime)}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           {selectedBus?.droppingPoint ||
                             routeInfo?.destination ||
                             destination}
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                           Duration
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                        <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
                           {durationLabel}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           {routeInfo?.routeCode || "Route"}
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                           Seats
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                        <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
                           {typeof availableSeats === "number" &&
                           typeof totalSeats === "number"
                             ? `${availableSeats} / ${totalSeats}`
                             : "N/A"}
                         </p>
-                        <p className="text-xs text-slate-500">Available</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Available
+                        </p>
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                         Bus info
                       </p>
                       {infoRows.length > 0 ? (
-                        <div className="mt-3 space-y-2 text-sm text-slate-600">
+                        <div className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                           {infoRows.map((row) => (
                             <div
                               key={row.label}
                               className="flex items-center justify-between"
                             >
                               <span>{row.label}</span>
-                              <span className="font-semibold text-slate-900">
+                              <span className="font-semibold text-slate-900 dark:text-white">
                                 {row.value}
                               </span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-3 text-sm text-slate-500">
+                        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                           No additional bus information available.
                         </p>
                       )}
                     </div>
 
                     {farePerPassengerLabel ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                           Fare
                         </p>
-                        <p className="mt-2 text-lg font-semibold text-slate-900">
+                        <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
                           {farePerPassengerLabel}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           Base fare per passenger
                         </p>
                       </div>
                     ) : null}
 
                     {operatingDays.length > 0 ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                           Operating days
                         </p>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
                           {operatingDays.map((day) => (
                             <span
                               key={day}
-                              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold"
+                              className="rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40 px-3 py-1 font-semibold"
                             >
                               {day}
                             </span>
@@ -2146,8 +2178,8 @@ const BusTicketsPage = () => {
                   </TabsContent>
 
                   <TabsContent value="amenities" className="space-y-4">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                         Passenger amenities
                       </p>
                       {amenities ? (
@@ -2159,15 +2191,15 @@ const BusTicketsPage = () => {
                             return (
                               <div
                                 key={item.key}
-                                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                                className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm dark:text-slate-300"
                               >
                                 <span>{item.label}</span>
                                 <span
                                   className={cn(
                                     "inline-flex items-center gap-1 text-xs font-semibold",
                                     available
-                                      ? "text-emerald-600"
-                                      : "text-slate-400",
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-slate-400 dark:text-slate-500",
                                   )}
                                 >
                                   {available ? (
@@ -2182,14 +2214,14 @@ const BusTicketsPage = () => {
                           })}
                         </div>
                       ) : (
-                        <p className="mt-3 text-sm text-slate-500">
+                        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                           Amenities information is not available.
                         </p>
                       )}
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                         Safety & accessibility
                       </p>
                       {features ? (
@@ -2201,15 +2233,15 @@ const BusTicketsPage = () => {
                             return (
                               <div
                                 key={item.key}
-                                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                                className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm dark:text-slate-300"
                               >
                                 <span>{item.label}</span>
                                 <span
                                   className={cn(
                                     "inline-flex items-center gap-1 text-xs font-semibold",
                                     enabled
-                                      ? "text-emerald-600"
-                                      : "text-slate-400",
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-slate-400 dark:text-slate-500",
                                   )}
                                 >
                                   {enabled ? (
@@ -2224,7 +2256,7 @@ const BusTicketsPage = () => {
                           })}
                         </div>
                       ) : (
-                        <p className="mt-3 text-sm text-slate-500">
+                        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                           Feature information is not available.
                         </p>
                       )}
@@ -2234,27 +2266,27 @@ const BusTicketsPage = () => {
                   <TabsContent value="route" className="space-y-4">
                     {routeInfo ? (
                       <>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                             Route
                           </p>
-                          <p className="mt-1 text-base font-semibold text-slate-900">
+                          <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
                             {routeInfo.origin || origin} →{" "}
                             {routeInfo.destination || destination}
                           </p>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
                             {routeInfo.routeCode ? (
-                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-600">
+                              <span className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/40 px-3 py-1 font-semibold text-slate-600 dark:text-slate-300">
                                 {routeInfo.routeCode}
                               </span>
                             ) : null}
                             {durationLabel !== "--" ? (
-                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-600">
+                              <span className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/40 px-3 py-1 font-semibold text-slate-600 dark:text-slate-300">
                                 {durationLabel}
                               </span>
                             ) : null}
                             {routeStops.length > 0 ? (
-                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-600">
+                              <span className="rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/40 px-3 py-1 font-semibold text-slate-600 dark:text-slate-300">
                                 {routeStops.length} stops
                               </span>
                             ) : null}
@@ -2262,12 +2294,11 @@ const BusTicketsPage = () => {
                         </div>
 
                         {routeStops.length > 0 ? (
-                          <div className="relative rounded-2xl border border-slate-200 bg-white p-4">
-                            <div className="absolute left-6 top-6 h-[calc(100%-3rem)] w-px bg-slate-200" />
+                          <div className="relative rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                            <div className="absolute left-6 top-6 h-[calc(100%-3rem)] w-px bg-slate-200 dark:bg-slate-700" />
                             <div className="space-y-6">
                               {routeStops.map((stop, index) => {
-                                const label =
-                                  stop.city || `Stop ${index + 1}`;
+                                const label = stop.city || `Stop ${index + 1}`;
                                 const isTerminal =
                                   index === 0 ||
                                   index === routeStops.length - 1;
@@ -2280,14 +2311,14 @@ const BusTicketsPage = () => {
                                       className={cn(
                                         "absolute left-4 top-1.5 h-4 w-4 rounded-full border-2",
                                         isTerminal
-                                          ? "border-rose-500 bg-rose-50"
-                                          : "border-slate-300 bg-white",
+                                          ? "border-rose-500 bg-rose-50 dark:bg-rose-950/30"
+                                          : "border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700/40",
                                       )}
                                     />
-                                    <p className="text-sm font-semibold text-slate-900">
+                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
                                       {label}
                                     </p>
-                                    <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
+                                    <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                                       <span>
                                         Arrive{" "}
                                         {formatTimeValue(stop.arrivalTime)}
@@ -2303,21 +2334,21 @@ const BusTicketsPage = () => {
                             </div>
                           </div>
                         ) : (
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-4 text-sm text-slate-500 dark:text-slate-400">
                             Stop information is not available.
                           </div>
                         )}
                       </>
                     ) : (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 p-4 text-sm text-slate-500 dark:text-slate-400">
                         Route details are not available.
                       </div>
                     )}
                   </TabsContent>
 
                   <TabsContent value="policies" className="space-y-4">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                         Cancellation policy
                       </p>
                       {routeInfo?.cancellationPolicy ? (
@@ -2338,50 +2369,50 @@ const BusTicketsPage = () => {
                           ].map((policy) => (
                             <div
                               key={policy.label}
-                              className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3"
                             >
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                                 {policy.label}
                               </p>
-                              <p className="mt-2 text-lg font-semibold text-slate-900">
+                              <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
                                 {typeof policy.value === "number"
                                   ? `${policy.value}%`
                                   : "N/A"}
                               </p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Cancellation fee
                               </p>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-3 text-sm text-slate-500">
+                        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                           Cancellation policy information is not available.
                         </p>
                       )}
                     </div>
 
                     {detailsData?.insurance ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                           Insurance
                         </p>
-                        <div className="mt-3 space-y-2 text-sm text-slate-600">
+                        <div className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                           <div className="flex items-center justify-between">
                             <span>Provider</span>
-                            <span className="font-semibold text-slate-900">
+                            <span className="font-semibold text-slate-900 dark:text-white">
                               {detailsData.insurance.provider || "N/A"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span>Policy</span>
-                            <span className="font-semibold text-slate-900">
+                            <span className="font-semibold text-slate-900 dark:text-white">
                               {detailsData.insurance.policyNumber || "N/A"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span>Expiry</span>
-                            <span className="font-semibold text-slate-900">
+                            <span className="font-semibold text-slate-900 dark:text-white">
                               {formatDateLabel(detailsData.insurance.expiry) ||
                                 "N/A"}
                             </span>

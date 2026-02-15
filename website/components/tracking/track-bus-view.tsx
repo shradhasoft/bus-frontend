@@ -1,9 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Script from "next/script";
-import { Activity, Clock3, MapPin, Search } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  Bus as BusIcon,
+  Clock3,
+  Loader2,
+  MapPin,
+  Navigation2,
+  RefreshCw,
+  Search,
+} from "lucide-react";
+
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { computeETA, type RouteStopWithTrips, type ETAResult } from "@/lib/eta";
 
 import { apiUrl } from "@/lib/api";
 import {
@@ -12,12 +26,26 @@ import {
   SOCKET_PATH,
 } from "@/lib/realtime";
 
+type TripTimeField = {
+  hours: number;
+  minutes: number;
+};
+
+type TripStopField = {
+  arrivalTime?: TripTimeField;
+  departureTime?: TripTimeField;
+  distanceFromOrigin?: number;
+};
+
 type RouteStop = {
   city?: string;
+  stopCode?: string;
   location?: {
     lat?: number;
     lng?: number;
   };
+  upTrip?: TripStopField;
+  downTrip?: TripStopField;
 };
 
 type TrackingBus = {
@@ -102,6 +130,8 @@ type TrackBusViewProps = {
 };
 
 const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
+  const searchParams = useSearchParams();
+
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -115,6 +145,18 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
   const [socketError, setSocketError] = useState<string | null>(null);
   const [socketClientReady, setSocketClientReady] = useState(false);
 
+  // ─── live suggestion state ───
+  const [suggestions, setSuggestions] = useState<TrackingBus[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+
+  // Track whether we've already consumed the URL param to avoid re-triggering
+  const initialSearchDoneRef = useRef(false);
+
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
   const socketRef = useRef<BrowserSocket | null>(null);
   const subscribedBusRef = useRef<string | null>(null);
 
@@ -127,6 +169,24 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
   useEffect(() => {
     selectedBusNumberRef.current = selectedBusNumber;
   }, [selectedBusNumber]);
+
+  // ─── geolocation & ETA ───
+  const geo = useGeolocation();
+
+  const etaResult: ETAResult | null = useMemo(() => {
+    if (!selectedBus?.route?.stops?.length) return null;
+    if (!liveLocation) return null;
+    if (geo.lat === null || geo.lng === null) return null;
+
+    const stops = selectedBus.route.stops as RouteStopWithTrips[];
+    return computeETA(
+      { lat: liveLocation.lat, lng: liveLocation.lng },
+      liveLocation.speed,
+      { lat: geo.lat, lng: geo.lng },
+      stops,
+      "up",
+    );
+  }, [selectedBus, liveLocation, geo.lat, geo.lng]);
 
   const routePoints = useMemo(() => {
     const stops = selectedBus?.route?.stops || [];
@@ -150,6 +210,109 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
     return FALLBACK_CENTER;
   }, [liveLocation, routePoints]);
 
+  /* ─── debounced live suggestions ─── */
+  const fetchSuggestions = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    if (trimmed.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setSearching(true);
+    setSearchError(null);
+
+    try {
+      const response = await fetch(
+        apiUrl(`/v1/tracking/search?q=${encodeURIComponent(trimmed)}`),
+        { method: "GET", cache: "no-store", signal: controller.signal },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.message || "Search failed.");
+
+      const items: TrackingBus[] = Array.isArray(data?.data) ? data.data : [];
+      setSuggestions(items);
+      setShowSuggestions(true);
+      setHighlightIdx(-1);
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        setSearchError((err as Error).message || "Search failed.");
+      }
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setQuery(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      if (value.trim().length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      debounceRef.current = setTimeout(() => {
+        fetchSuggestions(value);
+      }, 350);
+    },
+    [fetchSuggestions],
+  );
+
+  const handleSelectSuggestion = useCallback((bus: TrackingBus) => {
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setSelectedBus(bus);
+    setResults([bus]);
+    setQuery(bus.busName || bus.busNumber || "");
+  }, []);
+
+  /* ─── click outside to close suggestions ─── */
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  /* ─── keyboard navigation for suggestions ─── */
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!showSuggestions || suggestions.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setHighlightIdx((prev) =>
+          prev < suggestions.length - 1 ? prev + 1 : 0,
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setHighlightIdx((prev) =>
+          prev > 0 ? prev - 1 : suggestions.length - 1,
+        );
+      } else if (e.key === "Enter" && highlightIdx >= 0) {
+        e.preventDefault();
+        handleSelectSuggestion(suggestions[highlightIdx]);
+      } else if (e.key === "Escape") {
+        setShowSuggestions(false);
+      }
+    },
+    [showSuggestions, suggestions, highlightIdx, handleSelectSuggestion],
+  );
+
+  /* ─── explicit "Find" button search ─── */
   const runSearch = useCallback(async () => {
     const q = query.trim();
     if (!q) {
@@ -157,14 +320,18 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
       return;
     }
 
+    setShowSuggestions(false);
     setSearching(true);
     setSearchError(null);
 
     try {
-      const response = await fetch(apiUrl(`/v1/tracking/search?q=${encodeURIComponent(q)}`), {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        apiUrl(`/v1/tracking/search?q=${encodeURIComponent(q)}`),
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -184,41 +351,104 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
     }
   }, [query, selectedBus]);
 
-  const fetchLatest = useCallback(
-    async (busNumber: string) => {
-      setLoadingLatest(true);
+  /* ─── cleanup debounce / abort on unmount ─── */
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  /* ─── auto-fill from URL ?bus= param (hero page hand-off) ─── */
+  useEffect(() => {
+    if (initialSearchDoneRef.current) return;
+
+    const busParam = searchParams.get("bus");
+    if (!busParam) return;
+
+    initialSearchDoneRef.current = true;
+    const trimmed = busParam.trim();
+    setQuery(trimmed);
+
+    // Clean the URL param so refresh doesn't re-trigger
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("bus");
+      window.history.replaceState(window.history.state, "", url.toString());
+    }
+
+    // Run search and auto-select the matching bus
+    (async () => {
+      setSearching(true);
+      setSearchError(null);
       try {
         const response = await fetch(
-          apiUrl(`/v1/tracking/bus/${encodeURIComponent(busNumber)}/latest`),
-          {
-            method: "GET",
-            cache: "no-store",
-          },
+          apiUrl(`/v1/tracking/search?q=${encodeURIComponent(trimmed)}`),
+          { method: "GET", cache: "no-store" },
         );
-
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(data?.message || "Unable to fetch live location.");
+          throw new Error(data?.message || "Unable to search buses.");
         }
+        const items: TrackingBus[] = Array.isArray(data?.data) ? data.data : [];
+        setResults(items);
 
-        const live = data?.data?.liveLocation;
-        if (live && Number.isFinite(Number(live.lat)) && Number.isFinite(Number(live.lng))) {
-          setLiveLocation({
-            ...live,
-            lat: Number(live.lat),
-            lng: Number(live.lng),
-          });
-        } else {
-          setLiveLocation(null);
+        // Auto-select: prefer exact bus-number match, otherwise first result
+        const normalizedParam = normalizeBusNumber(trimmed);
+        const exactMatch = items.find(
+          (b) => normalizeBusNumber(b.busNumber) === normalizedParam,
+        );
+        if (exactMatch) {
+          setSelectedBus(exactMatch);
+        } else if (items.length > 0) {
+          setSelectedBus(items[0]);
         }
-      } catch (error) {
-        setSocketError((error as Error).message || "Unable to fetch live location.");
+      } catch (err) {
+        setSearchError((err as Error).message || "Unable to search buses.");
       } finally {
-        setLoadingLatest(false);
+        setSearching(false);
       }
-    },
-    [],
-  );
+    })();
+  }, [searchParams]);
+
+  const fetchLatest = useCallback(async (busNumber: string) => {
+    setLoadingLatest(true);
+    try {
+      const response = await fetch(
+        apiUrl(`/v1/tracking/bus/${encodeURIComponent(busNumber)}/latest`),
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.message || "Unable to fetch live location.");
+      }
+
+      const live = data?.data?.liveLocation;
+      if (
+        live &&
+        Number.isFinite(Number(live.lat)) &&
+        Number.isFinite(Number(live.lng))
+      ) {
+        setLiveLocation({
+          ...live,
+          lat: Number(live.lat),
+          lng: Number(live.lng),
+        });
+      } else {
+        setLiveLocation(null);
+      }
+    } catch (error) {
+      setSocketError(
+        (error as Error).message || "Unable to fetch live location.",
+      );
+    } finally {
+      setLoadingLatest(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!selectedBusNumber) {
@@ -255,7 +485,8 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
 
   useEffect(() => {
     if (!socketClientReady) return;
-    if (typeof window === "undefined" || typeof window.io !== "function") return;
+    if (typeof window === "undefined" || typeof window.io !== "function")
+      return;
 
     setSocketStatus("connecting");
     setSocketError(null);
@@ -294,7 +525,10 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
       const activeBus = selectedBusNumberRef.current;
       const payloadBus = normalizeBusNumber(payload?.busNumber);
       if (!activeBus || !payloadBus || payloadBus !== activeBus) return;
-      if (!Number.isFinite(Number(payload.lat)) || !Number.isFinite(Number(payload.lng))) {
+      if (
+        !Number.isFinite(Number(payload.lat)) ||
+        !Number.isFinite(Number(payload.lng))
+      ) {
         return;
       }
 
@@ -362,7 +596,9 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
         strategy="afterInteractive"
         onLoad={() => setSocketClientReady(true)}
         onError={() =>
-          setSocketError("Unable to load realtime client script. Polling fallback active.")
+          setSocketError(
+            "Unable to load realtime client script. Polling fallback active.",
+          )
         }
       />
       <div className={`mx-auto ${embedded ? "max-w-full" : "max-w-7xl"}`}>
@@ -375,7 +611,9 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
               Track Your Bus in Real Time
             </h1>
           </div>
-          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${socketBadgeClass}`}>
+          <span
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${socketBadgeClass}`}
+          >
             <Activity className="h-4 w-4" />
             {socketStatus.toUpperCase()}
           </span>
@@ -390,14 +628,77 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
               }}
               className="mb-4 flex items-center gap-2"
             >
-              <div className="relative flex-1">
+              <div className="relative flex-1" ref={searchWrapperRef}>
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => handleInputChange(event.target.value)}
+                  onFocus={() => {
+                    if (suggestions.length > 0) setShowSuggestions(true);
+                  }}
+                  onKeyDown={handleKeyDown}
                   placeholder="Search bus name or number"
                   className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none transition focus:border-rose-400"
+                  autoComplete="off"
                 />
+
+                {/* ─── live suggestion dropdown ─── */}
+                {showSuggestions && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl shadow-black/10">
+                    {searching && suggestions.length === 0 ? (
+                      <div className="flex items-center gap-2 px-4 py-4 text-sm text-slate-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Searching buses…
+                      </div>
+                    ) : suggestions.length === 0 ? (
+                      <div className="px-4 py-4 text-sm text-slate-500">
+                        No buses found for &ldquo;{query.trim()}&rdquo;
+                      </div>
+                    ) : (
+                      suggestions.slice(0, 8).map((bus, idx) => (
+                        <button
+                          key={bus._id}
+                          type="button"
+                          onClick={() => handleSelectSuggestion(bus)}
+                          onMouseEnter={() => setHighlightIdx(idx)}
+                          className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
+                            idx === highlightIdx
+                              ? "bg-rose-50"
+                              : "hover:bg-slate-50"
+                          } ${idx > 0 ? "border-t border-slate-100" : ""}`}
+                        >
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                              idx === highlightIdx
+                                ? "bg-rose-500 text-white"
+                                : "bg-rose-100 text-rose-600"
+                            }`}
+                          >
+                            <BusIcon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                              {bus.busName || "Unnamed Bus"}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">
+                              {bus.busNumber || "—"} ·{" "}
+                              {bus.route?.origin && bus.route?.destination
+                                ? `${bus.route.origin} → ${bus.route.destination}`
+                                : "Route N/A"}
+                            </p>
+                          </div>
+                          <ArrowRight
+                            className={`h-4 w-4 shrink-0 transition ${
+                              idx === highlightIdx
+                                ? "text-rose-500"
+                                : "text-slate-300 group-hover:text-rose-400"
+                            }`}
+                          />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
               <button
                 type="submit"
@@ -415,11 +716,13 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
             ) : null}
 
             <div className="max-h-[580px] space-y-2 overflow-y-auto pr-1">
-              {results.length === 0 ? (
+              {results.length === 0 && !showSuggestions ? (
                 <p className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
-                  No buses found.
+                  {query.trim().length > 0
+                    ? "Type & click Find, or pick a suggestion above."
+                    : "Search for a bus to get started."}
                 </p>
-              ) : (
+              ) : results.length === 0 ? null : (
                 results.map((bus) => {
                   const active = selectedBus?._id === bus._id;
                   return (
@@ -440,7 +743,8 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
                         {bus.busNumber || "NO NUMBER"}
                       </p>
                       <p className="mt-2 text-xs text-slate-500">
-                        {bus.route?.origin || "-"} to {bus.route?.destination || "-"}
+                        {bus.route?.origin || "-"} to{" "}
+                        {bus.route?.destination || "-"}
                       </p>
                     </button>
                   );
@@ -452,36 +756,53 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
           <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/60">
             <div className="grid gap-4 border-b border-slate-200 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Bus</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Bus
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {selectedBus?.busName || "-"}
                 </p>
-                <p className="text-xs text-slate-500">{selectedBus?.busNumber || "-"}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Route</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {(selectedBus?.route?.origin || "-") + " -> " + (selectedBus?.route?.destination || "-")}
+                <p className="text-xs text-slate-500">
+                  {selectedBus?.busNumber || "-"}
                 </p>
-                <p className="text-xs text-slate-500">{selectedBus?.route?.routeCode || "-"}</p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Last Update</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Route
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {(selectedBus?.route?.origin || "-") +
+                    " -> " +
+                    (selectedBus?.route?.destination || "-")}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {selectedBus?.route?.routeCode || "-"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Last Update
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {formatDateTime(liveLocation?.recordedAt)}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {liveLocation?.ageSeconds !== undefined && liveLocation?.ageSeconds !== null
+                  {liveLocation?.ageSeconds !== undefined &&
+                  liveLocation?.ageSeconds !== null
                     ? `${liveLocation.ageSeconds}s ago`
                     : "No live data"}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Confidence</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Confidence
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {(liveLocation?.confidence || "unknown").toUpperCase()}
                 </p>
-                <p className={`text-xs font-semibold ${liveLocation?.isStale ? "text-amber-600" : "text-emerald-600"}`}>
+                <p
+                  className={`text-xs font-semibold ${liveLocation?.isStale ? "text-amber-600" : "text-emerald-600"}`}
+                >
                   {liveLocation?.isStale ? "STALE" : "LIVE"}
                 </p>
               </div>
@@ -490,7 +811,11 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
             <div className="h-[520px] bg-slate-100">
               <LiveMap
                 center={mapCenter}
-                marker={liveLocation ? { lat: liveLocation.lat, lng: liveLocation.lng } : null}
+                marker={
+                  liveLocation
+                    ? { lat: liveLocation.lat, lng: liveLocation.lng }
+                    : null
+                }
                 route={routePoints}
                 zoom={liveLocation ? 14 : 11}
               />
@@ -498,29 +823,135 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
 
             <div className="grid gap-3 border-t border-slate-200 px-5 py-4 text-xs sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Accuracy</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Accuracy
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {liveLocation?.accuracy !== undefined && liveLocation?.accuracy !== null
+                  {liveLocation?.accuracy !== undefined &&
+                  liveLocation?.accuracy !== null
                     ? `${Math.round(liveLocation.accuracy)} m`
                     : "-"}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Speed</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Speed
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {liveLocation?.speed !== undefined && liveLocation?.speed !== null
+                  {liveLocation?.speed !== undefined &&
+                  liveLocation?.speed !== null
                     ? `${(Number(liveLocation.speed) * 3.6).toFixed(1)} km/h`
                     : "-"}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Status</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Status
+                </p>
                 <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
                   <Clock3 className="h-4 w-4" />
-                  {loadingLatest ? "Refreshing..." : liveLocation ? "Receiving updates" : "Waiting for location"}
+                  {loadingLatest
+                    ? "Refreshing..."
+                    : liveLocation
+                      ? "Receiving updates"
+                      : "Waiting for location"}
                 </p>
               </div>
             </div>
+
+            {/* ─── ETA Card ─── */}
+            {selectedBus && (
+              <div className="border-t border-slate-200 px-5 py-4">
+                {geo.loading ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Detecting your location…
+                  </div>
+                ) : geo.error ? (
+                  <div className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <div className="flex items-center gap-2 text-xs text-amber-700">
+                      <Navigation2 className="h-4 w-4" />
+                      {geo.error}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={geo.refresh}
+                      className="rounded-lg bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-200"
+                    >
+                      <RefreshCw className="mr-1 inline h-3 w-3" />
+                      Retry
+                    </button>
+                  </div>
+                ) : etaResult ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-linear-to-r from-emerald-50 to-teal-50 px-4 py-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            etaResult.status === "approaching"
+                              ? "animate-pulse bg-emerald-500"
+                              : etaResult.status === "at-stop"
+                                ? "animate-ping bg-emerald-500"
+                                : etaResult.status === "passed"
+                                  ? "bg-slate-400"
+                                  : "bg-amber-400"
+                          }`}
+                        />
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                          Estimated Arrival
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={geo.refresh}
+                        title="Refresh location"
+                        className="rounded-md p-1 text-emerald-500 transition hover:bg-emerald-100"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-xl font-bold text-emerald-800">
+                          {etaResult.etaLabel}
+                        </p>
+                        <p className="mt-0.5 text-xs text-emerald-600">
+                          <MapPin className="mr-1 inline h-3.5 w-3.5" />
+                          {etaResult.nearestStop.city || "Nearest stop"}
+                          <span className="ml-1 text-emerald-500">
+                            ({etaResult.distanceToStopKm} km from you)
+                          </span>
+                        </p>
+                      </div>
+                      {etaResult.etaMinutes !== null &&
+                        etaResult.etaMinutes > 0 && (
+                          <p className="whitespace-nowrap text-xs font-medium text-emerald-600">
+                            {(() => {
+                              const now = new Date();
+                              now.setMinutes(
+                                now.getMinutes() + etaResult.etaMinutes!,
+                              );
+                              return `Arrives ~${now.toLocaleTimeString(
+                                "en-IN",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}`;
+                            })()}
+                          </p>
+                        )}
+                    </div>
+                  </div>
+                ) : !liveLocation ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <Clock3 className="h-4 w-4" />
+                    ETA available once bus location is received.
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             {socketError ? (
               <div className="border-t border-rose-100 bg-rose-50 px-5 py-3 text-xs font-semibold text-rose-700">

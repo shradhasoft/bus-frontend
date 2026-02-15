@@ -10,6 +10,7 @@ import {
   Clock3,
   Loader2,
   MapPin,
+  Navigation2,
   PencilLine,
   ReceiptText,
   RefreshCcw,
@@ -267,11 +268,19 @@ const getDepartureDateTime = (booking: BookingListItem) => {
   const departureMinutes = toMinutes(booking.trip?.departureTime);
   if (!isFiniteNumber(departureMinutes)) return base;
   const departure = new Date(base);
-  departure.setHours(Math.floor(departureMinutes / 60), departureMinutes % 60, 0, 0);
+  departure.setHours(
+    Math.floor(departureMinutes / 60),
+    departureMinutes % 60,
+    0,
+    0,
+  );
   return departure;
 };
 
-const getArrivalDateTime = (booking: BookingListItem, departure: Date | null) => {
+const getArrivalDateTime = (
+  booking: BookingListItem,
+  departure: Date | null,
+) => {
   const duration = booking.trip?.segmentDurationMinutes;
   if (departure && isFiniteNumber(duration)) {
     return new Date(departure.getTime() + duration * 60000);
@@ -301,7 +310,10 @@ const getPaymentMethodLabel = (value?: string | null) => {
     .join(" ");
 };
 
-const resolveDownloadFilename = (contentDisposition: string | null, fallback: string) => {
+const resolveDownloadFilename = (
+  contentDisposition: string | null,
+  fallback: string,
+) => {
   if (!contentDisposition) return fallback;
 
   const utfMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
@@ -333,7 +345,7 @@ const ProfilePage = () => {
   const searchParams = useSearchParams();
   const tabFromQuery = useMemo(
     () => getVisibleTab(searchParams.get("tab")),
-    [searchParams]
+    [searchParams],
   );
 
   const [authReady, setAuthReady] = useState(false);
@@ -344,10 +356,12 @@ const ProfilePage = () => {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState<ProfileFormState>(() =>
-    getProfileFormState(null)
+    getProfileFormState(null),
   );
   const [profileUpdateLoading, setProfileUpdateLoading] = useState(false);
-  const [profileUpdateError, setProfileUpdateError] = useState<string | null>(null);
+  const [profileUpdateError, setProfileUpdateError] = useState<string | null>(
+    null,
+  );
 
   const [activeTab, setActiveTab] = useState<VisibleTab>(tabFromQuery);
   const [searchInput, setSearchInput] = useState("");
@@ -362,10 +376,10 @@ const ProfilePage = () => {
   const [listError, setListError] = useState<string | null>(null);
 
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(
-    null
+    null,
   );
   const [selectedBookingRef, setSelectedBookingRef] = useState<string | null>(
-    null
+    null,
   );
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -431,7 +445,9 @@ const ProfilePage = () => {
           return;
         }
 
-        const payload = (await response.json().catch(() => ({}))) as ProfileResponse;
+        const payload = (await response
+          .json()
+          .catch(() => ({}))) as ProfileResponse;
         if (!response.ok) {
           throw new Error(payload?.message || "Unable to load profile.");
         }
@@ -443,7 +459,7 @@ const ProfilePage = () => {
         setProfileError(
           error instanceof Error
             ? error.message
-            : "Unable to load profile details."
+            : "Unable to load profile details.",
         );
       } finally {
         setProfileLoading(false);
@@ -478,13 +494,16 @@ const ProfilePage = () => {
         }
 
         const headers = await getAuthHeaders();
-        const response = await fetch(apiUrl(`/mybookings?${params.toString()}`), {
-          method: "GET",
-          credentials: "include",
-          headers,
-          signal: controller.signal,
-          cache: "no-store",
-        });
+        const response = await fetch(
+          apiUrl(`/mybookings?${params.toString()}`),
+          {
+            method: "GET",
+            credentials: "include",
+            headers,
+            signal: controller.signal,
+            cache: "no-store",
+          },
+        );
 
         if (response.status === 401) {
           setBookings([]);
@@ -495,13 +514,19 @@ const ProfilePage = () => {
           return;
         }
 
-        const payload = (await response.json().catch(() => ({}))) as BookingListResponse;
+        const payload = (await response
+          .json()
+          .catch(() => ({}))) as BookingListResponse;
         if (!response.ok) {
           throw new Error(payload?.message || "Unable to load bookings.");
         }
 
-        const resolvedBookings = Array.isArray(payload?.data) ? payload.data : [];
-        const resolvedTotal = isFiniteNumber(payload?.total) ? payload.total : 0;
+        const resolvedBookings = Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+        const resolvedTotal = isFiniteNumber(payload?.total)
+          ? payload.total
+          : 0;
         const resolvedTotalPages =
           isFiniteNumber(payload?.totalPages) && payload.totalPages > 0
             ? payload.totalPages
@@ -523,7 +548,7 @@ const ProfilePage = () => {
         setListError(
           error instanceof Error
             ? error.message
-            : "Unable to load bookings right now."
+            : "Unable to load bookings right now.",
         );
       } finally {
         setListLoading(false);
@@ -552,12 +577,16 @@ const ProfilePage = () => {
             credentials: "include",
             headers,
             cache: "no-store",
-          }
+          },
         );
 
-        const payload = (await response.json().catch(() => ({}))) as BookingDetailResponse;
+        const payload = (await response
+          .json()
+          .catch(() => ({}))) as BookingDetailResponse;
         if (!response.ok) {
-          throw new Error(payload?.message || "Unable to load booking details.");
+          throw new Error(
+            payload?.message || "Unable to load booking details.",
+          );
         }
 
         if (!payload?.data) {
@@ -570,13 +599,13 @@ const ProfilePage = () => {
         setDetailError(
           error instanceof Error
             ? error.message
-            : "Unable to load booking details."
+            : "Unable to load booking details.",
         );
       } finally {
         setDetailLoading(false);
       }
     },
-    [getAuthHeaders]
+    [getAuthHeaders],
   );
 
   const handleTabChange = (nextTab: VisibleTab) => {
@@ -655,7 +684,7 @@ const ProfilePage = () => {
 
       if (phone && !E164_PHONE_REGEX.test(phone)) {
         setProfileUpdateError(
-          "Phone must be in E.164 format (for example, +917840009613)."
+          "Phone must be in E.164 format (for example, +917840009613).",
         );
         return;
       }
@@ -692,7 +721,9 @@ const ProfilePage = () => {
           cache: "no-store",
         });
 
-        const payload = (await response.json().catch(() => ({}))) as ProfileResponse;
+        const payload = (await response
+          .json()
+          .catch(() => ({}))) as ProfileResponse;
         if (!response.ok || !payload.success) {
           throw new Error(payload?.message || "Unable to update profile.");
         }
@@ -701,13 +732,13 @@ const ProfilePage = () => {
         setIsEditProfileOpen(false);
       } catch (error) {
         setProfileUpdateError(
-          error instanceof Error ? error.message : "Unable to update profile."
+          error instanceof Error ? error.message : "Unable to update profile.",
         );
       } finally {
         setProfileUpdateLoading(false);
       }
     },
-    [getAuthHeaders, profile, profileForm, profileUpdateLoading]
+    [getAuthHeaders, profile, profileForm, profileUpdateLoading],
   );
 
   const activeDetail = selectedBooking;
@@ -747,7 +778,7 @@ const ProfilePage = () => {
       const fallbackName = `invoice-${activeDetail.bookingId || "booking"}.pdf`;
       const fileName = resolveDownloadFilename(
         response.headers.get("content-disposition"),
-        fallbackName
+        fallbackName,
       );
 
       const fileUrl = window.URL.createObjectURL(blob);
@@ -760,7 +791,7 @@ const ProfilePage = () => {
       window.URL.revokeObjectURL(fileUrl);
     } catch (error) {
       setInvoiceError(
-        error instanceof Error ? error.message : "Unable to download invoice."
+        error instanceof Error ? error.message : "Unable to download invoice.",
       );
     } finally {
       setInvoiceDownloading(false);
@@ -851,7 +882,7 @@ const ProfilePage = () => {
                   "rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition",
                   activeTab === tab.key
                     ? "bg-white text-slate-900 shadow dark:bg-white/15 dark:text-white"
-                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
                 )}
               >
                 {tab.label} ({summary[tab.summaryKey]})
@@ -913,7 +944,10 @@ const ProfilePage = () => {
           ) : (
             bookings.map((booking) => {
               const departureDateTime = getDepartureDateTime(booking);
-              const arrivalDateTime = getArrivalDateTime(booking, departureDateTime);
+              const arrivalDateTime = getArrivalDateTime(
+                booking,
+                departureDateTime,
+              );
               const isSelected =
                 selectedBookingRef &&
                 (selectedBookingRef === booking.bookingId ||
@@ -926,7 +960,7 @@ const ProfilePage = () => {
                     "rounded-2xl border bg-white p-5 shadow-sm transition dark:bg-[#0f172a]/70",
                     isSelected
                       ? "border-sky-300 dark:border-sky-400/50"
-                      : "border-slate-200 dark:border-white/10"
+                      : "border-slate-200 dark:border-white/10",
                   )}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -947,14 +981,18 @@ const ProfilePage = () => {
                       <span
                         className={cn(
                           "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
-                          STATUS_STYLES[booking.lifecycleBucket]
+                          STATUS_STYLES[booking.lifecycleBucket],
                         )}
                       >
                         {getStatusLabel(booking)}
                       </span>
                       <Button
                         type="button"
-                        onClick={() => void openBookingDetail(booking.bookingId || booking.id)}
+                        onClick={() =>
+                          void openBookingDetail(
+                            booking.bookingId || booking.id,
+                          )
+                        }
                         className="rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 px-5 text-white hover:from-sky-600 hover:to-indigo-700"
                       >
                         View Booking
@@ -990,10 +1028,14 @@ const ProfilePage = () => {
                         Fare & seats
                       </p>
                       <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
-                        {formatCurrency(booking.totalAmount, booking.currency || "INR")}
+                        {formatCurrency(
+                          booking.totalAmount,
+                          booking.currency || "INR",
+                        )}
                       </p>
                       <p className="text-slate-600 dark:text-slate-300">
-                        {booking.passengerCount} passenger(s) • {booking.seats.join(", ")}
+                        {booking.passengerCount} passenger(s) •{" "}
+                        {booking.seats.join(", ")}
                       </p>
                     </div>
                   </div>
@@ -1073,7 +1115,7 @@ const ProfilePage = () => {
                   <span
                     className={cn(
                       "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
-                      STATUS_STYLES[activeDetail.lifecycleBucket]
+                      STATUS_STYLES[activeDetail.lifecycleBucket],
                     )}
                   >
                     {getStatusLabel(activeDetail)}
@@ -1111,6 +1153,20 @@ const ProfilePage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Track my journey button */}
+                {activeDetail.bookingStatus === "confirmed" &&
+                  activeDetail.lifecycleBucket === "upcoming" && (
+                    <div className="mt-4">
+                      <Link
+                        href={`/track-journey/${encodeURIComponent(activeDetail.bookingId)}`}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 via-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition hover:from-indigo-600 hover:via-indigo-700 hover:to-purple-700 hover:shadow-xl dark:shadow-indigo-500/20"
+                      >
+                        <Navigation2 className="h-4 w-4" />
+                        Track my journey
+                      </Link>
+                    </div>
+                  )}
               </div>
 
               <div className="rounded-2xl border border-slate-200/80 p-4 dark:border-white/10">
@@ -1125,7 +1181,8 @@ const ProfilePage = () => {
                       className="rounded-xl border border-slate-200/80 bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-white/5"
                     >
                       <p className="font-medium text-slate-800 dark:text-slate-100">
-                        {passenger.name || "Traveller"} • Seat {passenger.seatNumber}
+                        {passenger.name || "Traveller"} • Seat{" "}
+                        {passenger.seatNumber}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         {passenger.age ? `${passenger.age} yrs` : "Age N/A"}
@@ -1143,26 +1200,35 @@ const ProfilePage = () => {
                 </p>
                 <dl className="space-y-2 text-sm">
                   <div className="flex items-center justify-between gap-4">
-                    <dt className="text-slate-500 dark:text-slate-400">Total amount</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">
+                      Total amount
+                    </dt>
                     <dd className="font-semibold text-slate-900 dark:text-slate-100">
                       {formatCurrency(
-                        activeDetail.payment?.amount ?? activeDetail.totalAmount,
+                        activeDetail.payment?.amount ??
+                          activeDetail.totalAmount,
                         activeDetail.payment?.currency ||
                           activeDetail.currency ||
-                          "INR"
+                          "INR",
                       )}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <dt className="text-slate-500 dark:text-slate-400">Method</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">
+                      Method
+                    </dt>
                     <dd className="text-slate-700 dark:text-slate-200">
                       {getPaymentMethodLabel(activeDetail.payment?.method)}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <dt className="text-slate-500 dark:text-slate-400">Status</dt>
+                    <dt className="text-slate-500 dark:text-slate-400">
+                      Status
+                    </dt>
                     <dd className="text-slate-700 dark:text-slate-200">
-                      {activeDetail.payment?.status || activeDetail.paymentStatus || "N/A"}
+                      {activeDetail.payment?.status ||
+                        activeDetail.paymentStatus ||
+                        "N/A"}
                     </dd>
                   </div>
                   {activeDetail.payment?.gatewayReference ? (
@@ -1191,7 +1257,9 @@ const ProfilePage = () => {
                       onClick={handleDownloadInvoice}
                       disabled={invoiceDownloading}
                     >
-                      {invoiceDownloading ? "Preparing invoice..." : "Download invoice"}
+                      {invoiceDownloading
+                        ? "Preparing invoice..."
+                        : "Download invoice"}
                     </Button>
                   ) : (
                     <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -1225,7 +1293,10 @@ const ProfilePage = () => {
         </aside>
       </section>
 
-      <Dialog open={isEditProfileOpen} onOpenChange={handleEditProfileOpenChange}>
+      <Dialog
+        open={isEditProfileOpen}
+        onOpenChange={handleEditProfileOpenChange}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Profile</DialogTitle>
@@ -1307,7 +1378,9 @@ const ProfilePage = () => {
               </Button>
               <Button
                 type="submit"
-                disabled={profileUpdateLoading || !profile || !hasProfileChanges}
+                disabled={
+                  profileUpdateLoading || !profile || !hasProfileChanges
+                }
               >
                 {profileUpdateLoading ? (
                   <>

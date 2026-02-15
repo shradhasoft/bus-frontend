@@ -3,7 +3,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, Loader2, Tag } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Bus,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  Lock,
+  MapPin,
+  Shield,
+  Tag,
+  Ticket,
+  User,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,10 +150,7 @@ const CheckoutPage = () => {
         .filter(Boolean),
     [seatParam],
   );
-  const seatKey = useMemo(
-    () => seats.slice().sort().join("-"),
-    [seats],
-  );
+  const seatKey = useMemo(() => seats.slice().sort().join("-"), [seats]);
 
   const busId = searchParams.get("busId") ?? "";
   const travelDate = searchParams.get("travelDate") ?? "";
@@ -307,7 +317,9 @@ const CheckoutPage = () => {
         if (response.status === 401) {
           throw new Error("Sign in to apply offers.");
         }
-        throw new Error(payload.reason || payload.code || "Unable to apply offer.");
+        throw new Error(
+          payload.reason || payload.code || "Unable to apply offer.",
+        );
       }
 
       if (!payload.eligible || !payload.pricing) {
@@ -436,8 +448,7 @@ const CheckoutPage = () => {
       const bookingPayload = await bookingResponse.json().catch(() => ({}));
       if (!bookingResponse.ok) {
         throw new Error(
-          bookingPayload?.message ||
-            "Unable to create booking. Please retry.",
+          bookingPayload?.message || "Unable to create booking. Please retry.",
         );
       }
 
@@ -496,19 +507,14 @@ const CheckoutPage = () => {
         }) => {
           setVerifying(true);
           try {
-            const verifyResponse = await fetch(
-              apiUrl(`/verify/${paymentId}`),
-              {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(response),
-              },
-            );
+            const verifyResponse = await fetch(apiUrl(`/verify/${paymentId}`), {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
 
-            const verifyPayload = await verifyResponse
-              .json()
-              .catch(() => ({}));
+            const verifyPayload = await verifyResponse.json().catch(() => ({}));
 
             if (!verifyResponse.ok) {
               throw new Error(
@@ -555,102 +561,145 @@ const CheckoutPage = () => {
     }
   };
 
+  /* ── Checkout Unavailable ─────────────────────────────────── */
   if (!busId || !travelDate || seats.length === 0) {
     return (
-      <div className="min-h-screen bg-[#f3f4f6] px-6 pb-16 pt-24">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-rose-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-6 pb-16 pt-24">
         <div className="mx-auto w-full max-w-3xl">
-          <Card className="border-slate-200">
-            <CardHeader>
-              <CardTitle>Checkout unavailable</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-slate-600">
-                Booking details are missing. Go back and select your seats
-                again.
-              </p>
-              <Button asChild className="rounded-full">
-                <Link href="/bus-tickets">Back to bus search</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-8 shadow-sm dark:shadow-black/20 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-700/50">
+                <Ticket className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                Checkout unavailable
+              </h2>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              Booking details are missing. Go back and select your seats again.
+            </p>
+            <Button
+              asChild
+              className="rounded-full bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-500/20"
+            >
+              <Link href="/bus-tickets">
+                <ArrowLeft className="h-4 w-4" />
+                Back to bus search
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
+  /* ── Payment Success ──────────────────────────────────────── */
   if (success) {
     return (
-      <div className="min-h-screen bg-[#f3f4f6] px-6 pb-16 pt-24">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-6 pb-16 pt-24">
         <div className="mx-auto w-full max-w-3xl">
-          <Card className="border-emerald-200 bg-emerald-50">
-            <CardHeader className="flex flex-row items-center gap-3">
-              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-              <CardTitle className="text-emerald-900">
-                Payment successful
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-emerald-800">
-                Your booking is confirmed. Booking ID: {success.bookingId}
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Button asChild className="rounded-full">
-                  <Link href="/bookings">View my bookings</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-full border-emerald-200 text-emerald-800"
-                  onClick={() => router.push("/bus-tickets")}
-                >
-                  Book another trip
-                </Button>
+          <div className="rounded-3xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/30 p-8 shadow-sm dark:shadow-black/20 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/40">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <h2 className="text-lg font-semibold text-emerald-900 dark:text-emerald-200">
+                  Payment successful
+                </h2>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                  Your booking is confirmed
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white/50 dark:bg-slate-800/50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-500">
+                Booking ID
+              </p>
+              <p className="mt-1 text-sm font-mono font-semibold text-emerald-900 dark:text-emerald-200">
+                {success.bookingId}
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button
+                asChild
+                className="rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-sm shadow-emerald-500/20"
+              >
+                <Link href="/bookings">View my bookings</Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                onClick={() => router.push("/bus-tickets")}
+              >
+                Book another trip
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  /* ── Main Checkout ────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#f3f4f6] px-6 pb-16 pt-24">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-rose-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-4 pb-16 pt-24 sm:px-6">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-            Checkout
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-950/40">
+              <CreditCard className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-500 dark:text-rose-400">
+              Checkout
+            </p>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">
             Confirm passengers and pay securely
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 max-w-xl">
             Review your trip details, add passenger information, and complete
             payment using Razorpay.
           </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          {/* ── Left Column: Passengers ────────────── */}
           <div className="space-y-6">
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-lg">Passenger details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 shadow-sm dark:shadow-black/20 backdrop-blur-sm overflow-hidden">
+              <div className="border-b border-slate-100 dark:border-slate-700 px-6 py-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700/50">
+                    <User className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    Passenger details
+                  </h2>
+                </div>
+              </div>
+              <div className="px-6 py-5 space-y-5">
                 {passengers.map((passenger, index) => (
                   <div
                     key={passenger.seatNumber}
-                    className="rounded-2xl border border-slate-200 bg-white p-4"
+                    className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 p-5 transition-all hover:shadow-sm"
                   >
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-900">
-                        Seat {passenger.seatNumber}
-                      </p>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-950/30 text-xs font-bold text-rose-600 dark:text-rose-400">
+                          {passenger.seatNumber}
+                        </span>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          Seat {passenger.seatNumber}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 dark:bg-slate-700/50 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                         Passenger {index + 1}
                       </span>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                           Full name
                         </label>
                         <Input
@@ -661,10 +710,11 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="Passenger name"
+                          className="rounded-xl border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-rose-500"
                         />
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                           Age
                         </label>
                         <Input
@@ -676,28 +726,30 @@ const CheckoutPage = () => {
                           }
                           placeholder="Age"
                           inputMode="numeric"
+                          className="rounded-xl border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-rose-500"
                         />
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                           Gender
                         </label>
                         <select
                           value={passenger.gender}
                           onChange={(event) =>
                             updatePassenger(index, {
-                              gender: event.target.value as PassengerForm["gender"],
+                              gender: event.target
+                                .value as PassengerForm["gender"],
                             })
                           }
-                          className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                          className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                         >
                           <option value="male">Male</option>
                           <option value="female">Female</option>
                           <option value="other">Other</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                           Mobile number
                         </label>
                         <Input
@@ -709,29 +761,30 @@ const CheckoutPage = () => {
                           }
                           placeholder="10-digit mobile"
                           inputMode="numeric"
+                          className="rounded-xl border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-rose-500"
                         />
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                           ID type
                         </label>
                         <select
                           value={passenger.identificationType}
                           onChange={(event) =>
                             updatePassenger(index, {
-                              identificationType:
-                                event.target.value as PassengerForm["identificationType"],
+                              identificationType: event.target
+                                .value as PassengerForm["identificationType"],
                             })
                           }
-                          className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                          className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                         >
                           <option value="aadhar">Aadhar</option>
                           <option value="passport">Passport</option>
                           <option value="dl">Driving License</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                           ID number
                         </label>
                         <Input
@@ -742,27 +795,33 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="ID number"
+                          className="rounded-xl border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-rose-500"
                         />
                       </div>
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
+            {/* ── Error ───────────────────────── */}
             {error ? (
               <div
                 className={cn(
-                  "rounded-2xl border p-4 text-sm",
+                  "rounded-2xl border p-4 text-sm backdrop-blur-sm",
                   requiresLogin
-                    ? "border-amber-200 bg-amber-50 text-amber-800"
-                    : "border-rose-200 bg-rose-50 text-rose-700",
+                    ? "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300"
+                    : "border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400",
                 )}
               >
                 <p>{error}</p>
                 {requiresLogin ? (
                   <div className="mt-3">
-                    <Button asChild className="rounded-full" size="sm">
+                    <Button
+                      asChild
+                      className="rounded-full bg-amber-600 hover:bg-amber-700"
+                      size="sm"
+                    >
                       <Link href="/login">Sign in to continue</Link>
                     </Button>
                   </div>
@@ -771,64 +830,91 @@ const CheckoutPage = () => {
             ) : null}
           </div>
 
+          {/* ── Right Column: Trip Summary ─────────── */}
           <div className="space-y-6">
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-lg">Trip summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm text-slate-600">
+            <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 shadow-sm dark:shadow-black/20 backdrop-blur-sm overflow-hidden">
+              <div className="border-b border-slate-100 dark:border-slate-700 px-6 py-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700/50">
+                    <Bus className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    Trip summary
+                  </h2>
+                </div>
+              </div>
+              <div className="px-6 py-5 space-y-5 text-sm text-slate-600 dark:text-slate-300">
+                {/* Bus name */}
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                     Bus
                   </p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">
+                  <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
                     {busName}
                   </p>
-                  <p className="text-sm text-slate-500">{operatorName}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {operatorName}
+                  </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    Route
+
+                {/* Route card */}
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-3.5 w-3.5 text-rose-500 dark:text-rose-400" />
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                      Route
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {boardingPoint}
+                    <span className="mx-2 text-rose-400 dark:text-rose-500">
+                      →
+                    </span>
+                    {droppingPoint}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {boardingPoint} → {droppingPoint}
-                  </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {formatDateLabel(travelDate)} • {direction}
                   </p>
                 </div>
+
+                {/* Seats */}
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                     Seats
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {seats.map((seat) => (
                       <span
                         key={seat}
-                        className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600"
+                        className="rounded-full border border-rose-200 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/30 px-3 py-1 text-xs font-semibold text-rose-600 dark:text-rose-400"
                       >
                         {seat}
                       </span>
                     ))}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    Promo code
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
+
+                {/* Promo code */}
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Tag className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                      Promo code
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Input
                       value={promoCode}
                       onChange={(event) => setPromoCode(event.target.value)}
                       placeholder="Enter code"
-                      className="h-9"
+                      className="h-9 rounded-xl border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handleApplyOffer}
                       disabled={promoLoading || loading || verifying}
-                      className="h-9 rounded-full"
+                      className="h-9 rounded-full border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                     >
                       {promoLoading ? "Applying..." : "Apply"}
                     </Button>
@@ -838,81 +924,96 @@ const CheckoutPage = () => {
                         variant="ghost"
                         onClick={handleRemoveOffer}
                         disabled={promoLoading || loading || verifying}
-                        className="h-9 rounded-full text-rose-600 hover:text-rose-700"
+                        className="h-9 rounded-full text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300"
                       >
                         Remove
                       </Button>
                     ) : null}
                   </div>
                   {appliedOffer ? (
-                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                       <Tag className="h-3.5 w-3.5" />
                       {appliedOffer.offerSnapshot?.title || "Offer applied"} (
                       {appliedOffer.code})
                     </p>
                   ) : null}
                   {promoError ? (
-                    <p className="mt-2 text-xs text-rose-600">{promoError}</p>
+                    <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">
+                      {promoError}
+                    </p>
                   ) : null}
                   {requiresLogin && promoError ? (
                     <div className="mt-2">
-                      <Button asChild size="sm" className="rounded-full">
+                      <Button
+                        asChild
+                        size="sm"
+                        className="rounded-full bg-rose-500 hover:bg-rose-600"
+                      >
                         <Link href="/login">Sign in to apply offers</Link>
                       </Button>
                     </div>
                   ) : null}
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <div className="flex items-center justify-between">
+
+                {/* Fare breakdown */}
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4">
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                     <span>Fare per passenger</span>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {formatFare(farePerPassenger)}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between">
+                  <div className="mt-2 flex items-center justify-between text-slate-600 dark:text-slate-300">
                     <span>Base fare</span>
-                    <span className="text-base font-semibold text-slate-900">
+                    <span className="text-base font-semibold text-slate-900 dark:text-white">
                       {formatFare(baseFareAmount)}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-emerald-700">
+                  <div className="mt-2 flex items-center justify-between text-emerald-700 dark:text-emerald-400">
                     <span>Discount</span>
-                    <span className="font-semibold">- {formatFare(discountAmount)}</span>
+                    <span className="font-semibold">
+                      - {formatFare(discountAmount)}
+                    </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-2">
-                    <span>Total payable</span>
-                    <span className="text-base font-semibold text-slate-900">
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-3">
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      Total payable
+                    </span>
+                    <span className="text-lg font-bold text-slate-900 dark:text-white">
                       {formatFare(finalPayable)}
                     </span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card className="border-slate-200">
-              <CardContent className="space-y-4 pt-6">
-                <p className="text-sm text-slate-600">
+            {/* ── Pay button card ─────────────── */}
+            <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 shadow-sm dark:shadow-black/20 backdrop-blur-sm overflow-hidden p-6">
+              <div className="flex items-center gap-2 mb-4 text-slate-500 dark:text-slate-400">
+                <Lock className="h-3.5 w-3.5" />
+                <p className="text-xs">
                   Seats will be locked for you while payment is in progress.
                 </p>
-                <Button
-                  className="w-full rounded-full bg-rose-500 hover:bg-rose-600"
-                  onClick={handleCheckout}
-                  disabled={loading || verifying}
-                >
-                  {loading || verifying ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {verifying ? "Verifying payment..." : "Processing..."}
-                    </>
-                  ) : (
-                    <>
-                      Pay securely
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+              </div>
+              <Button
+                className="w-full rounded-full bg-rose-500 hover:bg-rose-600 dark:bg-rose-600 dark:hover:bg-rose-500 shadow-lg shadow-rose-500/20 text-base py-6 font-semibold transition-all"
+                onClick={handleCheckout}
+                disabled={loading || verifying}
+              >
+                {loading || verifying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {verifying ? "Verifying payment..." : "Processing..."}
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-4 w-4" />
+                    Pay securely
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

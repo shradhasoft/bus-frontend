@@ -144,8 +144,17 @@ section[id] {
   border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.dark .nav-glass {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .shadow-card {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.dark .shadow-card {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .grain-overlay::before {
@@ -173,9 +182,18 @@ section[id] {
 }
 
 @keyframes float {
-  0% { transform: translateY(0) translateX(0); opacity: 0.3; }
-  50% { transform: translateY(-18px) translateX(10px); opacity: 0.8; }
-  100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-18px) translateX(10px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
 }
 
 .animate-float {

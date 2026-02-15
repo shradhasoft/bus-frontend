@@ -10,7 +10,7 @@ import { apiUrl } from "@/lib/api";
 
 const SIDEBAR_WIDTH = "17rem";
 const SIDEBAR_COLLAPSED_WIDTH = "4.75rem";
-const STANDALONE_ROUTES = ["/profile"];
+const STANDALONE_ROUTES = ["/profile", "/track-journey"];
 const ROLE_BASE_PATHS: Record<string, string> = {
   superadmin: "/super-admin/dashboard",
   admin: "/admin/dashboard",
@@ -19,12 +19,12 @@ const ROLE_BASE_PATHS: Record<string, string> = {
   user: "/dashboard",
 };
 const KNOWN_ROLE_BASE_PATHS = Object.values(ROLE_BASE_PATHS).sort(
-  (first, second) => second.length - first.length
+  (first, second) => second.length - first.length,
 );
 
 const isStandaloneRoute = (pathname: string) =>
   STANDALONE_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
 const normalizeRole = (role: string | null) =>
@@ -35,7 +35,7 @@ const normalizeRole = (role: string | null) =>
 
 const resolveRouteBasePath = (pathname: string) =>
   KNOWN_ROLE_BASE_PATHS.find(
-    (basePath) => pathname === basePath || pathname.startsWith(`${basePath}/`)
+    (basePath) => pathname === basePath || pathname.startsWith(`${basePath}/`),
   ) ?? null;
 
 const ProtectedShell = ({ children }: { children: ReactNode }) => {
@@ -134,16 +134,14 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
     () =>
       ({
         "--navbar-height": "64px",
-        "--sidebar-width": collapsed
-          ? SIDEBAR_COLLAPSED_WIDTH
-          : SIDEBAR_WIDTH,
+        "--sidebar-width": collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
       }) as CSSProperties,
-    [collapsed]
+    [collapsed],
   );
 
   if (isStandaloneRoute(pathname)) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 pb-8 pt-24 text-slate-900 dark:bg-[#0b1020] dark:text-slate-100 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-slate-50 pt-24 text-slate-900 dark:bg-[#0b1020] dark:text-slate-100">
         {children}
       </main>
     );
@@ -172,9 +170,7 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
       <main className="min-h-screen pt-[var(--navbar-height,64px)] transition-[padding] duration-300 md:pl-[var(--sidebar-width,17rem)]">
         <div className="px-6 py-6">
           {canRenderChildren ? (
-            <React.Fragment key={authSessionVersion}>
-              {children}
-            </React.Fragment>
+            <React.Fragment key={authSessionVersion}>{children}</React.Fragment>
           ) : (
             <div className="grid min-h-[40vh] place-items-center rounded-3xl border border-slate-200/80 bg-white/80 text-sm font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
               Syncing role access...
