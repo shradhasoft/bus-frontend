@@ -37,7 +37,11 @@ const parseTravelDate = (value) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return new Date(
-    Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()),
+    Date.UTC(
+      parsed.getUTCFullYear(),
+      parsed.getUTCMonth(),
+      parsed.getUTCDate(),
+    ),
   );
 };
 
@@ -174,7 +178,9 @@ const getOwnerBusScopeFilter = (req) => {
 
   if (role === "owner") {
     const ownerEmail =
-      typeof req.user?.email === "string" ? req.user.email.trim().toLowerCase() : "";
+      typeof req.user?.email === "string"
+        ? req.user.email.trim().toLowerCase()
+        : "";
 
     return ownerEmail
       ? { ...base, busOwnerEmail: ownerEmail }
@@ -230,7 +236,9 @@ const buildConductorSeatStatusRows = ({
     bookedMap.set(seatId, entry);
   }
 
-  const seats = Array.isArray(bus?.seatLayout?.seats) ? bus.seatLayout.seats : [];
+  const seats = Array.isArray(bus?.seatLayout?.seats)
+    ? bus.seatLayout.seats
+    : [];
   const rows = [];
   const requester = String(requesterId || "");
 
@@ -246,11 +254,12 @@ const buildConductorSeatStatusRows = ({
         : "available";
 
     const source = String(bookedEntry?.source || "booking").toLowerCase();
-    const markedBy = bookedEntry?.markedBy ? String(bookedEntry.markedBy) : null;
+    const markedBy = bookedEntry?.markedBy
+      ? String(bookedEntry.markedBy)
+      : null;
     const isOfflineBooked =
       status === "booked" && source === OFFLINE_BOOKING_SOURCE;
-    const canUndo =
-      isOfflineBooked && (!markedBy || markedBy === requester);
+    const canUndo = isOfflineBooked && (!markedBy || markedBy === requester);
 
     rows.push({
       seatId,
@@ -349,7 +358,10 @@ const enrichConductorsWithAssignmentCount = async (conductors, req) => {
   ]);
 
   const countMap = new Map(
-    countRows.map((row) => [String(row._id), Number(row.assignedBusCount) || 0]),
+    countRows.map((row) => [
+      String(row._id),
+      Number(row.assignedBusCount) || 0,
+    ]),
   );
 
   return conductors.map((conductor) => ({
@@ -360,15 +372,8 @@ const enrichConductorsWithAssignmentCount = async (conductors, req) => {
 
 export const postLocationTelemetry = async (req, res) => {
   try {
-    const {
-      busNumber,
-      tripKey,
-      travelDate,
-      direction,
-      deviceId,
-      seq,
-      points,
-    } = req.body || {};
+    const { busNumber, tripKey, travelDate, direction, deviceId, seq, points } =
+      req.body || {};
 
     const result = await ingestLocationBatch({
       conductorUser: req.user,
@@ -414,7 +419,7 @@ export const getTelemetryAssignments = async (req, res) => {
       isActive: true,
     })
       .select(
-        "_id busId busName busNumber operator features route forwardTrip returnTrip operatingDays",
+        "_id busId busName busNumber operator features route forwardTrip returnTrip operatingDays inactiveDates amenities totalSeats farePerKm model year ratings",
       )
       .sort({ busNumber: 1 })
       .lean();
@@ -426,6 +431,134 @@ export const getTelemetryAssignments = async (req, res) => {
     });
   } catch (error) {
     console.error("getTelemetryAssignments error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "SERVER_ERROR",
+    });
+  }
+};
+
+export const getConductorBusDetails = async (req, res) => {
+  try {
+    const { busId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(busId)) {
+      return res.status(400).json({
+        success: false,
+        message: "INVALID_BUS_ID",
+      });
+    }
+
+    const bus = await Bus.findOne({
+      _id: busId,
+      conductor: req.user?._id,
+      isDeleted: false,
+    })
+      .select(
+        "_id busId busName busNumber operator features amenities route forwardTrip returnTrip operatingDays inactiveDates totalSeats farePerKm model year insurance ratings isActive",
+      )
+      .lean();
+
+    if (!bus) {
+      return res.status(404).json({
+        success: false,
+        message: "BUS_NOT_FOUND_OR_NOT_ASSIGNED",
+      });
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const isInactiveToday =
+      Array.isArray(bus.inactiveDates) && bus.inactiveDates.includes(todayStr);
+
+    return res.json({
+      success: true,
+      message: "CONDUCTOR_BUS_DETAILS_RETRIEVED",
+      data: {
+        ...bus,
+        isInactiveToday,
+      },
+    });
+  } catch (error) {
+    console.error("getConductorBusDetails error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "SERVER_ERROR",
+    });
+  }
+};
+
+export const toggleConductorBusInactiveDate = async (req, res) => {
+  try {
+    const { busId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(busId)) {
+      return res.status(400).json({
+        success: false,
+        message: "INVALID_BUS_ID",
+      });
+    }
+
+    const { date, active } = req.body || {};
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({
+        success: false,
+        message: "INVALID_DATE_FORMAT",
+      });
+    }
+
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "INVALID_DATE",
+      });
+    }
+
+    if (typeof active !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "ACTIVE_MUST_BE_BOOLEAN",
+      });
+    }
+
+    const bus = await Bus.findOne({
+      _id: busId,
+      conductor: req.user?._id,
+      isDeleted: false,
+    });
+
+    if (!bus) {
+      return res.status(404).json({
+        success: false,
+        message: "BUS_NOT_FOUND_OR_NOT_ASSIGNED",
+      });
+    }
+
+    const currentDates = new Set(
+      Array.isArray(bus.inactiveDates) ? bus.inactiveDates : [],
+    );
+
+    if (active) {
+      // Reactivate: remove date from inactiveDates
+      currentDates.delete(date);
+    } else {
+      // Deactivate: add date to inactiveDates
+      currentDates.add(date);
+    }
+
+    bus.inactiveDates = Array.from(currentDates).sort();
+    await bus.save();
+
+    return res.json({
+      success: true,
+      message: active ? "BUS_REACTIVATED_FOR_DATE" : "BUS_DEACTIVATED_FOR_DATE",
+      data: {
+        busId: bus._id,
+        date,
+        active,
+        inactiveDates: bus.inactiveDates,
+      },
+    });
+  } catch (error) {
+    console.error("toggleConductorBusInactiveDate error:", error);
     return res.status(500).json({
       success: false,
       message: "SERVER_ERROR",
@@ -487,8 +620,12 @@ export const getConductorOfflineSeatLayout = async (req, res) => {
 
     const bookedCount = seats.filter((seat) => seat.status === "booked").length;
     const lockedCount = seats.filter((seat) => seat.status === "locked").length;
-    const availableCount = seats.filter((seat) => seat.status === "available").length;
-    const offlineBookedCount = seats.filter((seat) => seat.isOfflineBooked).length;
+    const availableCount = seats.filter(
+      (seat) => seat.status === "available",
+    ).length;
+    const offlineBookedCount = seats.filter(
+      (seat) => seat.isOfflineBooked,
+    ).length;
 
     return res.json({
       success: true,
@@ -561,8 +698,7 @@ export const markConductorOfflineSeatBooked = async (req, res) => {
       });
     }
 
-    const note =
-      typeof req.body?.note === "string" ? req.body.note.trim() : "";
+    const note = typeof req.body?.note === "string" ? req.body.note.trim() : "";
     if (note.length > OFFLINE_BOOKING_NOTE_MAX_LENGTH) {
       return res.status(400).json({
         success: false,
@@ -797,7 +933,9 @@ export const unmarkConductorOfflineSeatBooked = async (req, res) => {
     }
 
     const seatEntry = bus.bookedSeats[seatEntryIndex];
-    if (String(seatEntry?.source || "").toLowerCase() !== OFFLINE_BOOKING_SOURCE) {
+    if (
+      String(seatEntry?.source || "").toLowerCase() !== OFFLINE_BOOKING_SOURCE
+    ) {
       await session.abortTransaction();
       return res.status(409).json({
         success: false,
@@ -914,7 +1052,8 @@ export const getOwnerTelemetryBusLatest = async (req, res) => {
     if (!bus) {
       return res.status(404).json({
         success: false,
-        message: role === "owner" ? "BUS_NOT_FOUND_OR_NOT_OWNED" : "BUS_NOT_FOUND",
+        message:
+          role === "owner" ? "BUS_NOT_FOUND_OR_NOT_OWNED" : "BUS_NOT_FOUND",
       });
     }
 
@@ -1084,7 +1223,9 @@ export const createOwnerConductor = async (req, res) => {
       }
 
       if (requesterRole === "owner" && existing.role === "conductor") {
-        const existingOwner = existing.createdBy ? String(existing.createdBy) : null;
+        const existingOwner = existing.createdBy
+          ? String(existing.createdBy)
+          : null;
         const requesterId = req.user?._id ? String(req.user._id) : null;
         if (existingOwner && requesterId && existingOwner !== requesterId) {
           return res.status(409).json({
@@ -1099,7 +1240,10 @@ export const createOwnerConductor = async (req, res) => {
 
     const syncFirebaseForExisting = async (existing) => {
       try {
-        await firebaseAdminAuth.updateUser(existing.firebaseUID, firebaseUpdatePayload);
+        await firebaseAdminAuth.updateUser(
+          existing.firebaseUID,
+          firebaseUpdatePayload,
+        );
         return true;
       } catch (error) {
         if (
@@ -1115,7 +1259,9 @@ export const createOwnerConductor = async (req, res) => {
         try {
           resolvedIdentity = await resolveFirebaseByContact();
         } catch (resolveError) {
-          respondFirebaseIdentityError(res, resolveError, { createPhase: false });
+          respondFirebaseIdentityError(res, resolveError, {
+            createPhase: false,
+          });
           return false;
         }
 
@@ -1129,11 +1275,15 @@ export const createOwnerConductor = async (req, res) => {
 
         if (!resolvedIdentity.user && error?.code === "auth/user-not-found") {
           try {
-            const recreated = await firebaseAdminAuth.createUser(firebaseCreatePayload);
+            const recreated = await firebaseAdminAuth.createUser(
+              firebaseCreatePayload,
+            );
             existing.firebaseUID = recreated.uid;
             return true;
           } catch (createError) {
-            respondFirebaseIdentityError(res, createError, { createPhase: true });
+            respondFirebaseIdentityError(res, createError, {
+              createPhase: true,
+            });
             return false;
           }
         }
@@ -1145,10 +1295,15 @@ export const createOwnerConductor = async (req, res) => {
 
         existing.firebaseUID = resolvedIdentity.user.uid;
         try {
-          await firebaseAdminAuth.updateUser(existing.firebaseUID, firebaseUpdatePayload);
+          await firebaseAdminAuth.updateUser(
+            existing.firebaseUID,
+            firebaseUpdatePayload,
+          );
           return true;
         } catch (updateError) {
-          respondFirebaseIdentityError(res, updateError, { createPhase: false });
+          respondFirebaseIdentityError(res, updateError, {
+            createPhase: false,
+          });
           return false;
         }
       }
@@ -1214,7 +1369,9 @@ export const createOwnerConductor = async (req, res) => {
 
     let firebaseUID = null;
     try {
-      const firebaseUser = await firebaseAdminAuth.createUser(firebaseCreatePayload);
+      const firebaseUser = await firebaseAdminAuth.createUser(
+        firebaseCreatePayload,
+      );
       firebaseUID = firebaseUser.uid;
     } catch (error) {
       if (
@@ -1228,7 +1385,9 @@ export const createOwnerConductor = async (req, res) => {
       try {
         resolvedIdentity = await resolveFirebaseByContact();
       } catch (resolveError) {
-        return respondFirebaseIdentityError(res, resolveError, { createPhase: false });
+        return respondFirebaseIdentityError(res, resolveError, {
+          createPhase: false,
+        });
       }
 
       if (resolvedIdentity.conflict) {
@@ -1322,24 +1481,45 @@ export const updateOwnerConductor = async (req, res) => {
       });
     }
 
-    const hasFullName = Object.prototype.hasOwnProperty.call(req.body, "fullName");
+    const hasFullName = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "fullName",
+    );
     const hasEmail = Object.prototype.hasOwnProperty.call(req.body, "email");
     const hasPhone = Object.prototype.hasOwnProperty.call(req.body, "phone");
-    const hasIsActive = Object.prototype.hasOwnProperty.call(req.body, "isActive");
-    const hasIsBlocked = Object.prototype.hasOwnProperty.call(req.body, "isBlocked");
+    const hasIsActive = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "isActive",
+    );
+    const hasIsBlocked = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "isBlocked",
+    );
 
-    if (!hasFullName && !hasEmail && !hasPhone && !hasIsActive && !hasIsBlocked) {
+    if (
+      !hasFullName &&
+      !hasEmail &&
+      !hasPhone &&
+      !hasIsActive &&
+      !hasIsBlocked
+    ) {
       return res.status(400).json({
         success: false,
         message: "NO_UPDATES",
       });
     }
 
-    const fullName = hasFullName ? sanitizeName(req.body?.fullName) : conductor.fullName;
+    const fullName = hasFullName
+      ? sanitizeName(req.body?.fullName)
+      : conductor.fullName;
     const email = hasEmail ? normalizeEmail(req.body?.email) : conductor.email;
     const phone = hasPhone ? normalizePhone(req.body?.phone) : conductor.phone;
-    const isActive = hasIsActive ? req.body?.isActive === true : conductor.isActive;
-    const isBlocked = hasIsBlocked ? req.body?.isBlocked === true : conductor.isBlocked;
+    const isActive = hasIsActive
+      ? req.body?.isActive === true
+      : conductor.isActive;
+    const isBlocked = hasIsBlocked
+      ? req.body?.isBlocked === true
+      : conductor.isBlocked;
 
     if (!fullName || fullName.length < 3) {
       return res.status(400).json({
@@ -1557,7 +1737,11 @@ export const assignConductorToBus = async (req, res) => {
       });
     }
 
-    if (conductorId === null || conductorId === undefined || conductorId === "") {
+    if (
+      conductorId === null ||
+      conductorId === undefined ||
+      conductorId === ""
+    ) {
       bus.conductor = null;
     } else {
       if (!mongoose.Types.ObjectId.isValid(conductorId)) {

@@ -36,7 +36,9 @@ const getStopDistanceValue = (stop, direction) => {
 };
 
 const normalizeSeatToken = (value) =>
-  String(value || "").trim().toUpperCase();
+  String(value || "")
+    .trim()
+    .toUpperCase();
 
 const formatDateKey = (dateValue) => {
   const date = new Date(dateValue);
@@ -50,7 +52,9 @@ const buildTripKey = (busId, travelDate, direction) =>
   `${busId}_${formatDateKey(travelDate)}_${direction}`;
 
 const resolveSeatIdsForInputs = (bus, seatInputs) => {
-  const seats = Array.isArray(bus?.seatLayout?.seats) ? bus.seatLayout.seats : [];
+  const seats = Array.isArray(bus?.seatLayout?.seats)
+    ? bus.seatLayout.seats
+    : [];
   const seatIdSet = new Set(seats.map((seat) => seat.seatId));
   const labelMap = new Map(seats.map((seat) => [seat.label, seat.seatId]));
 
@@ -62,7 +66,9 @@ const resolveSeatIdsForInputs = (bus, seatInputs) => {
   });
 
   const unknown = resolved
-    .map((value, index) => (value ? null : normalizeSeatToken(seatInputs[index])))
+    .map((value, index) =>
+      value ? null : normalizeSeatToken(seatInputs[index]),
+    )
     .filter(Boolean);
 
   return { resolved, unknown };
@@ -172,15 +178,15 @@ const computeDurationMinutes = (startMinutes, endMinutes) => {
 };
 
 const normalizeCityToken = (value) =>
-  String(value || "").trim().toLowerCase();
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 const findRouteStopByCity = (route, city) => {
   if (!route || !Array.isArray(route.stops)) return null;
   const token = normalizeCityToken(city);
   if (!token) return null;
-  return route.stops.find(
-    (stop) => normalizeCityToken(stop?.city) === token
-  );
+  return route.stops.find((stop) => normalizeCityToken(stop?.city) === token);
 };
 
 const getTripByDirection = (stop, direction) =>
@@ -204,7 +210,7 @@ const getJourneySnapshot = (booking) => {
   const arrivalMinutes = toMinutes(arrivalTime);
   const segmentDurationMinutes = computeDurationMinutes(
     departureMinutes,
-    arrivalMinutes
+    arrivalMinutes,
   );
 
   return {
@@ -484,12 +490,9 @@ const buildInvoicePayloadFromBooking = (booking, paymentSnapshot = null) => {
     transactionRef: paymentSnapshot?.gatewayReference || null,
     paymentMethod: paymentSnapshot?.method || null,
     paymentStatus: paymentSnapshot?.status || booking?.paymentStatus || null,
-    totalAmount:
-      paymentSnapshot?.amount ?? booking?.totalAmount ?? 0,
+    totalAmount: paymentSnapshot?.amount ?? booking?.totalAmount ?? 0,
     currency:
-      paymentSnapshot?.currency ||
-      booking?.currency ||
-      DEFAULT_CURRENCY,
+      paymentSnapshot?.currency || booking?.currency || DEFAULT_CURRENCY,
     customerName: booking?.user?.fullName || "N/A",
     customerEmail: booking?.user?.email || "N/A",
     customerPhone: booking?.user?.phone || "N/A",
@@ -537,10 +540,12 @@ const buildSeatEntries = ({
     direction,
     boardingPoint: boardingPoint || undefined,
     droppingPoint: droppingPoint || undefined,
-    segmentStartKm:
-      Number.isFinite(Number(segmentStartKm)) ? Number(segmentStartKm) : undefined,
-    segmentEndKm:
-      Number.isFinite(Number(segmentEndKm)) ? Number(segmentEndKm) : undefined,
+    segmentStartKm: Number.isFinite(Number(segmentStartKm))
+      ? Number(segmentStartKm)
+      : undefined,
+    segmentEndKm: Number.isFinite(Number(segmentEndKm))
+      ? Number(segmentEndKm)
+      : undefined,
   }));
 
 const validateTravelDateValue = (value) => {
@@ -571,11 +576,11 @@ const resolveRouteAndFareSnapshot = ({
 
   const boardingStop = bus.route.stops.find(
     (stop) =>
-      normalizeCityToken(stop?.city) === normalizeCityToken(boardingPoint)
+      normalizeCityToken(stop?.city) === normalizeCityToken(boardingPoint),
   );
   const droppingStop = bus.route.stops.find(
     (stop) =>
-      normalizeCityToken(stop?.city) === normalizeCityToken(droppingPoint)
+      normalizeCityToken(stop?.city) === normalizeCityToken(droppingPoint),
   );
 
   if (!boardingStop || !droppingStop) {
@@ -610,7 +615,7 @@ const resolveRouteAndFareSnapshot = ({
   const journeyDistance = Math.abs(droppingDistance - boardingDistance);
   const farePerPassenger = bus.farePerKm * journeyDistance;
   const totalAmount = Number.parseFloat(
-    (farePerPassenger * passengerCount).toFixed(2)
+    (farePerPassenger * passengerCount).toFixed(2),
   );
   const segmentStartKm = Math.min(boardingDistance, droppingDistance);
   const segmentEndKm = Math.max(boardingDistance, droppingDistance);
@@ -667,8 +672,8 @@ export const lockSeatsForBooking = async (req, res) => {
 
     console.log(
       `[lockSeatsForBooking] Attempting to lock seats ${seats.join(
-        ", "
-      )} for user ${userId} with sessionId: ${sessionId}`
+        ", ",
+      )} for user ${userId} with sessionId: ${sessionId}`,
     );
 
     const lockResult = await SeatLockService.lockSeats({
@@ -800,7 +805,7 @@ export const createBooking = async (req, res) => {
 
     // Get the bus to check locks
     const bus = await Bus.findById(busId).session(session);
-      
+
     if (!bus) {
       await session.abortTransaction();
       return res.status(404).json({
@@ -924,9 +929,7 @@ export const createBooking = async (req, res) => {
       const existingSeats = (existingBooking.passengers || []).map((p) =>
         normalizeSeatToken(p.seatNumber),
       );
-      const requestedSeats = seatIds.map((seat) =>
-        normalizeSeatToken(seat),
-      );
+      const requestedSeats = seatIds.map((seat) => normalizeSeatToken(seat));
       const existingSeatSet = new Set(existingSeats);
       const sameSeats =
         existingSeats.length === requestedSeats.length &&
@@ -998,7 +1001,7 @@ export const createBooking = async (req, res) => {
 
     // Check if all requested seats are still locked
     const allSeatsLocked = requestedSeatNumbers.every((seat) =>
-      lockedSeatNumbers.includes(seat)
+      lockedSeatNumbers.includes(seat),
     );
 
     if (!allSeatsLocked || userLocks.length !== seatIds.length) {
@@ -1037,10 +1040,10 @@ export const createBooking = async (req, res) => {
 
     // Find stops - case insensitive comparison
     const boardingStop = bus.route.stops.find(
-      (s) => s.city.toLowerCase() === boardingPoint.toLowerCase().trim()
+      (s) => s.city.toLowerCase() === boardingPoint.toLowerCase().trim(),
     );
     const droppingStop = bus.route.stops.find(
-      (s) => s.city.toLowerCase() === droppingPoint.toLowerCase().trim()
+      (s) => s.city.toLowerCase() === droppingPoint.toLowerCase().trim(),
     );
 
     // Validate stops
@@ -1107,7 +1110,7 @@ export const createBooking = async (req, res) => {
     const journeyDistance = Math.abs(droppingDistance - boardingDistance);
     const farePerPassenger = bus.farePerKm * journeyDistance;
     const baseAmount = Number.parseFloat(
-      (farePerPassenger * passengers.length).toFixed(2)
+      (farePerPassenger * passengers.length).toFixed(2),
     );
     let discountAmount = 0;
     let finalAmount = baseAmount;
@@ -1129,7 +1132,7 @@ export const createBooking = async (req, res) => {
           baseAmount,
           currency: DEFAULT_CURRENCY,
         },
-        { session }
+        { session },
       );
 
       if (!offerEvaluation.eligible) {
@@ -1197,7 +1200,7 @@ export const createBooking = async (req, res) => {
               passengerCount: passengers.length,
             },
           },
-          { session }
+          { session },
         );
       } else {
         await releaseOfferReservation(
@@ -1205,7 +1208,7 @@ export const createBooking = async (req, res) => {
             bookingId: bookingToUpdate._id,
             reason: "offer_removed_before_payment",
           },
-          { session }
+          { session },
         );
       }
 
@@ -1275,7 +1278,7 @@ export const createBooking = async (req, res) => {
     await User.findByIdAndUpdate(
       userId,
       { $push: { bookings: booking._id } },
-      { session }
+      { session },
     );
 
     if (offerEvaluation?.offer && offerSnapshot) {
@@ -1301,7 +1304,7 @@ export const createBooking = async (req, res) => {
             passengerCount: passengers.length,
           },
         },
-        { session }
+        { session },
       );
     }
 
@@ -1374,7 +1377,7 @@ export const releaseSeatLocks = async (req, res) => {
     }
 
     console.log(
-      `[releaseSeatLocks] Releasing locks for session ${sessionId}, user ${userId}`
+      `[releaseSeatLocks] Releasing locks for session ${sessionId}, user ${userId}`,
     );
 
     const releaseResult = await SeatLockService.releaseLocks({
@@ -1388,7 +1391,7 @@ export const releaseSeatLocks = async (req, res) => {
 
     console.log(
       `[releaseSeatLocks] Successfully released locks:`,
-      releaseResult
+      releaseResult,
     );
 
     res.status(200).json({
@@ -1498,7 +1501,7 @@ export const cancelBooking = async (req, res) => {
     if (bus) {
       // Remove booked seats for this booking
       bus.bookedSeats = bus.bookedSeats.filter(
-        (bs) => bs.bookingId.toString() !== id
+        (bs) => bs.bookingId.toString() !== id,
       );
 
       // Increase available seats
@@ -1509,7 +1512,7 @@ export const cancelBooking = async (req, res) => {
     await SeatHold.updateMany(
       { booking: booking._id, status: "BOOKED" },
       { $set: { status: "CANCELLED", expiresAt: new Date() } },
-      { session }
+      { session },
     );
 
     // Update booking
@@ -1665,7 +1668,7 @@ export const changeTravelDate = async (req, res) => {
       .filter(
         (bs) =>
           bs.travelDate.getTime() === parsedNewDate.getTime() &&
-          bs.bookingId.toString() !== id // Exclude current booking
+          bs.bookingId.toString() !== id, // Exclude current booking
       )
       .map((bs) => bs.seatNumber);
 
@@ -1693,8 +1696,7 @@ export const changeTravelDate = async (req, res) => {
     // Check seat availability
     const seatIdSet = bus.getSeatIdSet ? bus.getSeatIdSet() : new Set();
     const unavailableSeats = currentSeats.filter(
-      (seat) =>
-        bookedSeatsOnNewDate.includes(seat) || !seatIdSet.has(seat)
+      (seat) => bookedSeatsOnNewDate.includes(seat) || !seatIdSet.has(seat),
     );
 
     if (unavailableSeats.length > 0) {
@@ -1710,7 +1712,7 @@ export const changeTravelDate = async (req, res) => {
     bus.bookedSeats = bus.bookedSeats.filter(
       (bs) =>
         bs.bookingId.toString() !== id ||
-        bs.travelDate.getTime() !== new Date(booking.travelDate).getTime()
+        bs.travelDate.getTime() !== new Date(booking.travelDate).getTime(),
     );
 
     // Add new booking to bus
@@ -1734,11 +1736,11 @@ export const changeTravelDate = async (req, res) => {
           tripKey: buildTripKey(
             bus._id.toString(),
             parsedNewDate,
-            booking.direction || "forward"
+            booking.direction || "forward",
           ),
         },
       },
-      { session }
+      { session },
     );
 
     // Save changes
@@ -1822,7 +1824,8 @@ export const getMyBookings = async (req, res) => {
       });
     }
 
-    const normalizedTab = typeof tab === "string" ? tab.trim().toLowerCase() : "all";
+    const normalizedTab =
+      typeof tab === "string" ? tab.trim().toLowerCase() : "all";
     if (!BOOKING_TAB_SET.has(normalizedTab)) {
       return res.status(400).json({
         success: false,
@@ -1901,9 +1904,12 @@ export const getMyBookings = async (req, res) => {
     }
 
     const query =
-      listConditions.length === 1 ? listConditions[0] : { $and: listConditions };
+      listConditions.length === 1
+        ? listConditions[0]
+        : { $and: listConditions };
 
-    const defaultSort = normalizedTab === "upcoming" ? "travelDate" : "-travelDate";
+    const defaultSort =
+      normalizedTab === "upcoming" ? "travelDate" : "-travelDate";
     const sortObject = buildSortObject(sort, defaultSort);
     const now = new Date();
 
@@ -1918,9 +1924,15 @@ export const getMyBookings = async (req, res) => {
           }
         : { $and: [{ user: userId }, { paymentStatus: { $ne: "pending" } }] };
 
-    const [bookings, total, totalCount, upcomingCount, cancelledCount, completedCount] =
-      await Promise.all([
-        Booking.find(query)
+    const [
+      bookings,
+      total,
+      totalCount,
+      upcomingCount,
+      cancelledCount,
+      completedCount,
+    ] = await Promise.all([
+      Booking.find(query)
         .sort(sortObject)
         .skip((pageInt - 1) * limitInt)
         .limit(limitInt)
@@ -1930,24 +1942,33 @@ export const getMyBookings = async (req, res) => {
             "busId busName busNumber operator departureTime arrivalTime fare amenities features",
         })
         .lean(),
-        Booking.countDocuments(query),
-        Booking.countDocuments(summaryBase),
-        Booking.countDocuments(
-          appendAndCondition(summaryBase, buildTabCondition("upcoming", todayStart))
+      Booking.countDocuments(query),
+      Booking.countDocuments(summaryBase),
+      Booking.countDocuments(
+        appendAndCondition(
+          summaryBase,
+          buildTabCondition("upcoming", todayStart),
         ),
-        Booking.countDocuments(
-          appendAndCondition(summaryBase, buildTabCondition("cancelled", todayStart))
+      ),
+      Booking.countDocuments(
+        appendAndCondition(
+          summaryBase,
+          buildTabCondition("cancelled", todayStart),
         ),
-        Booking.countDocuments(
-          appendAndCondition(summaryBase, buildTabCondition("completed", todayStart))
+      ),
+      Booking.countDocuments(
+        appendAndCondition(
+          summaryBase,
+          buildTabCondition("completed", todayStart),
         ),
-      ]);
+      ),
+    ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limitInt));
     const hasNext = pageInt < totalPages;
 
     const formattedBookings = bookings.map((booking) =>
-      formatBookingListItem(booking, now)
+      formatBookingListItem(booking, now),
     );
 
     res.json({
@@ -2041,6 +2062,113 @@ export const getMyBookingByRef = async (req, res) => {
   }
 };
 
+export const getJourneyTrackingData = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const bookingRef = String(req.params.bookingRef || "").trim();
+
+    if (!bookingRef) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking reference is required",
+        code: "MISSING_BOOKING_REF",
+      });
+    }
+
+    const refQuery = [
+      { bookingId: new RegExp(`^${escapeRegex(bookingRef)}$`, "i") },
+    ];
+    if (mongoose.Types.ObjectId.isValid(bookingRef)) {
+      refQuery.push({ _id: bookingRef });
+    }
+
+    const booking = await Booking.findOne({
+      user: userId,
+      paymentStatus: { $ne: "pending" },
+      $or: refQuery,
+    })
+      .populate({
+        path: "bus",
+        select: "busName busNumber busId operator route features",
+      })
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+        code: "BOOKING_NOT_FOUND",
+      });
+    }
+
+    if (
+      booking.bookingStatus === "cancelled" ||
+      booking.paymentStatus !== "paid"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Journey tracking is not available for this booking",
+        code: "TRACKING_UNAVAILABLE",
+      });
+    }
+
+    const bus = booking.bus;
+    if (!bus || !bus.route || !Array.isArray(bus.route.stops)) {
+      return res.status(404).json({
+        success: false,
+        message: "Bus route information not available",
+        code: "ROUTE_NOT_FOUND",
+      });
+    }
+
+    const direction = booking.direction || "forward";
+    const journey = getJourneySnapshot(booking);
+
+    const routeStops = bus.route.stops.map((stop) => {
+      const trip = direction === "return" ? stop.downTrip : stop.upTrip;
+      return {
+        city: stop.city || null,
+        stopCode: stop.stopCode || null,
+        lat: stop.location?.lat ?? null,
+        lng: stop.location?.lng ?? null,
+        arrivalTime: trip?.arrivalTime || null,
+        departureTime: trip?.departureTime || null,
+        distanceFromOrigin: trip?.distanceFromOrigin ?? null,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        bookingId: booking.bookingId,
+        busNumber: bus.busNumber,
+        busName: bus.busName,
+        busId: bus.busId,
+        operator: bus.operator,
+        features: bus.features || null,
+        direction,
+        boardingPoint: booking.boardingPoint,
+        droppingPoint: booking.droppingPoint,
+        travelDate: booking.travelDate,
+        departureTime: journey.departureTime,
+        arrivalTime: journey.arrivalTime,
+        segmentDurationMinutes: journey.segmentDurationMinutes,
+        routeOrigin: bus.route.origin || null,
+        routeDestination: bus.route.destination || null,
+        routeDistance: bus.route.distance ?? null,
+        routeStops,
+      },
+    });
+  } catch (error) {
+    console.error("Get Journey Tracking Data Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      code: "SERVER_ERROR",
+    });
+  }
+};
+
 export const downloadMyBookingInvoice = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -2084,11 +2212,13 @@ export const downloadMyBookingInvoice = async (req, res) => {
 
     const invoicePayload = buildInvoicePayloadFromBooking(
       booking,
-      paymentSnapshot
+      paymentSnapshot,
     );
     const pdfBuffer = generateInvoicePdfBuffer(invoicePayload);
     const invoiceRef = getInvoiceBookingRef(booking) || Date.now();
-    const filename = sanitizeFilename(`${INVOICE_FILE_PREFIX}-${invoiceRef}.pdf`);
+    const filename = sanitizeFilename(
+      `${INVOICE_FILE_PREFIX}-${invoiceRef}.pdf`,
+    );
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", String(pdfBuffer.length));
@@ -2180,7 +2310,7 @@ export const getAdminBookings = async (req, res) => {
 
     const normalizedPaymentStatus = normalizeBookingStatusToken(
       paymentStatus,
-      ""
+      "",
     );
     if (
       normalizedPaymentStatus &&
@@ -2304,7 +2434,8 @@ export const getAdminBookings = async (req, res) => {
     const listQuery =
       listConditions.length === 0 ? {} : { $and: listConditions };
 
-    const defaultSort = normalizedTab === "upcoming" ? "travelDate" : "-travelDate";
+    const defaultSort =
+      normalizedTab === "upcoming" ? "travelDate" : "-travelDate";
     const sortObject = buildSortObject(sort, defaultSort);
     const now = new Date();
 
@@ -2333,13 +2464,22 @@ export const getAdminBookings = async (req, res) => {
       Booking.countDocuments(listQuery),
       Booking.countDocuments(scopedQuery),
       Booking.countDocuments(
-        appendAndCondition(scopedQuery, buildTabCondition("upcoming", todayStart))
+        appendAndCondition(
+          scopedQuery,
+          buildTabCondition("upcoming", todayStart),
+        ),
       ),
       Booking.countDocuments(
-        appendAndCondition(scopedQuery, buildTabCondition("cancelled", todayStart))
+        appendAndCondition(
+          scopedQuery,
+          buildTabCondition("cancelled", todayStart),
+        ),
       ),
       Booking.countDocuments(
-        appendAndCondition(scopedQuery, buildTabCondition("completed", todayStart))
+        appendAndCondition(
+          scopedQuery,
+          buildTabCondition("completed", todayStart),
+        ),
       ),
     ]);
 
@@ -2405,8 +2545,7 @@ export const getAdminBookingByRef = async (req, res) => {
     console.error("Admin Get Booking Detail Error:", error);
     return res.status(statusCode).json({
       success: false,
-      message:
-        statusCode === 500 ? "Internal server error" : error.message,
+      message: statusCode === 500 ? "Internal server error" : error.message,
       code,
     });
   }
@@ -2462,7 +2601,10 @@ export const createAdminBooking = async (req, res) => {
       });
     }
 
-    const normalizedDirection = normalizeBookingStatusToken(direction, "forward");
+    const normalizedDirection = normalizeBookingStatusToken(
+      direction,
+      "forward",
+    );
     if (!["forward", "return"].includes(normalizedDirection)) {
       return res.status(400).json({
         success: false,
@@ -2482,11 +2624,11 @@ export const createAdminBooking = async (req, res) => {
 
     let normalizedBookingStatus = normalizeBookingStatusToken(
       bookingStatus,
-      "pending"
+      "pending",
     );
     let normalizedPaymentStatus = normalizeBookingStatusToken(
       paymentStatus,
-      "pending"
+      "pending",
     );
 
     if (!ADMIN_CREATE_BOOKING_STATUS_SET.has(normalizedBookingStatus)) {
@@ -2552,7 +2694,7 @@ export const createAdminBooking = async (req, res) => {
         ? {
             type: normalizeBookingStatusToken(
               passenger.identification.type,
-              "aadhar"
+              "aadhar",
             ),
             number: String(passenger.identification.number || "").trim(),
           }
@@ -2567,7 +2709,7 @@ export const createAdminBooking = async (req, res) => {
         passenger.age > 120 ||
         !["male", "female", "other"].includes(passenger.gender) ||
         !/^[6-9]\d{9}$/.test(passenger.mobileNumber) ||
-        !passenger.seatNumber
+        !passenger.seatNumber,
     );
 
     if (hasInvalidPassenger) {
@@ -2603,8 +2745,13 @@ export const createAdminBooking = async (req, res) => {
       });
     }
 
-    const seatInputs = sanitizedPassengers.map((passenger) => passenger.seatNumber);
-    const { resolved: seatIds, unknown } = resolveSeatIdsForInputs(bus, seatInputs);
+    const seatInputs = sanitizedPassengers.map(
+      (passenger) => passenger.seatNumber,
+    );
+    const { resolved: seatIds, unknown } = resolveSeatIdsForInputs(
+      bus,
+      seatInputs,
+    );
     if (unknown.length > 0) {
       await session.abortTransaction();
       return res.status(400).json({
@@ -2623,10 +2770,12 @@ export const createAdminBooking = async (req, res) => {
       });
     }
 
-    const normalizedPassengers = sanitizedPassengers.map((passenger, index) => ({
-      ...passenger,
-      seatNumber: seatIds[index],
-    }));
+    const normalizedPassengers = sanitizedPassengers.map(
+      (passenger, index) => ({
+        ...passenger,
+        seatNumber: seatIds[index],
+      }),
+    );
 
     const fareSnapshot = resolveRouteAndFareSnapshot({
       bus,
@@ -2638,7 +2787,7 @@ export const createAdminBooking = async (req, res) => {
 
     const shouldReserveSeats = requiresSeatReservation(
       normalizedBookingStatus,
-      normalizedPaymentStatus
+      normalizedPaymentStatus,
     );
 
     if (shouldReserveSeats) {
@@ -2648,7 +2797,7 @@ export const createAdminBooking = async (req, res) => {
           (seat) =>
             formatDateKey(seat.travelDate) === requestedDateKey &&
             seat.direction === normalizedDirection &&
-            seatIds.includes(seat.seatNumber)
+            seatIds.includes(seat.seatNumber),
         )
         .map((seat) => seat.seatNumber);
 
@@ -2671,7 +2820,10 @@ export const createAdminBooking = async (req, res) => {
       }
     }
 
-    const bookingDateToken = parsedTravelDate.toISOString().slice(0, 10).replace(/-/g, "");
+    const bookingDateToken = parsedTravelDate
+      .toISOString()
+      .slice(0, 10)
+      .replace(/-/g, "");
     const bookingId = `BK-${bookingDateToken}-${nanoid()}`;
     const adminSessionId = `admin_${Date.now()}_${nanoid()}`;
 
@@ -2706,7 +2858,8 @@ export const createAdminBooking = async (req, res) => {
                 normalizedPaymentStatus === "refunded"
                   ? fareSnapshot.totalAmount
                   : 0,
-              reason: cancellationReason || "Cancelled by admin during creation",
+              reason:
+                cancellationReason || "Cancelled by admin during creation",
             }
           : undefined,
     });
@@ -2715,7 +2868,7 @@ export const createAdminBooking = async (req, res) => {
     await User.findByIdAndUpdate(
       user._id,
       { $addToSet: { bookings: booking._id } },
-      { session }
+      { session },
     );
 
     if (shouldReserveSeats) {
@@ -2729,7 +2882,7 @@ export const createAdminBooking = async (req, res) => {
           droppingPoint,
           segmentStartKm: fareSnapshot.segmentStartKm,
           segmentEndKm: fareSnapshot.segmentEndKm,
-        })
+        }),
       );
       bus.availableSeats -= seatIds.length;
       await bus.save({ session });
@@ -2795,7 +2948,10 @@ export const updateAdminBooking = async (req, res) => {
 
     session.startTransaction();
 
-    const booking = await findBookingByRefForAdmin(req.params.bookingRef, session);
+    const booking = await findBookingByRefForAdmin(
+      req.params.bookingRef,
+      session,
+    );
     if (!booking) {
       await session.abortTransaction();
       return res.status(404).json({
@@ -2805,7 +2961,9 @@ export const updateAdminBooking = async (req, res) => {
       });
     }
 
-    const bus = await Bus.findById(booking.bus?._id || booking.bus).session(session);
+    const bus = await Bus.findById(booking.bus?._id || booking.bus).session(
+      session,
+    );
     if (!bus) {
       await session.abortTransaction();
       return res.status(404).json({
@@ -2817,11 +2975,11 @@ export const updateAdminBooking = async (req, res) => {
 
     let nextBookingStatus = normalizeBookingStatusToken(
       updates.bookingStatus,
-      booking.bookingStatus
+      booking.bookingStatus,
     );
     let nextPaymentStatus = normalizeBookingStatusToken(
       updates.paymentStatus,
-      booking.paymentStatus
+      booking.paymentStatus,
     );
 
     if (!BOOKING_STATUS_SET.has(nextBookingStatus)) {
@@ -2842,7 +3000,10 @@ export const updateAdminBooking = async (req, res) => {
       });
     }
 
-    if (booking.bookingStatus === "cancelled" && nextBookingStatus !== "cancelled") {
+    if (
+      booking.bookingStatus === "cancelled" &&
+      nextBookingStatus !== "cancelled"
+    ) {
       await session.abortTransaction();
       return res.status(409).json({
         success: false,
@@ -2884,7 +3045,7 @@ export const updateAdminBooking = async (req, res) => {
           ? {
               type: normalizeBookingStatusToken(
                 passenger.identification.type,
-                "aadhar"
+                "aadhar",
               ),
               number: String(passenger.identification.number || "").trim(),
             }
@@ -2909,10 +3070,10 @@ export const updateAdminBooking = async (req, res) => {
         Number(passenger.age) < 1 ||
         Number(passenger.age) > 120 ||
         !["male", "female", "other"].includes(
-          normalizeBookingStatusToken(passenger.gender, "male")
+          normalizeBookingStatusToken(passenger.gender, "male"),
         ) ||
         !/^[6-9]\d{9}$/.test(String(passenger.mobileNumber || "").trim()) ||
-        !passenger.seatNumber
+        !passenger.seatNumber,
     );
 
     if (hasInvalidPassenger) {
@@ -2927,7 +3088,7 @@ export const updateAdminBooking = async (req, res) => {
     const seatInputs = nextPassengers.map((passenger) => passenger.seatNumber);
     const { resolved: nextSeatIds, unknown } = resolveSeatIdsForInputs(
       bus,
-      seatInputs
+      seatInputs,
     );
     if (unknown.length > 0) {
       await session.abortTransaction();
@@ -3001,16 +3162,16 @@ export const updateAdminBooking = async (req, res) => {
 
     const currentlyReserved = requiresSeatReservation(
       booking.bookingStatus,
-      booking.paymentStatus
+      booking.paymentStatus,
     );
     const shouldReserve = requiresSeatReservation(
       nextBookingStatus,
-      nextPaymentStatus
+      nextPaymentStatus,
     );
 
     if (currentlyReserved) {
       bus.bookedSeats = (bus.bookedSeats || []).filter(
-        (seat) => seat.bookingId?.toString() !== booking._id.toString()
+        (seat) => seat.bookingId?.toString() !== booking._id.toString(),
       );
       bus.availableSeats += previousSeatIds.length;
     }
@@ -3022,7 +3183,7 @@ export const updateAdminBooking = async (req, res) => {
           (seat) =>
             formatDateKey(seat.travelDate) === requestedDateKey &&
             seat.direction === (booking.direction || "forward") &&
-            nextSeatIds.includes(seat.seatNumber)
+            nextSeatIds.includes(seat.seatNumber),
         )
         .map((seat) => seat.seatNumber);
 
@@ -3055,7 +3216,7 @@ export const updateAdminBooking = async (req, res) => {
           droppingPoint: nextDroppingPoint,
           segmentStartKm: fareSnapshot.segmentStartKm,
           segmentEndKm: fareSnapshot.segmentEndKm,
-        })
+        }),
       );
       bus.availableSeats -= nextSeatIds.length;
     }
@@ -3130,7 +3291,8 @@ export const updateAdminBooking = async (req, res) => {
     } else if (payment) {
       payment.amount = booking.totalAmount;
       payment.currency = booking.currency || DEFAULT_CURRENCY;
-      payment.status = mapBookingPaymentStatusToPaymentStatus(nextPaymentStatus);
+      payment.status =
+        mapBookingPaymentStatusToPaymentStatus(nextPaymentStatus);
       payment.gatewayResponse = {
         ...payment.gatewayResponse,
         updatedBy: req.user?._id?.toString() || null,
@@ -3144,7 +3306,7 @@ export const updateAdminBooking = async (req, res) => {
     await session.commitTransaction();
 
     const updatedBooking = await findBookingByRefForAdmin(
-      booking.bookingId || booking._id.toString()
+      booking.bookingId || booking._id.toString(),
     );
 
     return res.status(200).json({
@@ -3163,8 +3325,7 @@ export const updateAdminBooking = async (req, res) => {
     console.error("Admin Update Booking Error:", error);
     return res.status(statusCode).json({
       success: false,
-      message:
-        statusCode === 500 ? "Failed to update booking" : error.message,
+      message: statusCode === 500 ? "Failed to update booking" : error.message,
       code,
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
@@ -3178,7 +3339,10 @@ export const deleteAdminBooking = async (req, res) => {
   try {
     session.startTransaction();
 
-    const booking = await findBookingByRefForAdmin(req.params.bookingRef, session);
+    const booking = await findBookingByRefForAdmin(
+      req.params.bookingRef,
+      session,
+    );
     if (!booking) {
       await session.abortTransaction();
       return res.status(404).json({
@@ -3188,10 +3352,12 @@ export const deleteAdminBooking = async (req, res) => {
       });
     }
 
-    const bus = await Bus.findById(booking.bus?._id || booking.bus).session(session);
+    const bus = await Bus.findById(booking.bus?._id || booking.bus).session(
+      session,
+    );
     const reserved = requiresSeatReservation(
       booking.bookingStatus,
-      booking.paymentStatus
+      booking.paymentStatus,
     );
     const reservedSeatIds = Array.isArray(booking.passengers)
       ? booking.passengers
@@ -3201,7 +3367,7 @@ export const deleteAdminBooking = async (req, res) => {
 
     if (bus && reserved) {
       bus.bookedSeats = (bus.bookedSeats || []).filter(
-        (seat) => seat.bookingId?.toString() !== booking._id.toString()
+        (seat) => seat.bookingId?.toString() !== booking._id.toString(),
       );
       bus.availableSeats += reservedSeatIds.length;
       await bus.save({ session });
@@ -3212,7 +3378,7 @@ export const deleteAdminBooking = async (req, res) => {
     await User.findByIdAndUpdate(
       booking.user?._id || booking.user,
       { $pull: { bookings: booking._id } },
-      { session }
+      { session },
     );
     await Booking.deleteOne({ _id: booking._id }).session(session);
 
@@ -3287,7 +3453,7 @@ export const extendSeatLocks = async (req, res) => {
     }
 
     console.log(
-      `[extendSeatLocks] Extending locks for session ${sessionId}, user ${userId}`
+      `[extendSeatLocks] Extending locks for session ${sessionId}, user ${userId}`,
     );
 
     const extendResult = await SeatLockService.extendLocks({
@@ -3335,10 +3501,7 @@ export const validateSeatLocks = async (req, res) => {
       });
     }
 
-    const { resolved, unknown } = resolveSeatIdsForInputs(
-      bus,
-      normalizedSeats
-    );
+    const { resolved, unknown } = resolveSeatIdsForInputs(bus, normalizedSeats);
     if (unknown.length > 0) {
       return res.status(400).json({
         success: false,
@@ -3363,7 +3526,7 @@ export const validateSeatLocks = async (req, res) => {
     }).lean();
 
     const allSeatsValid = seatIds.every((seat) =>
-      validLocks.some((lock) => lock.seatId === seat)
+      validLocks.some((lock) => lock.seatId === seat),
     );
 
     res.status(200).json({

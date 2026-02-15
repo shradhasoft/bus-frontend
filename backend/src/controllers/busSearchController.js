@@ -358,6 +358,7 @@ export const searchBuses = async (req, res) => {
       operatingDays: dayOfWeek,
       isActive: true,
       isDeleted: false,
+      inactiveDates: { $ne: date },
     }).lean();
 
     if (matchingBuses.length === 0) {
@@ -371,7 +372,7 @@ export const searchBuses = async (req, res) => {
 
     const activeHoldMap = await buildActiveHoldMap(
       matchingBuses.map((bus) => bus._id),
-      searchDate
+      searchDate,
     );
 
     const now = new Date();
@@ -382,10 +383,10 @@ export const searchBuses = async (req, res) => {
       if (!route || !Array.isArray(route.stops)) continue;
 
       const originStopIndex = route.stops.findIndex((stop) =>
-        stop.city.toLowerCase().includes(origin.toLowerCase())
+        stop.city.toLowerCase().includes(origin.toLowerCase()),
       );
       const destinationStopIndex = route.stops.findIndex((stop) =>
-        stop.city.toLowerCase().includes(destination.toLowerCase())
+        stop.city.toLowerCase().includes(destination.toLowerCase()),
       );
 
       if (originStopIndex === -1 || destinationStopIndex === -1) continue;
@@ -420,17 +421,12 @@ export const searchBuses = async (req, res) => {
         let journeyDistance = Math.abs(destinationDistance - originDistance);
         const farePerPassenger = bus.farePerKm * journeyDistance;
 
-        const boardingTrip = dir === "forward"
-          ? boardingStop.upTrip
-          : boardingStop.downTrip;
-        const droppingTrip = dir === "forward"
-          ? droppingStop.upTrip
-          : droppingStop.downTrip;
+        const boardingTrip =
+          dir === "forward" ? boardingStop.upTrip : boardingStop.downTrip;
+        const droppingTrip =
+          dir === "forward" ? droppingStop.upTrip : droppingStop.downTrip;
 
-        if (
-          !boardingTrip?.departureTime ||
-          !droppingTrip?.arrivalTime
-        ) {
+        if (!boardingTrip?.departureTime || !droppingTrip?.arrivalTime) {
           continue;
         }
 
@@ -459,16 +455,14 @@ export const searchBuses = async (req, res) => {
           defaultRoute: bus.route,
           direction: dir,
         });
-        const unavailableSeatCount = new Set([...bookedSeats, ...heldSeats]).size;
+        const unavailableSeatCount = new Set([...bookedSeats, ...heldSeats])
+          .size;
 
         const departureDateTime = createDateTime(
           date,
-          boardingTrip.departureTime
+          boardingTrip.departureTime,
         );
-        const arrivalDateTime = createDateTime(
-          date,
-          droppingTrip.arrivalTime
-        );
+        const arrivalDateTime = createDateTime(date, droppingTrip.arrivalTime);
 
         if (departureDateTime <= now) {
           continue;
@@ -484,7 +478,7 @@ export const searchBuses = async (req, res) => {
         const journeyDurationMs = arrivalDateTime - departureDateTime;
         const journeyHours = Math.floor(journeyDurationMs / (1000 * 60 * 60));
         const journeyMinutes = Math.floor(
-          (journeyDurationMs % (1000 * 60 * 60)) / (1000 * 60)
+          (journeyDurationMs % (1000 * 60 * 60)) / (1000 * 60),
         );
 
         results.push({
@@ -527,7 +521,7 @@ export const searchBuses = async (req, res) => {
 
     // Sort by departure time
     const sortedResults = results.sort(
-      (a, b) => a.departureDateTime - b.departureDateTime
+      (a, b) => a.departureDateTime - b.departureDateTime,
     );
 
     res.json({
@@ -600,6 +594,7 @@ export const searchBusesFlexible = async (req, res) => {
       operatingDays: dayOfWeek,
       isActive: true,
       isDeleted: false,
+      inactiveDates: { $ne: date },
     }).lean();
 
     if (matchingBuses.length === 0) {
@@ -613,7 +608,7 @@ export const searchBusesFlexible = async (req, res) => {
 
     const activeHoldMap = await buildActiveHoldMap(
       matchingBuses.map((bus) => bus._id),
-      searchDate
+      searchDate,
     );
 
     const now = new Date();
@@ -624,10 +619,10 @@ export const searchBusesFlexible = async (req, res) => {
       if (!route || !Array.isArray(route.stops)) continue;
 
       const originStopIndex = route.stops.findIndex((stop) =>
-        stop.city.toLowerCase().includes(origin.toLowerCase())
+        stop.city.toLowerCase().includes(origin.toLowerCase()),
       );
       const destinationStopIndex = route.stops.findIndex((stop) =>
-        stop.city.toLowerCase().includes(destination.toLowerCase())
+        stop.city.toLowerCase().includes(destination.toLowerCase()),
       );
 
       if (originStopIndex === -1 || destinationStopIndex === -1) continue;
@@ -660,17 +655,12 @@ export const searchBusesFlexible = async (req, res) => {
         let journeyDistance = Math.abs(destinationDistance - originDistance);
         const farePerPassenger = bus.farePerKm * journeyDistance;
 
-        const boardingTrip = dir === "forward"
-          ? boardingStop.upTrip
-          : boardingStop.downTrip;
-        const droppingTrip = dir === "forward"
-          ? droppingStop.upTrip
-          : droppingStop.downTrip;
+        const boardingTrip =
+          dir === "forward" ? boardingStop.upTrip : boardingStop.downTrip;
+        const droppingTrip =
+          dir === "forward" ? droppingStop.upTrip : droppingStop.downTrip;
 
-        if (
-          !boardingTrip?.departureTime ||
-          !droppingTrip?.arrivalTime
-        ) {
+        if (!boardingTrip?.departureTime || !droppingTrip?.arrivalTime) {
           continue;
         }
 
@@ -699,16 +689,14 @@ export const searchBusesFlexible = async (req, res) => {
           defaultRoute: bus.route,
           direction: dir,
         });
-        const unavailableSeatCount = new Set([...bookedSeats, ...heldSeats]).size;
+        const unavailableSeatCount = new Set([...bookedSeats, ...heldSeats])
+          .size;
 
         const departureDateTime = createDateTime(
           date,
-          boardingTrip.departureTime
+          boardingTrip.departureTime,
         );
-        const arrivalDateTime = createDateTime(
-          date,
-          droppingTrip.arrivalTime
-        );
+        const arrivalDateTime = createDateTime(date, droppingTrip.arrivalTime);
 
         if (departureDateTime <= now) {
           continue;
@@ -724,7 +712,7 @@ export const searchBusesFlexible = async (req, res) => {
         const journeyDurationMs = arrivalDateTime - departureDateTime;
         const journeyHours = Math.floor(journeyDurationMs / (1000 * 60 * 60));
         const journeyMinutes = Math.floor(
-          (journeyDurationMs % (1000 * 60 * 60)) / (1000 * 60)
+          (journeyDurationMs % (1000 * 60 * 60)) / (1000 * 60),
         );
 
         results.push({
@@ -767,7 +755,7 @@ export const searchBusesFlexible = async (req, res) => {
 
     // Sort by departure time
     const sortedResults = results.sort(
-      (a, b) => a.departureDateTime - b.departureDateTime
+      (a, b) => a.departureDateTime - b.departureDateTime,
     );
 
     res.json({
@@ -833,6 +821,7 @@ export const getRouteOccupancy = async (req, res) => {
       operatingDays: dayOfWeek,
       isActive: true,
       isDeleted: false,
+      inactiveDates: { $ne: date },
     }).lean();
 
     if (!buses.length) {
@@ -876,7 +865,7 @@ export const getRouteOccupancy = async (req, res) => {
         bus.bookedSeats?.filter(
           (bs) =>
             isSameDate(new Date(bs.travelDate), searchDate) &&
-            bs.direction === "forward"
+            bs.direction === "forward",
         ).length || 0;
 
       occupancyData.forward.bookedSeats += forwardBookedSeats;
@@ -894,7 +883,7 @@ export const getRouteOccupancy = async (req, res) => {
         bus.bookedSeats?.filter(
           (bs) =>
             isSameDate(new Date(bs.travelDate), searchDate) &&
-            bs.direction === "return"
+            bs.direction === "return",
         ).length || 0;
 
       occupancyData.return.bookedSeats += returnBookedSeats;
@@ -915,7 +904,7 @@ export const getRouteOccupancy = async (req, res) => {
         : Math.round(
             (occupancyData.forward.bookedSeats /
               occupancyData.forward.totalSeats) *
-              100
+              100,
           );
 
     occupancyData.return.occupancyRate =
@@ -924,7 +913,7 @@ export const getRouteOccupancy = async (req, res) => {
         : Math.round(
             (occupancyData.return.bookedSeats /
               occupancyData.return.totalSeats) *
-              100
+              100,
           );
 
     res.json({
@@ -968,7 +957,10 @@ export const getBusSeatLayout = async (req, res) => {
       });
     }
 
-    if ((boardingPoint && !droppingPoint) || (!boardingPoint && droppingPoint)) {
+    if (
+      (boardingPoint && !droppingPoint) ||
+      (!boardingPoint && droppingPoint)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Both boardingPoint and droppingPoint are required",
@@ -1010,7 +1002,7 @@ export const getBusSeatLayout = async (req, res) => {
     const targetUTCDate = Date.UTC(
       targetDate.getUTCFullYear(),
       targetDate.getUTCMonth(),
-      targetDate.getUTCDate()
+      targetDate.getUTCDate(),
     );
 
     const sameTripEntries = (bus.bookedSeats || []).filter((entry) => {
@@ -1025,9 +1017,8 @@ export const getBusSeatLayout = async (req, res) => {
         normalizeDirection(entry?.direction) === normalizedDirection
       );
     });
-    const bookingSegmentMap = await resolveBookingSegmentMapIfNeeded(
-      sameTripEntries,
-    );
+    const bookingSegmentMap =
+      await resolveBookingSegmentMapIfNeeded(sameTripEntries);
     const bookedSeats = collectBookedSeatsForSegment({
       entries: sameTripEntries,
       travelDate: targetDate,
@@ -1059,14 +1050,12 @@ export const getBusSeatLayout = async (req, res) => {
     });
 
     // Combine booked and locked seats
-    const unavailableSeats = [
-      ...new Set([...bookedSeats, ...lockedSeatIds]),
-    ];
+    const unavailableSeats = [...new Set([...bookedSeats, ...lockedSeatIds])];
 
     const seatLayoutWithAvailability = buildSeatLayoutResponse(
       bus.seatLayout,
       bookedSeats,
-      lockedSeatIds
+      lockedSeatIds,
     );
 
     // Get timing for the requested direction
@@ -1224,7 +1213,7 @@ export const getAvailableSeats = async (req, res) => {
           (bs) =>
             bs.travelDate &&
             isSameDate(new Date(bs.travelDate), targetDate) &&
-            bs.direction === direction
+            bs.direction === direction,
         )
         .map((bs) => bs.seatNumber) || [];
 
@@ -1245,12 +1234,10 @@ export const getAvailableSeats = async (req, res) => {
       .lean();
 
     const lockedSeatIds = holdSeats.map((lock) => lock.seatId);
-    const unavailableSeats = [
-      ...new Set([...bookedSeats, ...lockedSeatIds]),
-    ];
+    const unavailableSeats = [...new Set([...bookedSeats, ...lockedSeatIds])];
     const allSeats = bus.getSeatIds();
     const availableSeats = allSeats.filter(
-      (seat) => !unavailableSeats.includes(seat)
+      (seat) => !unavailableSeats.includes(seat),
     );
 
     res.json({

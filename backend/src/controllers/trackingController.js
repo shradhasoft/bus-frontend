@@ -2,6 +2,8 @@ import { Bus } from "../models/bus.js";
 import { BusLiveLocation } from "../models/busLiveLocation.js";
 import { getLatestBusLocation as getLatestBusLocationFromStore } from "../services/tracking/readService.js";
 
+const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+
 // Search bus by busName or busNumber (normal user)
 export const searchBusForTracking = async (req, res) => {
   try {
@@ -15,10 +17,12 @@ export const searchBusForTracking = async (req, res) => {
     }
 
     const regex = new RegExp(q, "i");
+    const todayStr = getTodayDateString();
 
     const buses = await Bus.find({
       isDeleted: false,
       isActive: true,
+      inactiveDates: { $ne: todayStr },
       $or: [{ busName: regex }, { busNumber: regex }],
     })
       .select("busName busNumber busId operator features route conductor")
@@ -53,10 +57,13 @@ export const getLatestBusLocation = async (req, res) => {
       });
     }
 
+    const todayStr = getTodayDateString();
+
     const bus = await Bus.findOne({
       busNumber,
       isDeleted: false,
       isActive: true,
+      inactiveDates: { $ne: todayStr },
     })
       .select(
         "busName busNumber busId operator features route conductor totalSeats",

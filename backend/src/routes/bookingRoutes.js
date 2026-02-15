@@ -7,6 +7,7 @@ import {
   changeTravelDate,
   getMyBookings,
   getMyBookingByRef,
+  getJourneyTrackingData,
   downloadMyBookingInvoice,
   getAdminBookings,
   getAdminBookingByRef,
@@ -15,7 +16,7 @@ import {
   deleteAdminBooking,
   getAllBookings,
   extendSeatLocks,
-  validateSeatLocks
+  validateSeatLocks,
 } from "../controllers/bookingController.js";
 import { authorize, protect } from "../middlewares/authMiddleware.js";
 import {
@@ -34,23 +35,31 @@ router.post("/extend-locks", protect, validateSeatRelease, extendSeatLocks);
 router.post("/release-locks", protect, validateSeatRelease, releaseSeatLocks);
 router.post("/validate-locks", protect, validateSeatRelease, validateSeatLocks);
 
-
 // Booking routes
 router.post("/create-booking", protect, validateBookingCreation, createBooking);
 router.patch(
   "/cancelbooking/:id",
   protect,
   validateBookingCancellation,
-  cancelBooking
+  cancelBooking,
 );
 router.patch(
   "/changedate/:id",
   protect,
   validateTravelDateChange,
-  changeTravelDate
+  changeTravelDate,
 );
 router.get("/mybookings", protect, getMyBookings);
-router.get("/mybookings/:bookingRef/invoice", protect, downloadMyBookingInvoice);
+router.get(
+  "/mybookings/:bookingRef/invoice",
+  protect,
+  downloadMyBookingInvoice,
+);
+router.get(
+  "/mybookings/:bookingRef/journey-tracking",
+  protect,
+  getJourneyTrackingData,
+);
 router.get("/mybookings/:bookingRef", protect, getMyBookingByRef);
 
 // Admin booking management
@@ -58,38 +67,38 @@ router.get(
   "/admin/bookings",
   protect,
   authorize("admin", "superadmin"),
-  getAdminBookings
+  getAdminBookings,
 );
 router.get(
   "/admin/bookings/:bookingRef",
   protect,
   authorize("admin", "superadmin"),
-  getAdminBookingByRef
+  getAdminBookingByRef,
 );
 router.post(
   "/admin/bookings",
   protect,
   authorize("admin", "superadmin"),
-  createAdminBooking
+  createAdminBooking,
 );
 router.patch(
   "/admin/bookings/:bookingRef",
   protect,
   authorize("admin", "superadmin"),
-  updateAdminBooking
+  updateAdminBooking,
 );
 router.delete(
   "/admin/bookings/:bookingRef",
   protect,
   authorize("admin", "superadmin"),
-  deleteAdminBooking
+  deleteAdminBooking,
 );
 
 router.get(
   "/getallbookings",
   protect,
   authorize("admin", "superadmin"),
-  getAllBookings
+  getAllBookings,
 );
 
 export default router;

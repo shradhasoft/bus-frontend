@@ -4,6 +4,7 @@ import {
   assignConductorToBus,
   createOwnerConductor,
   deleteOwnerConductor,
+  getConductorBusDetails,
   getConductorOfflineSeatLayout,
   getOwnerTelemetryBusLatest,
   getOwnerConductors,
@@ -11,6 +12,7 @@ import {
   getTelemetryAssignments,
   markConductorOfflineSeatBooked,
   postLocationTelemetry,
+  toggleConductorBusInactiveDate,
   unmarkConductorOfflineSeatBooked,
   updateOwnerConductor,
 } from "../controllers/telemetryController.js";
@@ -29,6 +31,20 @@ telemetryRouter.get(
   protect,
   authorize("conductor"),
   getTelemetryAssignments,
+);
+
+telemetryRouter.get(
+  "/v1/telemetry/conductor/buses/:busId/details",
+  protect,
+  authorize("conductor"),
+  getConductorBusDetails,
+);
+
+telemetryRouter.patch(
+  "/v1/telemetry/conductor/buses/:busId/inactive-date",
+  protect,
+  authorize("conductor"),
+  toggleConductorBusInactiveDate,
 );
 
 telemetryRouter.get(

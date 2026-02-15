@@ -17,6 +17,8 @@ const parseDateQuery = (value) => {
 const escapeRegex = (input) =>
   String(input || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+
 export const searchTrackingBusesPublic = async (req, res) => {
   try {
     const query = String(req.query.q || "").trim();
@@ -28,9 +30,11 @@ export const searchTrackingBusesPublic = async (req, res) => {
     }
 
     const regex = new RegExp(escapeRegex(query), "i");
+    const todayStr = getTodayDateString();
     const buses = await Bus.find({
       isDeleted: false,
       isActive: true,
+      inactiveDates: { $ne: todayStr },
       $or: [{ busNumber: regex }, { busName: regex }, { operator: regex }],
     })
       .select(
@@ -64,10 +68,13 @@ export const getBusLatestPublic = async (req, res) => {
       });
     }
 
+    const todayStr = getTodayDateString();
+
     const bus = await Bus.findOne({
       busNumber,
       isDeleted: false,
       isActive: true,
+      inactiveDates: { $ne: todayStr },
     })
       .select("busId busName busNumber operator route features")
       .lean();
@@ -127,7 +134,9 @@ export const getBusHistoryPublic = async (req, res) => {
     const from = parseDateQuery(req.query.from);
     const to = parseDateQuery(req.query.to);
     const limitRaw = Number.parseInt(String(req.query.limit || "100"), 10);
-    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 500) : 100;
+    const limit = Number.isFinite(limitRaw)
+      ? Math.min(Math.max(limitRaw, 1), 500)
+      : 100;
 
     if (!busNumber) {
       return res.status(400).json({
@@ -188,4 +197,3 @@ export const getTrackingHealth = async (_req, res) => {
     },
   });
 };
-

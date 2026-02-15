@@ -66,8 +66,7 @@ const haversineDistanceKm = (a, b) => {
   const lat2 = toRadians(b.lat);
   const sinLat = Math.sin(dLat / 2);
   const sinLng = Math.sin(dLng / 2);
-  const h =
-    sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
   if (!Number.isFinite(h)) return null;
   const c = 2 * Math.asin(Math.min(1, Math.sqrt(h)));
   return earthRadiusKm * c;
@@ -107,8 +106,7 @@ const buildTripTimeline = (stops, direction) => {
     return { valid: false, message: "Route must include at least two stops" };
   }
 
-  const orderedStops =
-    direction === "return" ? [...stops].reverse() : stops;
+  const orderedStops = direction === "return" ? [...stops].reverse() : stops;
 
   let offset = 0;
   let lastBase = null;
@@ -181,7 +179,8 @@ const tripStopSchema = new mongoose.Schema(
           if (!value || !this.departureTime) return true;
           const arrivalMinutes = timeToMinutes(value);
           const departureMinutes = timeToMinutes(this.departureTime);
-          if (arrivalMinutes === null || departureMinutes === null) return false;
+          if (arrivalMinutes === null || departureMinutes === null)
+            return false;
           return arrivalMinutes <= departureMinutes;
         },
         message: "Arrival time must be before departure time",
@@ -508,10 +507,11 @@ const seatLayoutSchema = new mongoose.Schema(
 const normalizeSeatToken = (value) =>
   typeof value === "string"
     ? value.trim().toUpperCase()
-    : String(value || "").trim().toUpperCase();
+    : String(value || "")
+        .trim()
+        .toUpperCase();
 
-const isNonNegativeInt = (value) =>
-  Number.isInteger(value) && value >= 0;
+const isNonNegativeInt = (value) => Number.isInteger(value) && value >= 0;
 
 export const validateSeatLayoutBlueprint = (layout, totalSeats) => {
   const errors = [];
@@ -708,7 +708,9 @@ export const validateSeatLayoutBlueprint = (layout, totalSeats) => {
       const ey = element?.position?.y;
       if (Number.isInteger(ex) && Number.isInteger(ey)) {
         if (seatInfo.x !== ex || seatInfo.y !== ey) {
-          errors.push(`Seat ${seatId} position mismatch between seats and elements`);
+          errors.push(
+            `Seat ${seatId} position mismatch between seats and elements`,
+          );
         }
       }
     }
@@ -864,6 +866,14 @@ const busSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    inactiveDates: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (dates) => dates.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)),
+        message: "Each inactive date must be in YYYY-MM-DD format",
+      },
+    },
     bookedSeats: [
       {
         seatNumber: {
@@ -1002,6 +1012,7 @@ const busSchema = new mongoose.Schema(
 busSchema.index({ "route.routeCode": 1 });
 busSchema.index({ "route.origin": 1, "route.destination": 1 });
 busSchema.index({ "route.stops.city": 1 });
+busSchema.index({ inactiveDates: 1 });
 
 busSchema.path("seatLayout").validate(function (value) {
   const { valid, errors } = validateSeatLayoutBlueprint(value, this.totalSeats);
@@ -1055,7 +1066,10 @@ busSchema.pre("validate", function (next) {
     lastCity &&
     route.destination.trim().toLowerCase() !== lastCity.trim().toLowerCase()
   ) {
-    this.invalidate("route.destination", "Destination must match the last stop");
+    this.invalidate(
+      "route.destination",
+      "Destination must match the last stop",
+    );
   }
 
   const computed = computeRouteDistances(stops);
@@ -1109,7 +1123,10 @@ busSchema.pre("validate", function (next) {
     ) {
       this.forwardTrip = computedForwardTrip;
     } else if (
-      !timesMatch(this.forwardTrip.departureTime, computedForwardTrip.departureTime) ||
+      !timesMatch(
+        this.forwardTrip.departureTime,
+        computedForwardTrip.departureTime,
+      ) ||
       !timesMatch(this.forwardTrip.arrivalTime, computedForwardTrip.arrivalTime)
     ) {
       this.invalidate(
@@ -1131,7 +1148,10 @@ busSchema.pre("validate", function (next) {
     ) {
       this.returnTrip = computedReturnTrip;
     } else if (
-      !timesMatch(this.returnTrip.departureTime, computedReturnTrip.departureTime) ||
+      !timesMatch(
+        this.returnTrip.departureTime,
+        computedReturnTrip.departureTime,
+      ) ||
       !timesMatch(this.returnTrip.arrivalTime, computedReturnTrip.arrivalTime)
     ) {
       this.invalidate(
