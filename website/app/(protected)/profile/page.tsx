@@ -66,6 +66,7 @@ type BookingListItem = {
   bookingStatus: "pending" | "confirmed" | "cancelled" | "completed";
   paymentStatus?: string;
   lifecycleBucket: "upcoming" | "cancelled" | "completed";
+  isRunning?: boolean;
   travelDate: string;
   boardingPoint: string;
   droppingPoint: string;
@@ -201,6 +202,9 @@ const STATUS_STYLES: Record<BookingListItem["lifecycleBucket"], string> = {
     "border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200",
 };
 
+const RUNNING_STYLE =
+  "border-indigo-200/80 bg-indigo-50 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200";
+
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
@@ -302,8 +306,10 @@ const getArrivalDateTime = (
   return arrival;
 };
 
-const getStatusLabel = (booking: BookingListItem) =>
-  STATUS_LABELS[booking.lifecycleBucket] ?? booking.bookingStatus;
+const getStatusLabel = (booking: BookingListItem) => {
+  if (booking.isRunning) return "Running";
+  return STATUS_LABELS[booking.lifecycleBucket] ?? booking.bookingStatus;
+};
 
 const getPaymentMethodLabel = (value?: string | null) => {
   if (!value) return "N/A";
@@ -1051,7 +1057,9 @@ const ProfilePage = () => {
                       <span
                         className={cn(
                           "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
-                          STATUS_STYLES[booking.lifecycleBucket],
+                          booking.isRunning
+                            ? RUNNING_STYLE
+                            : STATUS_STYLES[booking.lifecycleBucket],
                         )}
                       >
                         {getStatusLabel(booking)}
@@ -1218,7 +1226,9 @@ const ProfilePage = () => {
                   <span
                     className={cn(
                       "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
-                      STATUS_STYLES[activeDetail.lifecycleBucket],
+                      activeDetail.isRunning
+                        ? RUNNING_STYLE
+                        : STATUS_STYLES[activeDetail.lifecycleBucket],
                     )}
                   >
                     {getStatusLabel(activeDetail)}
@@ -1261,13 +1271,15 @@ const ProfilePage = () => {
                 {activeDetail.bookingStatus === "confirmed" &&
                   activeDetail.lifecycleBucket === "upcoming" && (
                     <div className="mt-4 grid gap-3">
-                      <Link
-                        href={`/track-journey/${encodeURIComponent(activeDetail.bookingId)}`}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 via-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition hover:from-indigo-600 hover:via-indigo-700 hover:to-purple-700 hover:shadow-xl dark:shadow-indigo-500/20"
-                      >
-                        <Navigation2 className="h-4 w-4" />
-                        Track my journey
-                      </Link>
+                      {activeDetail.isRunning && (
+                        <Link
+                          href={`/track-journey/${encodeURIComponent(activeDetail.bookingId)}`}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 via-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition hover:from-indigo-600 hover:via-indigo-700 hover:to-purple-700 hover:shadow-xl dark:shadow-indigo-500/20"
+                        >
+                          <Navigation2 className="h-4 w-4" />
+                          Track my journey
+                        </Link>
+                      )}
 
                       {activeDetail.canCancel ? (
                         <Button
