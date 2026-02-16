@@ -13,7 +13,7 @@ const timeSchema = new mongoose.Schema(
       max: [59, "Minutes cannot exceed 59"],
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const tripStopSchema = new mongoose.Schema(
@@ -25,7 +25,7 @@ const tripStopSchema = new mongoose.Schema(
       min: [0, "Distance cannot be negative"],
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const routeStopSchema = new mongoose.Schema(
@@ -34,7 +34,7 @@ const routeStopSchema = new mongoose.Schema(
     upTrip: tripStopSchema,
     downTrip: tripStopSchema,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const routeSnapshotSchema = new mongoose.Schema(
@@ -81,7 +81,7 @@ const routeSnapshotSchema = new mongoose.Schema(
       },
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const passengerSchema = new mongoose.Schema({
@@ -142,7 +142,7 @@ const offerSnapshotSchema = new mongoose.Schema(
     appliedAt: Date,
     redeemedAt: Date,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const bookingSchema = new mongoose.Schema(
@@ -226,7 +226,7 @@ const bookingSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["pending", "paid", "refunded", "partial-refund"],
+      enum: ["pending", "paid", "refunded", "partial-refund", "refund_failed"],
       default: "pending",
     },
     cancellation: {
@@ -234,6 +234,11 @@ const bookingSchema = new mongoose.Schema(
       processedAt: Date,
       refundAmount: Number,
       reason: String,
+      refundStatus: {
+        type: String,
+        enum: ["pending", "success", "failed"],
+      },
+      refundError: String,
     },
     boardingPass: {
       code: String,
@@ -253,8 +258,12 @@ const bookingSchema = new mongoose.Schema(
       required: false, // Not strictly required for all bookings, but essential for those with temporary locks
       index: true, // Index for faster lookup
     },
+    isReviewed: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Query patterns optimized for profile listing and tab filters.

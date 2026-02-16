@@ -205,9 +205,12 @@ const syncBookingWithPayment = async ({
       requestedAt: booking.cancellation?.requestedAt || new Date(),
       processedAt: new Date(),
       refundAmount:
-        typeof payment.amount === "number" ? payment.amount : booking.totalAmount,
+        typeof payment.amount === "number"
+          ? payment.amount
+          : booking.totalAmount,
       reason:
-        booking.cancellation?.reason || "Refund processed from transactions panel",
+        booking.cancellation?.reason ||
+        "Refund processed from transactions panel",
     };
   } else if (mappedStatus === "partial-refund") {
     if (booking.bookingStatus === "pending") {
@@ -219,7 +222,9 @@ const syncBookingWithPayment = async ({
       processedAt: booking.cancellation?.processedAt || new Date(),
       refundAmount:
         booking.cancellation?.refundAmount ??
-        (typeof payment.amount === "number" ? payment.amount : booking.totalAmount),
+        (typeof payment.amount === "number"
+          ? payment.amount
+          : booking.totalAmount),
       reason:
         booking.cancellation?.reason ||
         "Partial refund processed from transactions panel",
@@ -261,17 +266,16 @@ const buildReceipt = (booking) =>
 
 const verifySignature = (payload, signature, secret) => {
   if (!payload || !signature || !secret) return false;
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(payload)
-    .digest();
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest();
   const received = Buffer.from(signature, "hex");
   if (received.length !== expected.length) return false;
   return crypto.timingSafeEqual(received, expected);
 };
 
 const normalizeSeatToken = (value) =>
-  String(value || "").trim().toUpperCase();
+  String(value || "")
+    .trim()
+    .toUpperCase();
 
 const markPaymentFailed = async ({
   payment,
@@ -294,7 +298,7 @@ const markPaymentFailed = async ({
           bookingId: booking._id,
           reason: "payment_failed",
         },
-        { session }
+        { session },
       );
     } catch (offerError) {
       console.error("Error releasing offer reservation:", offerError);
@@ -344,7 +348,7 @@ const markPaymentSuccess = async ({
     try {
       await finalizeOfferRedemptionOnPaymentSuccess(
         { bookingId: booking._id },
-        { session }
+        { session },
       );
     } catch (offerError) {
       console.error("Error finalizing offer redemption:", offerError);
@@ -530,7 +534,10 @@ export const createRazorpayOrder = async (req, res) => {
         extendIfExpiringInMinutes: 10,
       });
     } catch (extendError) {
-      console.warn("[createRazorpayOrder] Failed to extend locks:", extendError);
+      console.warn(
+        "[createRazorpayOrder] Failed to extend locks:",
+        extendError,
+      );
     }
 
     // Idempotency: reuse existing pending payment for this booking
@@ -557,35 +564,35 @@ export const createRazorpayOrder = async (req, res) => {
         };
         await existingPayment.save({ session });
       } else {
-      let orderPayload = existingPayment.gatewayResponse?.order;
+        let orderPayload = existingPayment.gatewayResponse?.order;
 
-      if (!orderPayload && existingPayment.paymentId) {
-        try {
-          orderPayload = await razorpay.orders.fetch(
-            existingPayment.paymentId,
-          );
-          existingPayment.gatewayResponse = {
-            ...existingPayment.gatewayResponse,
-            order: orderPayload,
-          };
-          await existingPayment.save({ session });
-        } catch (fetchError) {
-          orderPayload = {
-            id: existingPayment.paymentId,
-            amount: toPaise(existingPayment.amount),
-            currency: existingPayment.currency || currency,
-          };
+        if (!orderPayload && existingPayment.paymentId) {
+          try {
+            orderPayload = await razorpay.orders.fetch(
+              existingPayment.paymentId,
+            );
+            existingPayment.gatewayResponse = {
+              ...existingPayment.gatewayResponse,
+              order: orderPayload,
+            };
+            await existingPayment.save({ session });
+          } catch (fetchError) {
+            orderPayload = {
+              id: existingPayment.paymentId,
+              amount: toPaise(existingPayment.amount),
+              currency: existingPayment.currency || currency,
+            };
+          }
         }
-      }
 
-      await session.commitTransaction();
-      return res.status(200).json({
-        success: true,
-        order: orderPayload,
-        paymentId: existingPayment._id,
-        keyId: process.env.RAZORPAY_KEY_ID,
-        reused: true,
-      });
+        await session.commitTransaction();
+        return res.status(200).json({
+          success: true,
+          order: orderPayload,
+          paymentId: existingPayment._id,
+          keyId: process.env.RAZORPAY_KEY_ID,
+          reused: true,
+        });
       }
     }
 
@@ -1176,7 +1183,11 @@ export const listAdminTransactions = async (req, res) => {
           .limit(200)
           .lean(),
         User.find({
-          $or: [{ fullName: searchRegex }, { email: searchRegex }, { phone: searchRegex }],
+          $or: [
+            { fullName: searchRegex },
+            { email: searchRegex },
+            { phone: searchRegex },
+          ],
         })
           .select("_id")
           .limit(200)
@@ -1227,19 +1238,19 @@ export const listAdminTransactions = async (req, res) => {
       Payment.countDocuments(query),
       Payment.countDocuments(summaryQuery),
       Payment.countDocuments(
-        appendAndCondition(summaryQuery, { status: "pending" })
+        appendAndCondition(summaryQuery, { status: "pending" }),
       ),
       Payment.countDocuments(
-        appendAndCondition(summaryQuery, { status: "success" })
+        appendAndCondition(summaryQuery, { status: "success" }),
       ),
       Payment.countDocuments(
-        appendAndCondition(summaryQuery, { status: "failed" })
+        appendAndCondition(summaryQuery, { status: "failed" }),
       ),
       Payment.countDocuments(
-        appendAndCondition(summaryQuery, { status: "refunded" })
+        appendAndCondition(summaryQuery, { status: "refunded" }),
       ),
       Payment.countDocuments(
-        appendAndCondition(summaryQuery, { status: "partial_refund" })
+        appendAndCondition(summaryQuery, { status: "partial_refund" }),
       ),
     ]);
 
@@ -1416,7 +1427,9 @@ export const createAdminTransaction = async (req, res) => {
     }
 
     const amountValue =
-      amount === undefined || amount === null ? booking.totalAmount : Number(amount);
+      amount === undefined || amount === null
+        ? booking.totalAmount
+        : Number(amount);
     if (!Number.isFinite(amountValue) || amountValue <= 0) {
       await session.abortTransaction();
       return res.status(400).json({
@@ -1440,9 +1453,9 @@ export const createAdminTransaction = async (req, res) => {
     const transactionIdRaw = String(paymentId || "").trim();
     let resolvedPaymentId = transactionIdRaw;
     if (resolvedPaymentId) {
-      const duplicate = await Payment.findOne({ paymentId: resolvedPaymentId }).session(
-        session
-      );
+      const duplicate = await Payment.findOne({
+        paymentId: resolvedPaymentId,
+      }).session(session);
       if (duplicate) {
         await session.abortTransaction();
         return res.status(409).json({
@@ -1456,7 +1469,7 @@ export const createAdminTransaction = async (req, res) => {
       for (let attemptIndex = 0; attemptIndex < 5; attemptIndex += 1) {
         const candidate = buildManualPaymentId(bookingRefToken);
         const exists = await Payment.findOne({ paymentId: candidate }).session(
-          session
+          session,
         );
         if (!exists) {
           resolvedPaymentId = candidate;
@@ -1594,7 +1607,9 @@ export const updateAdminTransaction = async (req, res) => {
 
     session.startTransaction();
 
-    const payment = await Payment.findById(id).populate("booking").session(session);
+    const payment = await Payment.findById(id)
+      .populate("booking")
+      .session(session);
     if (!payment) {
       await session.abortTransaction();
       return res.status(404).json({
@@ -1695,12 +1710,12 @@ export const updateAdminTransaction = async (req, res) => {
     }
 
     if ("gatewayReference" in updates) {
-      const gatewayReferenceValue = String(updates.gatewayReference || "").trim();
+      const gatewayReferenceValue = String(
+        updates.gatewayReference || "",
+      ).trim();
       payment.gatewayResponse = {
         ...(payment.gatewayResponse || {}),
-        ...(gatewayReferenceValue
-          ? { paymentId: gatewayReferenceValue }
-          : {}),
+        ...(gatewayReferenceValue ? { paymentId: gatewayReferenceValue } : {}),
       };
     }
 
@@ -1772,7 +1787,9 @@ export const deleteAdminTransaction = async (req, res) => {
 
     session.startTransaction();
 
-    const payment = await Payment.findById(id).populate("booking").session(session);
+    const payment = await Payment.findById(id)
+      .populate("booking")
+      .session(session);
     if (!payment) {
       await session.abortTransaction();
       return res.status(404).json({
@@ -1830,5 +1847,36 @@ export const deleteAdminTransaction = async (req, res) => {
     });
   } finally {
     session.endSession();
+  }
+};
+
+// Process refund via Razorpay
+export const processRefund = async ({ paymentId, amount, notes }) => {
+  try {
+    if (!paymentId || !amount) {
+      throw new Error("Payment ID and amount are required for refund");
+    }
+
+    // Amount must be in paise for Razorpay
+    const refundAmountPaise = toPaise(amount);
+
+    console.log(
+      `[processRefund] Initiating refund for Payment ID: ${paymentId}, Amount: ${refundAmountPaise} paise`,
+    );
+
+    const options = {
+      payment_id: paymentId,
+      amount: refundAmountPaise,
+      notes,
+    };
+
+    const refund = await razorpay.payments.refund(options);
+    return refund;
+  } catch (error) {
+    console.error("Razorpay Refund Error:", error);
+    // Wrap error to ensure it's handled gracefully by caller
+    throw new Error(
+      error.error?.description || error.message || "Refund failed",
+    );
   }
 };

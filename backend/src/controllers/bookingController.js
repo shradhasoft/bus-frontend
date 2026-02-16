@@ -223,16 +223,47 @@ const getJourneySnapshot = (booking) => {
   };
 };
 
+const calculateArrivalDateTime = (booking) => {
+  const travelDate = new Date(booking.travelDate);
+  if (Number.isNaN(travelDate.getTime())) return null;
+
+  const journey = getJourneySnapshot(booking);
+  const arrivalMinutes = toMinutes(journey.arrivalTime);
+
+  // If arrival time is missing, fallback to end of travel date
+  if (arrivalMinutes === null) {
+    const fallback = new Date(travelDate);
+    fallback.setHours(23, 59, 59, 999);
+    return fallback;
+  }
+
+  const arrivalDate = new Date(travelDate);
+  arrivalDate.setHours(
+    Math.floor(arrivalMinutes / 60),
+    arrivalMinutes % 60,
+    0,
+    0,
+  );
+
+  // Handle next-day arrival if arrival time is before departure (simplified check)
+  // detailed check would need departure time comparison
+  const departureMinutes = toMinutes(journey.departureTime);
+  if (departureMinutes !== null && arrivalMinutes < departureMinutes) {
+    arrivalDate.setDate(arrivalDate.getDate() + 1);
+  }
+
+  return arrivalDate;
+};
+
 const getBookingLifecycleBucket = (booking, now = new Date()) => {
   const status = booking?.bookingStatus;
   if (status === "cancelled") return "cancelled";
-  if (status === "completed") return "completed";
+  if (status === "completed") return "completed"; // Explicitly marked completed
 
-  const travelDate = new Date(booking?.travelDate);
-  if (Number.isNaN(travelDate.getTime())) return "upcoming";
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  return travelDate < todayStart ? "completed" : "upcoming";
+  const arrivalTime = calculateArrivalDateTime(booking);
+  if (!arrivalTime) return "upcoming";
+
+  return arrivalTime < now ? "completed" : "upcoming";
 };
 
 const buildTabCondition = (tab, todayStart) => {
@@ -240,6 +271,7 @@ const buildTabCondition = (tab, todayStart) => {
     case "upcoming":
       return {
         bookingStatus: { $in: ["pending", "confirmed"] },
+        // We fetch everything from today onwards, then filter in memory for exact time
         travelDate: { $gte: todayStart },
       };
     case "cancelled":
@@ -250,7 +282,10 @@ const buildTabCondition = (tab, todayStart) => {
           { bookingStatus: "completed" },
           {
             bookingStatus: { $in: ["pending", "confirmed"] },
-            travelDate: { $lt: todayStart },
+            // We fetch everything including today, then filter in memory for exact time
+            travelDate: {
+              $lte: new Date(new Date().setHours(23, 59, 59, 999)),
+            },
           },
         ],
       };
@@ -322,7 +357,7 @@ const formatBookingListItem = (booking, now = new Date()) => {
   const travelDate = new Date(booking?.travelDate);
   const canCancel =
     booking?.bookingStatus !== "cancelled" &&
-    booking?.bookingStatus !== "completed" &&
+    lifecycleBucket !== "completed" && // Use bucket instead of status to prevent cancelling completed trips
     !Number.isNaN(travelDate.getTime()) &&
     travelDate.getTime() > now.getTime();
 
@@ -376,6 +411,7 @@ const formatBookingListItem = (booking, now = new Date()) => {
     },
     cancellation: booking?.cancellation || null,
     payment,
+    isReviewed: !!booking?.isReviewed,
   };
 };
 
@@ -1413,7 +1449,7 @@ export const releaseSeatLocks = async (req, res) => {
   }
 };
 
-// Cancel booking (updated to handle seat locks)
+// Cancel booking (updated to handle seat locks and refunds)
 export const cancelBooking = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1426,6 +1462,7 @@ export const cancelBooking = async (req, res) => {
 
     // Validate booking ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Invalid booking ID format",
@@ -1437,6 +1474,7 @@ export const cancelBooking = async (req, res) => {
     const booking = await Booking.findById(id).session(session);
 
     if (!booking) {
+      await session.abortTransaction();
       return res.status(404).json({
         success: false,
         message: "Booking not found",
@@ -1449,6 +1487,7 @@ export const cancelBooking = async (req, res) => {
       booking.user.toString() !== userId.toString() &&
       !["admin", "owner"].includes(req.user.role)
     ) {
+      await session.abortTransaction();
       return res.status(403).json({
         success: false,
         message: "Not authorized to cancel this booking",
@@ -1458,6 +1497,7 @@ export const cancelBooking = async (req, res) => {
 
     // Check booking status
     if (booking.bookingStatus === "cancelled") {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Booking is already cancelled",
@@ -1466,6 +1506,7 @@ export const cancelBooking = async (req, res) => {
     }
 
     if (booking.bookingStatus === "completed") {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Completed bookings cannot be cancelled",
@@ -1476,6 +1517,7 @@ export const cancelBooking = async (req, res) => {
     // Check travel date
     const travelDate = new Date(booking.travelDate);
     if (travelDate < new Date()) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Cannot cancel past bookings",
@@ -1488,7 +1530,7 @@ export const cancelBooking = async (req, res) => {
 
     // Update booking status
     booking.bookingStatus = "cancelled";
-    booking.paymentStatus = refundAmount > 0 ? "refunded" : "partial-refund";
+    // paymentStatus will be updated after refund attempt
     booking.cancellation = {
       requestedAt: cancellationTime,
       processedAt: new Date(),
@@ -1501,7 +1543,7 @@ export const cancelBooking = async (req, res) => {
     if (bus) {
       // Remove booked seats for this booking
       bus.bookedSeats = bus.bookedSeats.filter(
-        (bs) => bs.bookingId.toString() !== id,
+        (bs) => bs.bookingId && bs.bookingId.toString() !== id,
       );
 
       // Increase available seats
@@ -1515,13 +1557,71 @@ export const cancelBooking = async (req, res) => {
       { session },
     );
 
+    // Process Refund if applicable
+    let refundResult = null;
+    let payment = null;
+
+    if (booking.payment) {
+      payment = await Payment.findById(booking.payment).session(session);
+
+      if (payment && payment.status === "success" && refundAmount > 0) {
+        try {
+          // Call Payment Controller's processRefund
+          // Note: We need to import processRefund from paymentController at the top
+          // Since this is inside a transaction, we should be careful with external API calls.
+          // Ideally, external calls should proceed after DB commit or handled via queue.
+          // However, for immediate user feedback, we'll try it here but won't block DB rollback on API failure if possible?
+          // Actually, if refund fails, we should probably fail the cancellation or mark for manual review.
+          // Let's try to process it.
+
+          const { processRefund } = await import("./paymentController.js");
+          const razorpayRefund = await processRefund({
+            paymentId: payment.paymentId,
+            amount: refundAmount,
+            notes: {
+              bookingId: booking.bookingId,
+              reason: reason || "User Cancellation",
+            },
+          });
+
+          refundResult = razorpayRefund;
+
+          // Update Payment Record
+          await payment.addRefund(
+            refundAmount,
+            reason || "User Cancellation",
+            razorpayRefund.id,
+          );
+
+          booking.paymentStatus =
+            refundAmount >= payment.amount ? "refunded" : "partial-refund";
+        } catch (refundError) {
+          console.error("Refund Processing Failed:", refundError);
+          // Don't fail the cancellation if refund fails.
+          // Mark as refund_failed for manual processing.
+          booking.paymentStatus = "refund_failed";
+          booking.cancellation.refundStatus = "failed";
+          booking.cancellation.refundError =
+            refundError.message || "Unknown error";
+        }
+      } else if (
+        payment &&
+        payment.status === "success" &&
+        refundAmount === 0
+      ) {
+      } else if (
+        payment &&
+        payment.status === "success" &&
+        refundAmount === 0
+      ) {
+        booking.paymentStatus = "paid"; // No refund applicable
+      } else if (payment && payment.status !== "success") {
+        booking.paymentStatus = payment.status; // Keep original status if not paid
+      }
+    }
+
     // Update booking
     await booking.save({ session });
-
-    // Refund processing (simulated - integrate with payment gateway in production)
-    if (refundAmount > 0) {
-      console.log(`Processing refund of ₹${refundAmount} for booking ${id}`);
-    }
 
     await session.commitTransaction();
 
@@ -1535,13 +1635,16 @@ export const cancelBooking = async (req, res) => {
       message: "Booking cancelled successfully",
       refundAmount,
       data: updatedBooking,
+      refundDetails: refundResult,
     });
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     console.error("[cancelBooking] Cancel Booking Error:", error);
     res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message: error.message || "Internal server error",
       code: "SERVER_ERROR",
     });
   } finally {
@@ -1913,6 +2016,12 @@ export const getMyBookings = async (req, res) => {
     const sortObject = buildSortObject(sort, defaultSort);
     const now = new Date();
 
+    // We need to fetch more items if we are filtering in memory to ensure pagenation works reasonably well
+    // However, purely in-memory pagination after db limit is tricky.
+    // For now, we will fetch `limit * 2` to have some buffer, but strictly correct pagination
+    // with this hybrid approach requires either aggressive fetching or storing "completed" status in DB.
+    // Given the constraints, we will process the fetched items.
+
     const summaryBase =
       Object.keys(dateFilter).length > 0
         ? {
@@ -1926,23 +2035,22 @@ export const getMyBookings = async (req, res) => {
 
     const [
       bookings,
-      total,
       totalCount,
-      upcomingCount,
+      dbUpcomingCount,
       cancelledCount,
-      completedCount,
+      dbCompletedCount,
+      todaysBookings,
     ] = await Promise.all([
       Booking.find(query)
         .sort(sortObject)
         .skip((pageInt - 1) * limitInt)
-        .limit(limitInt)
+        .limit(limitInt * 2) // Fetch extra to handle in-memory filter gaps
         .populate({
           path: "bus",
           select:
             "busId busName busNumber operator departureTime arrivalTime fare amenities features",
         })
         .lean(),
-      Booking.countDocuments(query),
       Booking.countDocuments(summaryBase),
       Booking.countDocuments(
         appendAndCondition(
@@ -1962,20 +2070,72 @@ export const getMyBookings = async (req, res) => {
           buildTabCondition("completed", todayStart),
         ),
       ),
+      // Fetch today's bookings to correctly adjust counts
+      Booking.find({
+        user: userId,
+        paymentStatus: { $ne: "pending" },
+        bookingStatus: { $in: ["confirmed", "pending"] },
+        travelDate: {
+          $gte: todayStart,
+          $lt: new Date(new Date(todayStart).setDate(todayStart.getDate() + 1)),
+        },
+      })
+        .populate({
+          path: "bus",
+          select: "route",
+        })
+        .lean(),
     ]);
 
-    const totalPages = Math.max(1, Math.ceil(total / limitInt));
-    const hasNext = pageInt < totalPages;
+    // Calculate accurate counts for today
+    let todayUpcoming = 0;
+    let todayCompleted = 0;
 
-    const formattedBookings = bookings.map((booking) =>
-      formatBookingListItem(booking, now),
+    todaysBookings.forEach((booking) => {
+      const bucket = getBookingLifecycleBucket(booking, now);
+      if (bucket === "completed") {
+        todayCompleted++;
+      } else {
+        todayUpcoming++;
+      }
+    });
+
+    const realUpcomingCount = Math.max(0, dbUpcomingCount - todayCompleted);
+    const realCompletedCount = dbCompletedCount + todayCompleted;
+
+    // Process items to assign correct buckets
+    const processedBookings = bookings.map((b) =>
+      formatBookingListItem(b, now),
     );
+
+    // Filter based on tab
+    let filteredBookings = processedBookings;
+    if (normalizedTab === "upcoming") {
+      filteredBookings = processedBookings.filter(
+        (b) => b.lifecycleBucket === "upcoming",
+      );
+    } else if (normalizedTab === "completed") {
+      filteredBookings = processedBookings.filter(
+        (b) => b.lifecycleBucket === "completed",
+      );
+    }
+
+    // Apply limit after filtering
+    const finalBookings = filteredBookings.slice(0, limitInt);
+
+    let effectiveTotal = totalCount;
+    if (normalizedTab === "upcoming") effectiveTotal = realUpcomingCount;
+    if (normalizedTab === "completed") effectiveTotal = realCompletedCount;
+    if (normalizedTab === "cancelled") effectiveTotal = cancelledCount;
+
+    const totalPages = Math.max(1, Math.ceil(effectiveTotal / limitInt));
+    const hasNext = pageInt < totalPages;
 
     res.json({
       success: true,
       page: pageInt,
       limit: limitInt,
-      total,
+      total: effectiveTotal,
       totalPages,
       hasNext,
       filters: {
@@ -1987,11 +2147,11 @@ export const getMyBookings = async (req, res) => {
       },
       summary: {
         total: totalCount,
-        upcoming: upcomingCount,
+        upcoming: realUpcomingCount,
         cancelled: cancelledCount,
-        completed: completedCount,
+        completed: realCompletedCount,
       },
-      data: formattedBookings,
+      data: finalBookings,
     });
   } catch (error) {
     console.error("Get Bookings Error:", error);

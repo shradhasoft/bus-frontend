@@ -25,6 +25,7 @@ import trackingRouter from "./routes/trackingRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 import telemetryRouter from "./routes/telemetryRoutes.js";
 import publicTrackingRouter from "./routes/publicTrackingRoutes.js";
+import reviewRouter from "./routes/reviewRoutes.js";
 
 const app = express();
 connectCloudinary();
@@ -84,7 +85,9 @@ const envOrigins = String(process.env.CORS_ORIGINS || "")
   .filter(Boolean);
 
 const ALLOWED_ORIGINS = Array.from(
-  new Set((envOrigins.length ? envOrigins : defaultOrigins).map(normalizeOrigin)),
+  new Set(
+    (envOrigins.length ? envOrigins : defaultOrigins).map(normalizeOrigin),
+  ),
 );
 
 const originPatterns = compileOriginPatterns(ALLOWED_ORIGINS);
@@ -142,6 +145,7 @@ app.use("/", trackingRouter);
 app.use("/", userRouter);
 app.use("/", telemetryRouter);
 app.use("/", publicTrackingRouter);
+app.use("/api/reviews", reviewRouter);
 
 // Create HTTP server (socket attached after external dependencies init)
 const server = http.createServer(app);
