@@ -2138,7 +2138,7 @@ export const getMyBookings = async (req, res) => {
     });
 
     const realUpcomingCount = Math.max(0, dbUpcomingCount - todayCompleted);
-    const realCompletedCount = dbCompletedCount + todayCompleted;
+    const realCompletedCount = Math.max(0, dbCompletedCount - todayUpcoming);
 
     // Process items to assign correct buckets
     const processedBookings = bookings.map((b) =>
