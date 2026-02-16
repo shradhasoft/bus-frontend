@@ -1,12 +1,14 @@
 import { Review } from "../models/review.js";
+import { User } from "../models/user.js";
 import { Booking } from "../models/booking.js";
 import { Bus } from "../models/bus.js";
+import { calculateArrivalDateTime } from "./bookingController.js";
 
 // Create a new review
 export const createReview = async (req, res) => {
   try {
     const { bookingId, rating, comment, photos } = req.body;
-    const userId = req.user._id; // Assuming auth middleware populates this
+    const userId = req.user._id;
 
     // 1. Validate input
     if (!bookingId || !rating) {
@@ -36,8 +38,16 @@ export const createReview = async (req, res) => {
       });
     }
 
-    // 3. Check if booking is completed
-    if (booking.bookingStatus !== "completed") {
+    // 3. Check if booking is completed (by status or by arrival time)
+    const arrivalTime = calculateArrivalDateTime(booking);
+    const now = new Date();
+    const isCompleted =
+      booking.bookingStatus === "completed" ||
+      (booking.bookingStatus === "confirmed" &&
+        arrivalTime &&
+        arrivalTime < now);
+
+    if (!isCompleted) {
       return res.status(400).json({
         success: false,
         message: "Only completed bookings can be reviewed",
@@ -186,10 +196,10 @@ export const updateReview = async (req, res) => {
       });
     }
 
-    // Check 72 hour window
+    // Check 72-hour edit window (hours since creation)
     const createdAt = new Date(review.createdAt);
     const now = new Date();
-    const diffHours = Math.abs(now - createdAt) / 36e5;
+    const diffHours = (now.getTime() - createdAt.getTime()) / 36e5;
 
     if (diffHours > 72) {
       return res.status(403).json({
@@ -198,7 +208,15 @@ export const updateReview = async (req, res) => {
       });
     }
 
-    if (rating) review.rating = rating;
+    if (rating !== undefined) {
+      if (rating < 1 || rating > 5) {
+        return res.status(400).json({
+          success: false,
+          message: "Rating must be between 1 and 5",
+        });
+      }
+      review.rating = rating;
+    }
     if (comment !== undefined) review.comment = comment;
     if (photos) review.photos = photos;
 
@@ -283,5 +301,106 @@ const recalculateBusRating = async (busId) => {
     }
   } catch (error) {
     console.error("Error recalculating bus rating:", error);
+  }
+};
+
+// Get All Reviews (Admin/Superadmin)
+export const getAllReviews = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search ? req.query.search.toString() : "";
+    const rating = req.query.rating ? parseInt(req.query.rating) : null;
+    const skip = (page - 1) * limit;
+
+    const query = {};
+
+    // Filter by Rating
+    if (rating) {
+      query.rating = rating;
+    }
+
+    // Search Logic
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+
+      // Find matching users
+      const users = await User.find({
+        $or: [{ fullName: searchRegex }, { email: searchRegex }],
+      }).select("_id");
+      const userIds = users.map((u) => u._id);
+
+      // Find matching buses
+      const buses = await Bus.find({
+        $or: [{ busName: searchRegex }, { busNumber: searchRegex }],
+      }).select("_id");
+      const busIds = buses.map((b) => b._id);
+
+      query.$or = [
+        { comment: searchRegex },
+        { user: { $in: userIds } },
+        { bus: { $in: busIds } },
+      ];
+    }
+
+    const reviews = await Review.find(query)
+      .populate("user", "fullName email")
+      .populate("bus", "busName busNumber")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Review.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: reviews.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      data: reviews,
+    });
+  } catch (error) {
+    console.error("Error fetching all reviews:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const deleteReviewByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const review = await Review.findByIdAndDelete(id);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: "Review not found",
+      });
+    }
+
+    // Update Booking isReviewed to false if booking exists
+    if (review.booking) {
+      await Booking.findByIdAndUpdate(review.booking, { isReviewed: false });
+    }
+
+    // Recalculate Bus Rating
+    if (review.bus) {
+      await recalculateBusRating(review.bus);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Review deleted successfully by admin",
+    });
+  } catch (error) {
+    console.error("Error deleting review by admin:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };

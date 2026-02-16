@@ -115,7 +115,12 @@ paymentSchema.index({ createdAt: -1 });
 paymentSchema.index({ "gatewayResponse.paymentId": 1 }); // For Razorpay payment ID
 
 // Instance methods
-paymentSchema.methods.addRefund = function (amount, reason, gatewayRefundId) {
+paymentSchema.methods.addRefund = function (
+  amount,
+  reason,
+  gatewayRefundId,
+  session = null,
+) {
   this.refunds.push({
     amount,
     reason,
@@ -132,7 +137,7 @@ paymentSchema.methods.addRefund = function (amount, reason, gatewayRefundId) {
     this.status = "partial_refund";
   }
 
-  return this.save();
+  return session ? this.save({ session }) : this.save();
 };
 
 paymentSchema.methods.markAsSuccess = function (gatewayResponse) {

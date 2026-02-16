@@ -14,6 +14,7 @@ import {
   createAdminBooking,
   updateAdminBooking,
   deleteAdminBooking,
+  retryRefund,
   getAllBookings,
   extendSeatLocks,
   validateSeatLocks,
@@ -86,6 +87,12 @@ router.patch(
   protect,
   authorize("admin", "superadmin"),
   updateAdminBooking,
+);
+router.post(
+  "/admin/bookings/:bookingRef/retry-refund",
+  protect,
+  authorize("admin", "superadmin"),
+  retryRefund,
 );
 router.delete(
   "/admin/bookings/:bookingRef",

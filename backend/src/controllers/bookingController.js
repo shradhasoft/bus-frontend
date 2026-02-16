@@ -9,6 +9,7 @@ import {
   normalizeOfferCode,
   releaseOfferReservation,
   reserveOfferForBooking,
+  invalidateOfferRedemptionOnCancel,
 } from "../services/offerService.js";
 import { generateInvoicePdfBuffer } from "../utils/invoicePdf.js";
 import mongoose from "mongoose";
@@ -247,7 +248,7 @@ const calculateDepartureDateTime = (booking) => {
   return departureDate;
 };
 
-const calculateArrivalDateTime = (booking) => {
+export const calculateArrivalDateTime = (booking) => {
   const travelDate = new Date(booking.travelDate);
   if (Number.isNaN(travelDate.getTime())) return null;
 
@@ -1486,7 +1487,7 @@ export const releaseSeatLocks = async (req, res) => {
   }
 };
 
-// Cancel booking (updated to handle seat locks and refunds)
+// Cancel booking (production-ready: seat release, refund, offer invalidation)
 export const cancelBooking = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1497,18 +1498,16 @@ export const cancelBooking = async (req, res) => {
     const userId = req.user._id;
     const cancellationTime = new Date();
 
-    // Validate booking ID
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: "Invalid booking ID format",
-        code: "INVALID_ID",
-      });
+    // Find booking: support both MongoDB _id and bookingId string (e.g. BK-20260217-07RPE9)
+    let booking = null;
+    if (mongoose.Types.ObjectId.isValid(id) && String(id).length === 24) {
+      booking = await Booking.findById(id).session(session);
     }
-
-    // Find booking
-    const booking = await Booking.findById(id).session(session);
+    if (!booking) {
+      booking = await Booking.findOne({
+        bookingId: String(id || "").trim(),
+      }).session(session);
+    }
 
     if (!booking) {
       await session.abortTransaction();
@@ -1518,6 +1517,8 @@ export const cancelBooking = async (req, res) => {
         code: "BOOKING_NOT_FOUND",
       });
     }
+
+    const bookingIdStr = booking._id.toString();
 
     // Authorization check
     if (
@@ -1551,13 +1552,13 @@ export const cancelBooking = async (req, res) => {
       });
     }
 
-    // Check travel date
-    const travelDate = new Date(booking.travelDate);
-    if (travelDate < new Date()) {
+    // Check if trip has departed (use departure time, not just travel date)
+    const departureTime = calculateDepartureDateTime(booking);
+    if (departureTime && departureTime <= cancellationTime) {
       await session.abortTransaction();
       return res.status(400).json({
         success: false,
-        message: "Cannot cancel past bookings",
+        message: "Cannot cancel after departure",
         code: "PAST_BOOKING",
       });
     }
@@ -1578,13 +1579,14 @@ export const cancelBooking = async (req, res) => {
     // Free up seats in bus
     const bus = await Bus.findById(booking.bus).session(session);
     if (bus) {
-      // Remove booked seats for this booking
-      bus.bookedSeats = bus.bookedSeats.filter(
-        (bs) => bs.bookingId && bs.bookingId.toString() !== id,
+      bus.bookedSeats = (bus.bookedSeats || []).filter(
+        (bs) =>
+          bs.bookingId && bs.bookingId.toString() !== bookingIdStr,
       );
-
-      // Increase available seats
-      bus.availableSeats += booking.passengers.length;
+      bus.availableSeats = Math.max(
+        0,
+        (bus.availableSeats || 0) + booking.passengers.length,
+      );
       await bus.save({ session });
     }
 
@@ -1593,6 +1595,17 @@ export const cancelBooking = async (req, res) => {
       { $set: { status: "CANCELLED", expiresAt: new Date() } },
       { session },
     );
+
+    // Invalidate offer redemption (decrement usedCount if redeemed)
+    try {
+      await invalidateOfferRedemptionOnCancel(
+        { bookingId: booking._id, reason: reason || "User Cancellation" },
+        { session },
+      );
+    } catch (offerError) {
+      console.error("[cancelBooking] Offer invalidation error:", offerError);
+      // Non-fatal: proceed with cancellation
+    }
 
     // Process Refund if applicable
     let refundResult = null;
@@ -1603,17 +1616,20 @@ export const cancelBooking = async (req, res) => {
 
       if (payment && payment.status === "success" && refundAmount > 0) {
         try {
-          // Call Payment Controller's processRefund
-          // Note: We need to import processRefund from paymentController at the top
-          // Since this is inside a transaction, we should be careful with external API calls.
-          // Ideally, external calls should proceed after DB commit or handled via queue.
-          // However, for immediate user feedback, we'll try it here but won't block DB rollback on API failure if possible?
-          // Actually, if refund fails, we should probably fail the cancellation or mark for manual review.
-          // Let's try to process it.
+          // Razorpay refund API requires razorpay_payment_id, NOT order_id.
+          // payment.paymentId stores order_id; gatewayResponse.paymentId has razorpay_payment_id.
+          const razorpayPaymentId =
+            payment.gatewayResponse?.paymentId ||
+            payment.gatewayResponse?.razorpay_payment_id ||
+            payment.paymentId;
+
+          if (!razorpayPaymentId) {
+            throw new Error("Razorpay payment ID not found for refund");
+          }
 
           const { processRefund } = await import("./paymentController.js");
           const razorpayRefund = await processRefund({
-            paymentId: payment.paymentId,
+            paymentId: razorpayPaymentId,
             amount: refundAmount,
             notes: {
               bookingId: booking.bookingId,
@@ -1623,11 +1639,12 @@ export const cancelBooking = async (req, res) => {
 
           refundResult = razorpayRefund;
 
-          // Update Payment Record
+          // Update Payment Record (pass session for transaction consistency)
           await payment.addRefund(
             refundAmount,
             reason || "User Cancellation",
             razorpayRefund.id,
+            session,
           );
 
           booking.paymentStatus =
@@ -1646,12 +1663,7 @@ export const cancelBooking = async (req, res) => {
         payment.status === "success" &&
         refundAmount === 0
       ) {
-      } else if (
-        payment &&
-        payment.status === "success" &&
-        refundAmount === 0
-      ) {
-        booking.paymentStatus = "paid"; // No refund applicable
+        booking.paymentStatus = "paid"; // No refund applicable (e.g. no-show policy)
       } else if (payment && payment.status !== "success") {
         booking.paymentStatus = payment.status; // Keep original status if not paid
       }
@@ -1663,7 +1675,7 @@ export const cancelBooking = async (req, res) => {
     await session.commitTransaction();
 
     // Get updated booking
-    const updatedBooking = await Booking.findById(id)
+    const updatedBooking = await Booking.findById(booking._id)
       .populate("bus", "busName busNumber")
       .lean();
 
@@ -1689,24 +1701,30 @@ export const cancelBooking = async (req, res) => {
   }
 };
 
-// Calculate refund amount based on cancellation policy
+// Calculate refund amount based on cancellation policy (hours before departure)
 const calculateRefund = (booking, cancellationTime) => {
-  const travelDate = new Date(booking.travelDate);
-  const hoursDifference = Math.abs(travelDate - cancellationTime) / 36e5;
+  const departureTime = calculateDepartureDateTime(booking);
+  const referenceTime = departureTime || new Date(booking.travelDate);
+  const hoursBeforeDeparture =
+    (referenceTime.getTime() - cancellationTime.getTime()) / 36e5;
+
+  if (hoursBeforeDeparture <= 0) return 0;
+
+  const policy = booking.route?.cancellationPolicy || {};
+  const before24h = Number(policy.before24h) || 0;
+  const before12h = Number(policy.before12h) || 0;
+  const noShow = Number(policy.noShow) || 100;
 
   let refundPercentage = 0;
-  if (hoursDifference > 24) {
-    refundPercentage =
-      (100 - (booking.route?.cancellationPolicy?.before24h || 0)) / 100;
-  } else if (hoursDifference > 12) {
-    refundPercentage =
-      (100 - (booking.route?.cancellationPolicy?.before12h || 0)) / 100;
+  if (hoursBeforeDeparture > 24) {
+    refundPercentage = (100 - before24h) / 100;
+  } else if (hoursBeforeDeparture > 12) {
+    refundPercentage = (100 - before12h) / 100;
   } else {
-    refundPercentage =
-      (100 - (booking.route?.cancellationPolicy?.noShow || 0)) / 100;
+    refundPercentage = (100 - noShow) / 100;
   }
 
-  return Math.max(0, booking.totalAmount * refundPercentage);
+  return Math.round(Math.max(0, booking.totalAmount * refundPercentage) * 100) / 100;
 };
 
 // Change travel Date
@@ -3528,6 +3546,137 @@ export const updateAdminBooking = async (req, res) => {
     });
   } finally {
     session.endSession();
+  }
+};
+
+// Admin: Retry refund for cancelled bookings with refund_failed
+export const retryRefund = async (req, res) => {
+  try {
+    const booking = await findBookingByRefForAdmin(req.params.bookingRef);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+        code: "BOOKING_NOT_FOUND",
+      });
+    }
+
+    if (booking.bookingStatus !== "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Only cancelled bookings can have refund retried",
+        code: "NOT_CANCELLED",
+      });
+    }
+
+    if (booking.paymentStatus !== "refund_failed") {
+      return res.status(400).json({
+        success: false,
+        message: "Refund can only be retried when status is refund_failed",
+        code: "INVALID_STATUS",
+      });
+    }
+
+    const refundAmount = Number(booking.cancellation?.refundAmount) || 0;
+    if (refundAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No refund amount to process",
+        code: "NO_REFUND_AMOUNT",
+      });
+    }
+
+    const payment = await Payment.findById(
+      booking.payment?._id || booking.payment,
+    );
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment record not found",
+        code: "PAYMENT_NOT_FOUND",
+      });
+    }
+
+    if (payment.status !== "success") {
+      return res.status(400).json({
+        success: false,
+        message: "Original payment was not successful",
+        code: "PAYMENT_NOT_SUCCESS",
+      });
+    }
+
+    const razorpayPaymentId =
+      payment.gatewayResponse?.paymentId ||
+      payment.gatewayResponse?.razorpay_payment_id ||
+      payment.paymentId;
+
+    if (!razorpayPaymentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Razorpay payment ID not found",
+        code: "RAZORPAY_ID_MISSING",
+      });
+    }
+
+    const { processRefund } = await import("./paymentController.js");
+    const razorpayRefund = await processRefund({
+      paymentId: razorpayPaymentId,
+      amount: refundAmount,
+      notes: {
+        bookingId: booking.bookingId,
+        reason: "Admin retry - " + (booking.cancellation?.reason || "Refund retry"),
+      },
+    });
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      await payment.addRefund(
+        refundAmount,
+        "Admin retry - " + (booking.cancellation?.reason || "Refund retry"),
+        razorpayRefund.id,
+        session,
+      );
+
+      booking.paymentStatus =
+        refundAmount >= payment.amount ? "refunded" : "partial-refund";
+      if (booking.cancellation) {
+        booking.cancellation.refundStatus = "success";
+        booking.cancellation.refundError = undefined;
+      }
+      await booking.save({ session });
+
+      await session.commitTransaction();
+
+      const updated = await Booking.findById(booking._id)
+        .populate("bus", "busName busNumber")
+        .lean();
+
+      return res.json({
+        success: true,
+        message: "Refund processed successfully",
+        data: updated,
+        refundDetails: razorpayRefund,
+      });
+    } catch (txError) {
+      await session.abortTransaction();
+      throw txError;
+    } finally {
+      session.endSession();
+    }
+  } catch (error) {
+    console.error("[retryRefund] Error:", error);
+    const message =
+      error.response?.data?.error?.description ||
+      error.error?.description ||
+      error.message ||
+      "Refund retry failed";
+    return res.status(500).json({
+      success: false,
+      message,
+      code: "REFUND_RETRY_FAILED",
+    });
   }
 };
 

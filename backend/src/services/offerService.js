@@ -559,6 +559,52 @@ export const finalizeOfferRedemptionOnPaymentSuccess = async (
   };
 };
 
+/**
+ * Invalidate offer redemption when booking is cancelled.
+ * Decrements offer usedCount if redemption was redeemed.
+ */
+export const invalidateOfferRedemptionOnCancel = async (
+  { bookingId, reason = "booking_cancelled" },
+  { session = null } = {}
+) => {
+  if (!bookingId) return null;
+
+  const query = OfferRedemption.findOne({ booking: bookingId });
+  if (session) query.session(session);
+
+  const redemption = await query;
+  if (!redemption) return null;
+
+  // Reserved redemptions get released; redeemed get invalidated
+  if (redemption.status === "reserved") {
+    return releaseOfferReservation(
+      { bookingId, reason },
+      { session }
+    );
+  }
+
+  if (redemption.status !== "redeemed") return redemption;
+
+  redemption.status = "invalidated";
+  redemption.releasedAt = new Date();
+  redemption.releaseReason = reason;
+
+  if (session) {
+    await redemption.save({ session });
+  } else {
+    await redemption.save();
+  }
+
+  const offerUpdate = Offer.updateOne(
+    { _id: redemption.offer },
+    { $inc: { usedCount: -1 } }
+  );
+  if (session) offerUpdate.session(session);
+  await offerUpdate;
+
+  return redemption;
+};
+
 export const cleanupStaleOfferReservations = async ({
   olderThanMinutes = DEFAULT_RESERVED_EXPIRY_MINUTES,
 } = {}) => {
