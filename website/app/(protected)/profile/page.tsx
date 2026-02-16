@@ -15,11 +15,13 @@ import {
   ReceiptText,
   RefreshCcw,
   Search,
+  Star,
   Ticket,
   UserRound,
   X,
 } from "lucide-react";
 
+import { ReviewModal } from "../dashboard/_components/ReviewModal";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -84,6 +86,7 @@ type BookingListItem = {
     segmentDurationMinutes?: number | null;
   };
   bus?: BusSnapshot | null;
+  isReviewed?: boolean;
 };
 
 type BookingDetail = BookingListItem & {
@@ -386,7 +389,74 @@ const ProfilePage = () => {
   const [invoiceDownloading, setInvoiceDownloading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
+  // Cancellation State
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Review State
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
+
+  const calculateRefundEstimate = (booking: BookingDetail) => {
+    const travelDate = new Date(booking.travelDate);
+    const now = new Date();
+    const hoursDifference = (travelDate.getTime() - now.getTime()) / 36e5;
+
+    let refundPercentage = 0;
+    if (hoursDifference > 24) {
+      refundPercentage =
+        (100 - (booking.route?.cancellationPolicy?.before24h || 0)) / 100;
+    } else if (hoursDifference > 12) {
+      refundPercentage =
+        (100 - (booking.route?.cancellationPolicy?.before12h || 0)) / 100;
+    } else {
+      refundPercentage = 0;
+    }
+
+    return Math.floor(booking.totalAmount * Math.max(0, refundPercentage));
+  };
+
+  const handleCancelBooking = async () => {
+    if (!selectedBooking) return;
+
+    setCancelLoading(true);
+    setCancelError(null);
+    try {
+      const headers = await getAuthHeaders();
+      const bookingId = selectedBooking.id || selectedBooking.bookingId;
+      const response = await fetch(apiUrl(`/cancelbooking/${bookingId}`), {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(headers as any),
+        },
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.message || "Failed to cancel booking");
+      }
+
+      // Success
+      setIsCancelDialogOpen(false);
+      setCancelReason("");
+      handleRefresh(); // Reload list
+      setSelectedBooking(null); // Close sidebar
+    } catch (err) {
+      setCancelError(
+        err instanceof Error ? err.message : "Cancellation failed",
+      );
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   useEffect(() => {
     setActiveTab(tabFromQuery);
@@ -434,7 +504,7 @@ const ProfilePage = () => {
         const response = await fetch(apiUrl("/profile/view"), {
           method: "GET",
           credentials: "include",
-          headers,
+          headers: headers as any,
           signal: controller.signal,
           cache: "no-store",
         });
@@ -499,7 +569,7 @@ const ProfilePage = () => {
           {
             method: "GET",
             credentials: "include",
-            headers,
+            headers: headers as any,
             signal: controller.signal,
             cache: "no-store",
           },
@@ -575,7 +645,7 @@ const ProfilePage = () => {
           {
             method: "GET",
             credentials: "include",
-            headers,
+            headers: headers as any,
             cache: "no-store",
           },
         );
@@ -715,7 +785,7 @@ const ProfilePage = () => {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...headers,
+            ...(headers as any),
           },
           body: JSON.stringify(changedFields),
           cache: "no-store",
@@ -759,7 +829,7 @@ const ProfilePage = () => {
       const response = await fetch(apiUrl(activeDetail.invoice.downloadUrl), {
         method: "GET",
         credentials: "include",
-        headers,
+        headers: headers as any,
         cache: "no-store",
       });
 
@@ -1039,6 +1109,39 @@ const ProfilePage = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Review Action */}
+                  {booking.lifecycleBucket === "completed" && (
+                    <div className="mt-3 flex justify-end">
+                      {booking.isReviewed ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setReviewBookingId(booking.bookingId);
+                            setIsReviewOpen(true);
+                          }}
+                          className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
+                        >
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                          <span>Your Review</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setReviewBookingId(booking.bookingId);
+                            setIsReviewOpen(true);
+                          }}
+                          className="gap-2 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                        >
+                          <Star className="h-4 w-4" />
+                          Rate Trip
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </article>
               );
             })
@@ -1157,7 +1260,7 @@ const ProfilePage = () => {
                 {/* Track my journey button */}
                 {activeDetail.bookingStatus === "confirmed" &&
                   activeDetail.lifecycleBucket === "upcoming" && (
-                    <div className="mt-4">
+                    <div className="mt-4 grid gap-3">
                       <Link
                         href={`/track-journey/${encodeURIComponent(activeDetail.bookingId)}`}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 via-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition hover:from-indigo-600 hover:via-indigo-700 hover:to-purple-700 hover:shadow-xl dark:shadow-indigo-500/20"
@@ -1165,6 +1268,21 @@ const ProfilePage = () => {
                         <Navigation2 className="h-4 w-4" />
                         Track my journey
                       </Link>
+
+                      {activeDetail.canCancel ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setCancelReason("");
+                            setCancelError(null);
+                            setIsCancelDialogOpen(true);
+                          }}
+                          className="w-full border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                        >
+                          Cancel Booking
+                        </Button>
+                      ) : null}
                     </div>
                   )}
               </div>
@@ -1395,6 +1513,116 @@ const ProfilePage = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={isCancelDialogOpen}
+        onOpenChange={(open) => {
+          if (!cancelLoading) setIsCancelDialogOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-600 dark:text-rose-400">
+              Cancel Booking?
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this booking? This action cannot
+              be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {activeDetail ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Booking Amount
+                  </span>
+                  <span className="font-medium">
+                    {formatCurrency(activeDetail.totalAmount)}
+                  </span>
+                </div>
+                <div className="mt-2 flex justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Est. Refund Amount
+                  </span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(calculateRefundEstimate(activeDetail))}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  * Refund amount is estimated based on cancellation policy.
+                  Current time: {formatDateTime(new Date())}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="cancel-reason"
+                className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"
+              >
+                Reason for cancellation
+              </label>
+              <Input
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Optional: Why are you cancelling?"
+                disabled={cancelLoading}
+              />
+            </div>
+
+            {cancelError ? (
+              <p className="text-sm text-rose-600 dark:text-rose-400">
+                {cancelError}
+              </p>
+            ) : null}
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCancelDialogOpen(false)}
+              disabled={cancelLoading}
+            >
+              Keep Booking
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleCancelBooking}
+              disabled={cancelLoading}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {cancelLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                "Confirm Cancellation"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Modal */}
+      {reviewBookingId && (
+        <ReviewModal
+          isOpen={isReviewOpen}
+          onClose={() => {
+            setIsReviewOpen(false);
+            setReviewBookingId(null);
+          }}
+          bookingId={reviewBookingId}
+          onSuccess={() => {
+            handleRefresh(); // Refresh list to update isReviewed status
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -21,6 +21,7 @@ import {
   Sun,
   User,
   Users,
+  Ban,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -53,6 +54,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Manage Buses", icon: Bus },
     { label: "Track Bus", icon: MapPinned },
     { label: "Manage Bookings", icon: ClipboardList },
+    { label: "Manage Cancels", icon: Ban },
     { label: "Manage Users", icon: Users },
     { label: "Manage Offers", icon: BadgeCheck },
     { label: "Manage Transactions", icon: Banknote },
@@ -65,6 +67,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Manage Buses", icon: Bus },
     { label: "Track Bus", icon: MapPinned },
     { label: "Manage Bookings", icon: ClipboardList },
+    { label: "Manage Cancels", icon: Ban },
     { label: "Manage Users", icon: Users },
     { label: "Manage Offers", icon: BadgeCheck },
     { label: "Manage Transactions", icon: Banknote },
@@ -85,9 +88,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   ],
 };
 
-const DEFAULT_NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", icon: Activity },
-];
+const DEFAULT_NAV_ITEMS: NavItem[] = [{ label: "Dashboard", icon: Activity }];
 
 const ROLE_BASE_PATHS: Record<string, string> = {
   superadmin: "/super-admin/dashboard",
@@ -120,9 +121,10 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     : "Collapse (⌘/Ctrl + B)";
   const { setTheme, resolvedTheme } = useTheme();
   const [profileRole, setProfileRole] = useState<string | null>(null);
-  const [impersonationStatus, setImpersonationStatus] = useState<ImpersonationStatus>({
-    active: false,
-  });
+  const [impersonationStatus, setImpersonationStatus] =
+    useState<ImpersonationStatus>({
+      active: false,
+    });
   const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
   const [activeItem, setActiveItem] = useState<string>("Dashboard");
   const themeReady = typeof resolvedTheme === "string";
@@ -260,9 +262,10 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const navItems = NAV_ITEMS_BY_ROLE[normalizedRole] ?? DEFAULT_NAV_ITEMS;
 
   const inferredBasePath = KNOWN_BASE_PATHS.find(
-    (base) => pathname === base || pathname.startsWith(`${base}/`)
+    (base) => pathname === base || pathname.startsWith(`${base}/`),
   );
-  const basePath = inferredBasePath ?? ROLE_BASE_PATHS[normalizedRole] ?? "/dashboard";
+  const basePath =
+    inferredBasePath ?? ROLE_BASE_PATHS[normalizedRole] ?? "/dashboard";
 
   const navRoutes: Record<string, string> = {
     Dashboard: basePath,
@@ -270,6 +273,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     "Manage Buses": `${basePath}/manage-buses`,
     "Track Bus": `${basePath}/track-bus`,
     "Manage Bookings": `${basePath}/manage-bookings`,
+    "Manage Cancels": `${basePath}/manage-cancels`,
     "Manage Offers": `${basePath}/manage-offers`,
     "Manage Transactions": `${basePath}/manage-transactions`,
   };
@@ -287,9 +291,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     return destination ? isRouteMatch(destination) : isRouteMatch(slugRoute);
   };
 
-  const hasRouteMatch = navItems.some((item) =>
-    isItemPathMatch(item.label)
-  );
+  const hasRouteMatch = navItems.some((item) => isItemPathMatch(item.label));
   const fallbackActiveItem =
     navItems.find((item) => item.label === "Dashboard")?.label ??
     navItems[0]?.label ??
@@ -338,10 +340,12 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
       <nav className="mt-8 flex-1 space-y-1">
         {navItems.map((item) => {
-          const destination = navRoutes[item.label] ?? `${basePath}/${toSlug(item.label)}`;
+          const destination =
+            navRoutes[item.label] ?? `${basePath}/${toSlug(item.label)}`;
           const matchesPath = isItemPathMatch(item.label);
           const isActive =
-            matchesPath || (!hasRouteMatch && item.label === effectiveActiveItem);
+            matchesPath ||
+            (!hasRouteMatch && item.label === effectiveActiveItem);
           return (
             <button
               key={item.label}
@@ -356,9 +360,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 isActive
                   ? "border-slate-200 bg-slate-100 text-slate-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
                   : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white"
-              } ${
-                collapsed ? "justify-center px-2" : "gap-3 px-3"
-              }`}
+              } ${collapsed ? "justify-center px-2" : "gap-3 px-3"}`}
             >
               <item.icon className="h-4 w-4" />
               {!collapsed ? <span>{item.label}</span> : null}
@@ -380,7 +382,9 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               </p>
               <p>
                 {impersonationStatus.target?.fullName || "Target user"} (
-                {String(impersonationStatus.target?.role || "").toUpperCase() || "ROLE"})
+                {String(impersonationStatus.target?.role || "").toUpperCase() ||
+                  "ROLE"}
+                )
               </p>
               <p className="text-[11px] opacity-80">
                 as {impersonationStatus.actor?.fullName || "Admin"}
