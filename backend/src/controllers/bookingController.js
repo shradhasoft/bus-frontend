@@ -223,6 +223,30 @@ const getJourneySnapshot = (booking) => {
   };
 };
 
+const calculateDepartureDateTime = (booking) => {
+  const travelDate = new Date(booking.travelDate);
+  if (Number.isNaN(travelDate.getTime())) return null;
+
+  const journey = getJourneySnapshot(booking);
+  const departureMinutes = toMinutes(journey.departureTime);
+
+  // If departure time is missing, fallback to start of travel date
+  // This ensures it doesn't prematurely mark as completed if time is unknown
+  if (departureMinutes === null) {
+    return new Date(travelDate);
+  }
+
+  const departureDate = new Date(travelDate);
+  departureDate.setHours(
+    Math.floor(departureMinutes / 60),
+    departureMinutes % 60,
+    0,
+    0,
+  );
+
+  return departureDate;
+};
+
 const calculateArrivalDateTime = (booking) => {
   const travelDate = new Date(booking.travelDate);
   if (Number.isNaN(travelDate.getTime())) return null;
@@ -260,7 +284,9 @@ const getBookingLifecycleBucket = (booking, now = new Date()) => {
   if (status === "cancelled") return "cancelled";
   if (status === "completed") return "completed"; // Explicitly marked completed
 
+  // Revert: Use ARRIVAL time for "Completed" check
   const arrivalTime = calculateArrivalDateTime(booking);
+
   if (!arrivalTime) return "upcoming";
 
   return arrivalTime < now ? "completed" : "upcoming";
@@ -366,6 +392,16 @@ const formatBookingListItem = (booking, now = new Date()) => {
       ? extractPaymentSnapshot(booking.payment)
       : null;
 
+  // Calculate isRunning status
+  const departureDate = calculateDepartureDateTime(booking);
+  const arrivalDate = calculateArrivalDateTime(booking);
+  const isRunning =
+    departureDate &&
+    arrivalDate &&
+    now >= departureDate &&
+    now < arrivalDate &&
+    booking?.bookingStatus !== "cancelled";
+
   return {
     id: booking?._id,
     dbId: booking?._id,
@@ -373,6 +409,7 @@ const formatBookingListItem = (booking, now = new Date()) => {
     bookingStatus: booking?.bookingStatus,
     paymentStatus: booking?.paymentStatus,
     lifecycleBucket,
+    isRunning, // New field
     travelDate: booking?.travelDate,
     createdAt: booking?.createdAt,
     updatedAt: booking?.updatedAt,
