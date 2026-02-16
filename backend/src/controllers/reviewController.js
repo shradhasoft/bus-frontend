@@ -6,7 +6,7 @@ import { Bus } from "../models/bus.js";
 export const createReview = async (req, res) => {
   try {
     const { bookingId, rating, comment, photos } = req.body;
-    const userId = req.user.uid; // Assuming auth middleware populates this
+    const userId = req.user._id; // Assuming auth middleware populates this
 
     // 1. Validate input
     if (!bookingId || !rating) {
@@ -130,7 +130,7 @@ export const createReview = async (req, res) => {
 export const getReviewByBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const userId = req.user.uid;
+    const userId = req.user._id;
 
     // Find the booking first using the string ID
     const booking = await Booking.findOne({ bookingId, user: userId });
@@ -159,7 +159,7 @@ export const getReviewByBooking = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: existingReview,
+      data: review,
     });
   } catch (error) {
     console.error("Error fetching review:", error);
@@ -175,7 +175,7 @@ export const updateReview = async (req, res) => {
   try {
     const { id } = req.params; // Review ID
     const { rating, comment, photos } = req.body;
-    const userId = req.user.uid;
+    const userId = req.user._id;
 
     const review = await Review.findOne({ _id: id, user: userId });
 
@@ -225,7 +225,7 @@ export const updateReview = async (req, res) => {
 export const deleteReview = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.uid;
+    const userId = req.user._id;
 
     const review = await Review.findOneAndDelete({ _id: id, user: userId });
 
