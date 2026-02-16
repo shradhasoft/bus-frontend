@@ -408,22 +408,30 @@ const ProfilePage = () => {
   const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
 
   const calculateRefundEstimate = (booking: BookingDetail) => {
-    const travelDate = new Date(booking.travelDate);
+    const departure = getDepartureDateTime(booking);
+    const referenceTime = departure || new Date(booking.travelDate);
     const now = new Date();
-    const hoursDifference = (travelDate.getTime() - now.getTime()) / 36e5;
+    const hoursBeforeDeparture =
+      (referenceTime.getTime() - now.getTime()) / 36e5;
+
+    if (hoursBeforeDeparture <= 0) return 0;
+
+    const before24h = booking.route?.cancellationPolicy?.before24h ?? 0;
+    const before12h = booking.route?.cancellationPolicy?.before12h ?? 0;
+    const noShow = booking.route?.cancellationPolicy?.noShow ?? 100;
 
     let refundPercentage = 0;
-    if (hoursDifference > 24) {
-      refundPercentage =
-        (100 - (booking.route?.cancellationPolicy?.before24h || 0)) / 100;
-    } else if (hoursDifference > 12) {
-      refundPercentage =
-        (100 - (booking.route?.cancellationPolicy?.before12h || 0)) / 100;
+    if (hoursBeforeDeparture > 24) {
+      refundPercentage = (100 - before24h) / 100;
+    } else if (hoursBeforeDeparture > 12) {
+      refundPercentage = (100 - before12h) / 100;
     } else {
-      refundPercentage = 0;
+      refundPercentage = (100 - noShow) / 100;
     }
 
-    return Math.floor(booking.totalAmount * Math.max(0, refundPercentage));
+    return Math.round(
+      booking.totalAmount * Math.max(0, refundPercentage) * 100,
+    ) / 100;
   };
 
   const handleCancelBooking = async () => {
@@ -447,7 +455,14 @@ const ProfilePage = () => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload.message || "Failed to cancel booking");
+        const msg =
+          payload.message ||
+          (payload.code === "ALREADY_CANCELLED"
+            ? "This booking is already cancelled"
+            : payload.code === "PAST_BOOKING"
+              ? "Cannot cancel after departure"
+              : "Failed to cancel booking");
+        throw new Error(msg);
       }
 
       // Success

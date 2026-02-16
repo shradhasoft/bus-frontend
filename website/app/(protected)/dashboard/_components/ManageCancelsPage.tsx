@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Eye,
+  RefreshCw,
   Search,
   Ticket,
   Trash2,
@@ -54,7 +55,7 @@ type BookingRecord = {
   id: string;
   bookingId: string;
   bookingStatus: "pending" | "confirmed" | "cancelled" | "completed";
-  paymentStatus: "pending" | "paid" | "refunded" | "partial-refund";
+  paymentStatus: "pending" | "paid" | "refunded" | "partial-refund" | "refund_failed";
   lifecycleBucket: "upcoming" | "cancelled" | "completed";
   travelDate: string;
   boardingPoint: string;
@@ -120,7 +121,7 @@ type BookingFormState = {
   boardingPoint: string;
   droppingPoint: string;
   bookingStatus: "pending" | "confirmed" | "cancelled" | "completed";
-  paymentStatus: "pending" | "paid" | "refunded" | "partial-refund";
+  paymentStatus: "pending" | "paid" | "refunded" | "partial-refund" | "refund_failed";
   paymentMethod:
     | "wallet"
     | "upi"
@@ -139,6 +140,7 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
   paid: "Paid",
   refunded: "Refunded",
   "partial-refund": "Partial Refund",
+  refund_failed: "Refund Failed",
 };
 
 const BOOKING_STATUS_LABELS: Record<string, string> = {
@@ -162,6 +164,8 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
     "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700 dark:border-fuchsia-500/40 dark:bg-fuchsia-500/15 dark:text-fuchsia-200",
   "partial-refund":
     "border-violet-200 bg-violet-100 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200",
+  refund_failed:
+    "border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200",
 };
 
 const EMPTY_SUMMARY: BookingSummary = {
@@ -321,6 +325,7 @@ const ManageCancelsPage = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<BookingRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [retryRefundId, setRetryRefundId] = useState<string | null>(null);
 
   const totalPages = useMemo(() => {
     if (!total) return 1;
@@ -621,6 +626,32 @@ const ManageCancelsPage = () => {
       setError((err as Error).message || "Something went wrong.");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleRetryRefund = async (record: BookingRecord) => {
+    const ref = record.bookingId || record.id;
+    if (!ref) return;
+    setRetryRefundId(ref);
+    setError(null);
+    try {
+      const response = await fetch(
+        apiUrl(`/admin/bookings/${encodeURIComponent(ref)}/retry-refund`),
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.message || "Refund retry failed.");
+      }
+      const controller = new AbortController();
+      await loadBookings(controller.signal);
+    } catch (err) {
+      setError((err as Error).message || "Refund retry failed.");
+    } finally {
+      setRetryRefundId(null);
     }
   };
 
@@ -958,6 +989,25 @@ const ManageCancelsPage = () => {
                             <Eye className="h-3.5 w-3.5" />
                             View
                           </button>
+
+                          {booking.paymentStatus === "refund_failed" ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleRetryRefund(booking)}
+                              disabled={
+                                retryRefundId === (booking.bookingId || booking.id)
+                              }
+                              className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:-translate-y-0.5 disabled:opacity-50 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-200"
+                            >
+                              {retryRefundId ===
+                              (booking.bookingId || booking.id) ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              )}
+                              Retry Refund
+                            </button>
+                          ) : null}
 
                           <button
                             type="button"

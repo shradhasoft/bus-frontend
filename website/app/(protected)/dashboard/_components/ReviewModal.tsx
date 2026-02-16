@@ -66,10 +66,11 @@ export function ReviewModal({
         setExistingReview(data.data);
         setRating(data.data.rating);
         setComment(data.data.comment || "");
+        setIsEditing(false); // Open in view mode when existing review exists
       } else {
-        // Assume 404 means no review yet, which is fine
+        // 404 means no review yet - open in create/edit mode for new review
         setExistingReview(null);
-        setIsEditing(true); // Default to editing mode for new reviews
+        setIsEditing(true);
       }
     } catch (error) {
       console.error("Failed to fetch review", error);
@@ -178,7 +179,8 @@ export function ReviewModal({
       );
 
       if (!response.ok) {
-        throw new Error("Failed to delete review");
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete review");
       }
 
       toast.success("Review deleted");
@@ -260,7 +262,7 @@ export function ReviewModal({
           </DialogTitle>
           <DialogDescription>
             {existingReview && !isEditing
-              ? "You have already reviewed this trip."
+              ? "You have already reviewed this trip. You can edit within 72 hours or delete at any time."
               : "Share your experience with this bus service."}
           </DialogDescription>
         </DialogHeader>

@@ -61,6 +61,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Callback Requests", icon: CalendarCheck2 },
     { label: "Manage Tickets", icon: FileText },
     { label: "Broadcast", icon: MessageSquareText },
+    { label: "Manage Reviews", icon: MessageSquareText },
   ],
   admin: [
     { label: "Dashboard", icon: Activity },
@@ -74,6 +75,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Callback Requests", icon: CalendarCheck2 },
     { label: "Manage Tickets", icon: FileText },
     { label: "Broadcast", icon: MessageSquareText },
+    { label: "Manage Reviews", icon: MessageSquareText },
   ],
   conductor: [
     { label: "Dashboard", icon: Activity },
@@ -276,6 +278,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     "Manage Cancels": `${basePath}/manage-cancels`,
     "Manage Offers": `${basePath}/manage-offers`,
     "Manage Transactions": `${basePath}/manage-transactions`,
+    "Manage Reviews": `${basePath}/manage-reviews`,
   };
 
   const isRouteMatch = (route: string) =>
