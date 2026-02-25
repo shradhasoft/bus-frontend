@@ -16,10 +16,12 @@ import {
   Tag,
   Ticket,
   User,
+  Download,
 } from "lucide-react";
 
+import { QRCodeCanvas } from "qrcode.react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -172,6 +174,8 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState<BookingState | null>(null);
+  const [invoiceDownloading, setInvoiceDownloading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [requiresLogin, setRequiresLogin] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -561,6 +565,41 @@ const CheckoutPage = () => {
     }
   };
 
+  const handleDownloadInvoice = async () => {
+    if (!success?.bookingId || invoiceDownloading) return;
+    setInvoiceDownloading(true);
+    setInvoiceError(null);
+    try {
+      const response = await fetch(
+        apiUrl(`/mybookings/${encodeURIComponent(success.bookingId)}/invoice`),
+        {
+          method: "GET",
+          credentials: "include",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to download invoice.");
+      }
+
+      const blob = await response.blob();
+      const fileUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = fileUrl;
+      anchor.download = `invoice-${success.bookingId}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(fileUrl);
+    } catch (error) {
+      setInvoiceError(
+        error instanceof Error ? error.message : "Unable to download invoice.",
+      );
+    } finally {
+      setInvoiceDownloading(false);
+    }
+  };
+
   /* ── Checkout Unavailable ─────────────────────────────────── */
   if (!busId || !travelDate || seats.length === 0) {
     return (
@@ -595,45 +634,95 @@ const CheckoutPage = () => {
 
   /* ── Payment Success ──────────────────────────────────────── */
   if (success) {
+    const ticketUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/ticket/${success.bookingId}`
+        : "";
+
     return (
       <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-6 pb-16 pt-24">
-        <div className="mx-auto w-full max-w-3xl">
-          <div className="rounded-3xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/30 p-8 shadow-sm dark:shadow-black/20 backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/40">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-emerald-900 dark:text-emerald-200">
-                  Payment successful
+        <div className="mx-auto w-full max-w-4xl grid gap-8 md:grid-cols-2 items-center">
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-emerald-200 dark:border-emerald-800/60 bg-white/80 dark:bg-slate-900/80 p-8 shadow-xl dark:shadow-emerald-900/10 backdrop-blur-xl">
+              <div className="flex flex-col items-center text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-linear-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 animate-in zoom-in duration-500 mb-6">
+                  <CheckCircle2 className="h-8 w-8 text-white" />
+                </div>
+
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-emerald-50 mb-2">
+                  Payment successful!
                 </h2>
-                <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  Your booking is confirmed
+                <p className="text-sm font-medium text-slate-500 dark:text-emerald-400/80 max-w-xs">
+                  Your trip is confirmed. Check your email for the detailed
+                  itinerary.
                 </p>
+
+                <div className="mt-8 w-full rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 p-4 text-center">
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                    Booking ID
+                  </p>
+                  <p className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-emerald-100 tracking-wide">
+                    {success.bookingId}
+                  </p>
+                </div>
+
+                <div className="mt-8 flex flex-col w-full gap-3">
+                  <Button
+                    onClick={handleDownloadInvoice}
+                    disabled={invoiceDownloading}
+                    className="w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 py-6 text-base"
+                  >
+                    {invoiceDownloading ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-5 w-5" />
+                    )}
+                    {invoiceDownloading ? "Downloading..." : "Download Invoice"}
+                  </Button>
+
+                  {invoiceError && (
+                    <p className="text-xs text-rose-500 mt-1">{invoiceError}</p>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="rounded-xl border-slate-200 dark:border-white/10 dark:hover:bg-white/5 h-12"
+                    >
+                      <Link href="/profile?tab=upcoming">My bookings</Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-xl border-slate-200 dark:border-white/10 dark:hover:bg-white/5 h-12"
+                      onClick={() => router.push("/bus-tickets")}
+                    >
+                      Book another
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="mt-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white/50 dark:bg-slate-800/50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-500">
-                Booking ID
+          </div>
+
+          <div className="flex justify-center">
+            <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-8 shadow-2xl flex flex-col items-center">
+              <p className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6 text-center">
+                Digital Ticket
               </p>
-              <p className="mt-1 text-sm font-mono font-semibold text-emerald-900 dark:text-emerald-200">
-                {success.bookingId}
+              <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+                <QRCodeCanvas
+                  value={ticketUrl}
+                  size={200}
+                  level="H"
+                  includeMargin={false}
+                  fgColor="#0f172a"
+                  bgColor="#ffffff"
+                />
+              </div>
+              <p className="mt-6 text-center text-xs font-medium text-slate-500 dark:text-slate-400 max-w-[200px]">
+                Show this QR code to the conductor while boarding the bus.
               </p>
-            </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button
-                asChild
-                className="rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-sm shadow-emerald-500/20"
-              >
-                <Link href="/bookings">View my bookings</Link>
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-full border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                onClick={() => router.push("/bus-tickets")}
-              >
-                Book another trip
-              </Button>
             </div>
           </div>
         </div>

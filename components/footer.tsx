@@ -74,12 +74,12 @@ const Footer = () => {
   return (
     <footer className="relative overflow-hidden">
       {/* ── Gradient accent band ── */}
-      <div className="h-1 bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400" />
+      {/* <div className="h-1 bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400" /> */}
 
       {/* ── Download App section ── */}
-      <div className="bg-slate-50 dark:bg-slate-950">
+      <div className="bg-slate-200 dark:bg-slate-950">
         <div className="mx-auto max-w-7xl px-6 py-12">
-          <div className="relative overflow-hidden rounded-3xl bg-black p-8 shadow-2xl sm:p-10">
+          <div className="relative overflow-hidden rounded-3xl bg-black p-8 shadow-2xl sm:p-10 dark:bg-slate-800">
             {/* Decorative elements */}
             <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/[0.03] blur-2xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-white/[0.02] blur-2xl" />
@@ -150,7 +150,7 @@ const Footer = () => {
       </div>
 
       {/* ── Main footer body ── */}
-      <div className="bg-slate-50 dark:bg-slate-950">
+      <div className="bg-slate-200 dark:bg-slate-950">
         <div className="mx-auto max-w-7xl px-6 pb-8 pt-14">
           <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-6 lg:gap-8">
             {/* Brand column */}

@@ -23,6 +23,7 @@ import {
 import { apiUrl } from "@/lib/api";
 import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
 import { firebaseAuth } from "@/lib/firebase/client";
+import { NotificationBell } from "@/components/notification-bell";
 
 const ROLE_SWITCH_TARGETS: Record<string, string> = {
   admin: "/admin/dashboard",
@@ -182,7 +183,7 @@ const Navbar = () => {
 
       setOpen(false);
     },
-    [pathname, router]
+    [pathname, router],
   );
 
   const openAuth = useCallback(() => {
@@ -217,7 +218,7 @@ const Navbar = () => {
           const data = await response.json().catch(() => ({}));
           console.error(
             "Logout failed:",
-            data?.message || response.statusText || response.status
+            data?.message || response.statusText || response.status,
           );
         }
       } catch (error) {
@@ -244,9 +245,7 @@ const Navbar = () => {
     setTheme(isDark ? "light" : "dark");
   }, [isDark, setTheme]);
 
-  const roleSwitchPath = profileRole
-    ? ROLE_SWITCH_TARGETS[profileRole]
-    : null;
+  const roleSwitchPath = profileRole ? ROLE_SWITCH_TARGETS[profileRole] : null;
 
   const handleRoleSwitch = useCallback(() => {
     if (!roleSwitchPath) return;
@@ -270,8 +269,8 @@ const Navbar = () => {
             aria-label="Home"
             onClick={() => setOpen(false)}
           >
-            <div className="w-10 h-10 bg-sage rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <Bus className="w-5 h-5 text-cream" />
+            <div className="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <Bus className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-lg tracking-tight text-slate-900/90 transition-colors duration-300 dark:text-white/90">
               BookMySeat
@@ -294,69 +293,72 @@ const Navbar = () => {
 
           <div className="flex items-center gap-3">
             {currentUser ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="p-2 rounded-full text-slate-700 transition-all duration-300 hover:bg-white/10 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
-                    aria-label="Profile"
+              <>
+                <NotificationBell />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-2 rounded-full text-slate-700 transition-all duration-300 hover:bg-white/10 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
+                      aria-label="Profile"
+                    >
+                      <UserIcon className="h-5 w-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    side="bottom"
+                    sideOffset={12}
+                    className="min-w-[180px] rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur dark:border-white/10 dark:bg-slate-950/95"
                   >
-                    <UserIcon className="h-5 w-5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  side="bottom"
-                  sideOffset={12}
-                  className="min-w-[180px] rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur dark:border-white/10 dark:bg-slate-950/95"
-                >
-                  <DropdownMenuItem
-                    className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
-                    onSelect={goProfile}
-                  >
-                    My Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
-                    onSelect={toggleTheme}
-                  >
-                    {themeReady ? (
-                      isDark ? (
-                        <>
-                          <Sun className="h-4 w-4" />
-                          Light mode
-                        </>
+                    <DropdownMenuItem
+                      className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
+                      onSelect={goProfile}
+                    >
+                      My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
+                      onSelect={toggleTheme}
+                    >
+                      {themeReady ? (
+                        isDark ? (
+                          <>
+                            <Sun className="h-4 w-4" />
+                            Light mode
+                          </>
+                        ) : (
+                          <>
+                            <Moon className="h-4 w-4" />
+                            Dark mode
+                          </>
+                        )
                       ) : (
                         <>
                           <Moon className="h-4 w-4" />
-                          Dark mode
+                          Theme
                         </>
-                      )
-                    ) : (
-                      <>
-                        <Moon className="h-4 w-4" />
-                        Theme
-                      </>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-1" />
-                  <DropdownMenuItem
-                    className="rounded-lg px-3 py-2 text-sm text-rose-600 focus:text-rose-600 dark:text-rose-300"
-                    disabled={isLoggingOut}
-                    onSelect={handleLogout}
-                  >
-                    {isLoggingOut ? "Logging out..." : "Log out"}
-                  </DropdownMenuItem>
-                  {roleSwitchPath ? (
-                    <DropdownMenuItem
-                      className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
-                      onSelect={handleRoleSwitch}
-                    >
-                      Switch to {profileRole}
+                      )}
                     </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuSeparator className="my-1" />
+                    <DropdownMenuItem
+                      className="rounded-lg px-3 py-2 text-sm text-rose-600 focus:text-rose-600 dark:text-rose-300"
+                      disabled={isLoggingOut}
+                      onSelect={handleLogout}
+                    >
+                      {isLoggingOut ? "Logging out..." : "Log out"}
+                    </DropdownMenuItem>
+                    {roleSwitchPath ? (
+                      <DropdownMenuItem
+                        className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
+                        onSelect={handleRoleSwitch}
+                      >
+                        Switch to {profileRole}
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <button
                 type="button"
@@ -408,11 +410,7 @@ const Navbar = () => {
                   onClick={toggleTheme}
                   className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
                 >
-                  {themeReady
-                    ? isDark
-                      ? "Light mode"
-                      : "Dark mode"
-                    : "Theme"}
+                  {themeReady ? (isDark ? "Light mode" : "Dark mode") : "Theme"}
                 </button>
                 <button
                   type="button"
@@ -446,7 +444,7 @@ const Navbar = () => {
       </nav>
 
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
-        <DialogContent className="border-0 bg-transparent p-0 shadow-none">
+        <DialogContent className="border-0 bg-transparent p-0 shadow-none sm:max-w-[1040px]">
           <SignCard onAuthSuccess={handleAuthSuccess} />
         </DialogContent>
       </Dialog>

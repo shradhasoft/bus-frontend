@@ -1,17 +1,5 @@
 import { Message } from "@/components/chat/chat-message";
-
-// Mock Data for the Chatbot
-const MOCK_OFFERS = [
-  { code: "FIRST50", discount: "50% OFF", desc: "For first time users" },
-  { code: "BUS200", discount: "₹200 OFF", desc: "On bookings above ₹1000" },
-  { code: "SUMMER", discount: "15% OFF", desc: "Summer vacation special" },
-];
-
-const MOCK_BUS_STATUS = {
-  status: "On Time",
-  location: "Near Highway 42",
-  eta: "2 hours 15 mins",
-};
+import { apiUrl } from "@/lib/api";
 
 // Initial Greeting
 export const GET_INITIAL_MESSAGE = (): Message => ({
@@ -32,33 +20,60 @@ export const GET_INITIAL_MESSAGE = (): Message => ({
 export const processUserMessage = async (input: string): Promise<Message> => {
   const lowerInput = input.toLowerCase();
 
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
-
   // --- Offers Logic ---
   if (
     lowerInput.includes("offer") ||
     lowerInput.includes("code") ||
     lowerInput.includes("discount")
   ) {
-    return {
-      id: Date.now().toString(),
-      role: "bot",
-      content: "Here are some exclusive offers for you! 🎉",
-      timestamp: new Date(),
-      type: "card",
-      data: {
-        title: "Latest Offers",
-        subtitle: "Use these codes at checkout",
-        details: MOCK_OFFERS.reduce(
-          (acc, offer) => ({
-            ...acc,
-            [offer.code]: `${offer.discount} - ${offer.desc}`,
-          }),
-          {},
-        ),
-      },
-    };
+    try {
+      const response = await fetch(apiUrl("/offers"), { method: "GET" });
+      const payload = await response.json();
+
+      if (payload.success && payload.data?.length > 0) {
+        return {
+          id: Date.now().toString(),
+          role: "bot",
+          content: "Here are some exclusive offers for you! 🎉",
+          timestamp: new Date(),
+          type: "card",
+          data: {
+            title: "Latest Offers",
+            subtitle: "Use these codes at checkout",
+            details: payload.data.reduce(
+              (
+                acc: Record<string, string>,
+                offer: {
+                  promoCode: string;
+                  discountValue: number;
+                  discountType: string;
+                  title: string;
+                },
+              ) => ({
+                ...acc,
+                [offer.promoCode]: `${offer.discountValue}${offer.discountType === "percentage" ? "% OFF" : "₹ OFF"} - ${offer.title}`,
+              }),
+              {},
+            ),
+          },
+        };
+      } else {
+        return {
+          id: Date.now().toString(),
+          role: "bot",
+          content:
+            "I couldn't find any active offers right now. Please check back later!",
+          timestamp: new Date(),
+        };
+      }
+    } catch {
+      return {
+        id: Date.now().toString(),
+        role: "bot",
+        content: "Oops! I encountered an error checking for offers.",
+        timestamp: new Date(),
+      };
+    }
   }
 
   // --- Booking Logic ---
@@ -71,51 +86,93 @@ export const processUserMessage = async (input: string): Promise<Message> => {
       id: Date.now().toString(),
       role: "bot",
       content:
-        "Sure! I can help you book a bus ticket. Please provide your source and destination cities, or use the search page directly.",
+        "Sure! I can help you book a bus ticket. Please proceed to the search page.",
       timestamp: new Date(),
       type: "options",
-      options: [
-        { label: "Go to Search Page", value: "navigate_search" }, // In real app this would be a link or redirect
-        { label: "Help me search", value: "help_search" },
-      ],
+      options: [{ label: "Go to Search Page", value: "navigate_search" }],
     };
   }
 
-  // --- Tracking Logic ---
+  // Handle Track Bus explicit trigger
   if (
-    lowerInput.includes("track") ||
-    lowerInput.includes("status") ||
-    lowerInput.includes("where")
+    lowerInput === "track my bus" ||
+    lowerInput === "track bus" ||
+    lowerInput === "track_bus"
   ) {
     return {
       id: Date.now().toString(),
       role: "bot",
-      content: "Please enter your PNR number or Bus Number to track your bus.",
+      content:
+        "Please enter your Bus Number (e.g. OD09A9100) to track your bus.",
       timestamp: new Date(),
     };
   }
 
-  // Handle PNR Pattern (Mock)
+  // --- Tracking Logic via Pattern Matching for Bus Number ---
+  const possibleBusNumber = input.trim().replace(/\s+/g, "").toUpperCase();
   if (
-    /^[A-Z0-9]{6,10}$/i.test(input.trim()) ||
-    input.toLowerCase().includes("pnr")
+    /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{1,4}$/.test(possibleBusNumber) ||
+    lowerInput.includes("track")
   ) {
-    return {
-      id: Date.now().toString(),
-      role: "bot",
-      content: `Tracking details for ${input.toUpperCase()}:`,
-      timestamp: new Date(),
-      type: "card",
-      data: {
-        title: "Live Tracking",
-        subtitle: "Bus 1234 - Volvo AC Multi Axle",
-        details: {
-          Status: MOCK_BUS_STATUS.status,
-          "Current Location": MOCK_BUS_STATUS.location,
-          ETA: MOCK_BUS_STATUS.eta,
+    const busNumMatch = input.match(
+      /[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,2}\s?[0-9]{1,4}/i,
+    );
+    const busNumberToTrack = busNumMatch
+      ? busNumMatch[0].replace(/\s+/g, "").toUpperCase()
+      : possibleBusNumber;
+
+    if (!/^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{1,4}$/.test(busNumberToTrack)) {
+      return {
+        id: Date.now().toString(),
+        role: "bot",
+        content: "Please provide a valid bus number to track (e.g. OD09A9100).",
+        timestamp: new Date(),
+      };
+    }
+
+    try {
+      const response = await fetch(
+        apiUrl(`/v1/tracking/bus/${busNumberToTrack}/latest`),
+        {
+          method: "GET",
         },
-      },
-    };
+      );
+      const payload = await response.json();
+
+      if (payload.success && payload.data) {
+        const data = payload.data;
+        return {
+          id: Date.now().toString(),
+          role: "bot",
+          content: `Tracking details for ${busNumberToTrack}:`,
+          timestamp: new Date(),
+          type: "card",
+          data: {
+            title: "Live Tracking",
+            subtitle: `Bus ${busNumberToTrack}`,
+            details: {
+              Status: data.status || "Unknown",
+              "Current Speed": `${data.metrics?.speed || 0} km/h`,
+              "Last Updated": new Date(data.timestamp).toLocaleTimeString(),
+            },
+          },
+        };
+      } else {
+        return {
+          id: Date.now().toString(),
+          role: "bot",
+          content: `I couldn't find active tracking data for bus ${busNumberToTrack}. It might not be on a trip right now.`,
+          timestamp: new Date(),
+        };
+      }
+    } catch {
+      return {
+        id: Date.now().toString(),
+        role: "bot",
+        content: "Sorry, I had trouble tracking that bus. Please try again.",
+        timestamp: new Date(),
+      };
+    }
   }
 
   // --- Cancellation Logic ---
@@ -124,8 +181,10 @@ export const processUserMessage = async (input: string): Promise<Message> => {
       id: Date.now().toString(),
       role: "bot",
       content:
-        "To cancel a booking, please provide your PNR number. Note: Cancellation charges may apply.",
+        "To cancel a booking, please go to your dashboard 'My Bookings' section. Cancellation charges may apply based on the policy.",
       timestamp: new Date(),
+      type: "options",
+      options: [{ label: "Go to My Bookings", value: "navigate_bookings" }],
     };
   }
 
@@ -140,7 +199,8 @@ export const processUserMessage = async (input: string): Promise<Message> => {
     options: [
       { label: "Book Ticket", value: "book_ticket" },
       { label: "Track Bus", value: "track_bus" },
-      { label: "Contact Support", value: "contact_support" },
+      { label: "Cancel Booking", value: "cancel_booking" },
+      { label: "View Offers", value: "view_offers" },
     ],
   };
 };
@@ -158,12 +218,20 @@ export const handleQuickAction = async (
     case "view_offers":
       return processUserMessage("Show me offers");
     case "navigate_search":
-      // This case might be handled by the UI/Hook to redirect
       return {
         id: Date.now().toString(),
         role: "bot",
         content: "Redirecting you to the booking page...",
         timestamp: new Date(),
+        options: [{ label: "Search", value: "navigate_search" }],
+      };
+    case "navigate_bookings":
+      return {
+        id: Date.now().toString(),
+        role: "bot",
+        content: "Redirecting you to your bookings...",
+        timestamp: new Date(),
+        options: [{ label: "Bookings", value: "navigate_bookings" }],
       };
     case "contact_support":
       return {

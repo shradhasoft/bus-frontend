@@ -297,54 +297,55 @@ const HelpPage = () => {
     return items;
   }, [searchQuery, activeCategory]);
 
-  // Reset open FAQ when filters change
-  useEffect(() => {
-    setOpenFaqIndex(null);
-  }, [searchQuery, activeCategory]);
-
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0b1020] dark:text-slate-100">
       {/* ───── Hero Section ───── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 px-4 pb-20 pt-28 text-white sm:px-6 lg:px-8 dark:from-[#0b1020] dark:via-[#0d1428] dark:to-[#0b1020]">
+      <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50/50 via-rose-50/30 to-slate-50 px-4 pb-20 pt-28 text-slate-900 sm:px-6 lg:px-8 dark:from-[#0b1020] dark:via-[#0d1428] dark:to-[#0b1020] dark:text-white">
         {/* Decorative elements */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-rose-500/10 blur-3xl" />
-          <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl" />
-          <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500/5 blur-2xl" />
+          <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-rose-500/10 blur-3xl dark:bg-rose-500/10" />
+          <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl dark:bg-blue-500/10" />
+          <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500/5 blur-2xl flex" />
         </div>
 
         <div className="relative mx-auto max-w-4xl text-center">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-rose-300 backdrop-blur-sm">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-rose-200/60 bg-rose-100/50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-rose-600 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-rose-300">
             <Headphones className="h-3.5 w-3.5" />
             Help Center
           </div>
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             How can we{" "}
-            <span className="bg-gradient-to-r from-rose-400 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600 bg-clip-text text-transparent dark:from-rose-400 dark:via-rose-500 dark:to-pink-500">
               help you?
             </span>
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
             Find answers to your questions, learn how to use BookMySeat, or get
             in touch with our support team.
           </p>
 
           {/* Search bar */}
           <div className="mx-auto mt-8 max-w-xl">
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-md transition-all focus-within:border-rose-500/40 focus-within:bg-white/10">
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md transition-all focus-within:border-rose-500/40 focus-within:bg-white focus-within:shadow-sm dark:border-white/10 dark:bg-white/5 dark:focus-within:border-rose-500/40 dark:focus-within:bg-white/10">
               <Search className="h-5 w-5 shrink-0 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setOpenFaqIndex(null);
+                }}
                 placeholder="Search for answers..."
-                className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
+                className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="text-xs font-semibold text-slate-400 transition hover:text-white"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setOpenFaqIndex(null);
+                  }}
+                  className="text-xs font-semibold text-slate-400 transition hover:text-slate-600 dark:hover:text-white"
                 >
                   Clear
                 </button>

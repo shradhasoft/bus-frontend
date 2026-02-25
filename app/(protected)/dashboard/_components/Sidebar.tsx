@@ -22,6 +22,7 @@ import {
   User,
   Users,
   Ban,
+  QrCode,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -79,6 +80,8 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   ],
   conductor: [
     { label: "Dashboard", icon: Activity },
+    { label: "Verify Ticket", icon: QrCode },
+    { label: "Boarded Users", icon: Users },
     { label: "Manage Bus", icon: Bus },
     { label: "Mark Offline Book", icon: FileText },
   ],

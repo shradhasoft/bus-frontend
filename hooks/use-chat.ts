@@ -25,6 +25,10 @@ export const useChat = () => {
         router.push("/bus-tickets");
         return;
       }
+      if (content === "navigate_bookings") {
+        router.push("/dashboard/bookings");
+        return;
+      }
 
       // Add user message
       const userMsg: Message = {
@@ -54,7 +58,11 @@ export const useChat = () => {
           addMessage(response);
           // Handle navigation command from bot response if needed
           if (response.content.includes("Redirecting")) {
-            setTimeout(() => router.push("/bus-tickets"), 1000);
+            if (response.options?.[0]?.value === "navigate_bookings") {
+              setTimeout(() => router.push("/dashboard/bookings"), 1000);
+            } else {
+              setTimeout(() => router.push("/bus-tickets"), 1000);
+            }
           }
         }
       } catch {

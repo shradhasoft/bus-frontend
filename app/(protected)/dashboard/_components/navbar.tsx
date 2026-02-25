@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Bell, ChevronDown, Search, User } from "lucide-react";
+import { ChevronDown, Search, User } from "lucide-react";
 import { apiUrl } from "@/lib/api";
+import { NotificationBell } from "@/components/notification-bell";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -26,9 +27,10 @@ type ImpersonationStatus = {
 
 const Navbar = () => {
   const [profileRole, setProfileRole] = useState<string | null>(null);
-  const [impersonationStatus, setImpersonationStatus] = useState<ImpersonationStatus>({
-    active: false,
-  });
+  const [impersonationStatus, setImpersonationStatus] =
+    useState<ImpersonationStatus>({
+      active: false,
+    });
 
   useEffect(() => {
     let active = true;
@@ -114,11 +116,13 @@ const Navbar = () => {
   }, []);
 
   const roleLabel = profileRole
-    ? ROLE_LABELS[profileRole] ?? profileRole
+    ? (ROLE_LABELS[profileRole] ?? profileRole)
     : "Control Room";
 
   const actorRole = String(impersonationStatus.actor?.role || "").toLowerCase();
-  const targetRole = String(impersonationStatus.target?.role || "").toLowerCase();
+  const targetRole = String(
+    impersonationStatus.target?.role || "",
+  ).toLowerCase();
   const actorRoleLabel =
     ROLE_LABELS[actorRole] || impersonationStatus.actor?.role || "Admin";
   const targetRoleLabel =
@@ -150,13 +154,7 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="relative rounded-2xl border border-slate-200/80 bg-slate-100 p-2 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500" />
-        </button>
+        <NotificationBell />
         <button
           type="button"
           className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"

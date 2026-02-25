@@ -33,9 +33,9 @@ const ChatWidget = () => {
         )}
       >
         {isOpen ? (
-          <X className="h-6 w-6 text-white" />
+          <X className="h-6 w-6 text-white dark:text-black" />
         ) : (
-          <MessageCircle className="h-7 w-7 text-white" />
+          <MessageCircle className="h-7 w-7 text-white dark:text-black" />
         )}
       </Button>
     </div>

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { ReviewModal } from "../dashboard/_components/ReviewModal";
+import { QRCodeCanvas } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -429,9 +430,10 @@ const ProfilePage = () => {
       refundPercentage = (100 - noShow) / 100;
     }
 
-    return Math.round(
-      booking.totalAmount * Math.max(0, refundPercentage) * 100,
-    ) / 100;
+    return (
+      Math.round(booking.totalAmount * Math.max(0, refundPercentage) * 100) /
+      100
+    );
   };
 
   const handleCancelBooking = async () => {
@@ -1388,6 +1390,31 @@ const ProfilePage = () => {
                   ) : null}
                 </dl>
               </div>
+
+              {activeDetail.bookingStatus !== "cancelled" && (
+                <div className="rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center dark:border-white/10 dark:bg-slate-900/30">
+                  <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+                    Digital Ticket
+                  </p>
+                  <div className="rounded-xl bg-white p-3 border border-slate-100 shadow-sm">
+                    <QRCodeCanvas
+                      value={
+                        typeof window !== "undefined"
+                          ? `${window.location.origin}/ticket/${activeDetail.bookingId || activeDetail.id}`
+                          : ""
+                      }
+                      size={140}
+                      level="H"
+                      includeMargin={false}
+                      fgColor="#0f172a"
+                      bgColor="#ffffff"
+                    />
+                  </div>
+                  <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                    Show this QR code to the conductor while boarding.
+                  </p>
+                </div>
+              )}
 
               <div className="rounded-2xl border border-slate-200/80 p-4 dark:border-white/10">
                 <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">

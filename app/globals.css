@@ -241,3 +241,9 @@ section[id] {
 .text-brown {
   color: #8b5e3c;
 }
+
+/* Hide the reCAPTCHA badge since we handle the TOS links in our UI */
+.grecaptcha-badge {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
