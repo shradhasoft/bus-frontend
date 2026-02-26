@@ -1,7 +1,7 @@
-import ConductorAssignmentManager from "./_components/conductor-assignment-manager";
+import OwnerDashboardOverview from "./_components/owner-dashboard-overview";
 
 const BusOwnerDashboardPage = () => {
-  return <ConductorAssignmentManager />;
+  return <OwnerDashboardOverview />;
 };
 
 export default BusOwnerDashboardPage;

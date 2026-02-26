@@ -9,6 +9,7 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 import { apiUrl } from "@/lib/api";
 import { subscribeBoardingBlueprintChanged } from "@/lib/boarding-events";
@@ -130,6 +131,13 @@ type BoardingBlueprintPayload = {
     totalBoarded?: number;
     totalPending?: number;
   };
+};
+
+type BlueprintViewMode = "conductor" | "owner" | "admin";
+type ManualDirectionFilter = "both" | "forward" | "return";
+
+type BoardedUsersBlueprintProps = {
+  mode?: BlueprintViewMode;
 };
 
 const AUTO_REFRESH_MS = 30000;
@@ -481,12 +489,27 @@ const buildFallbackDecksFromSeats = (seats: SeatDefinition[]): SeatLayoutDeck[] 
   });
 };
 
-export default function BoardedUsersBlueprint() {
+export default function BoardedUsersBlueprint({
+  mode = "conductor",
+}: BoardedUsersBlueprintProps) {
+  const isConductorMode = mode === "conductor";
+  const isOwnerMode = mode === "owner";
+  const isAdminMode = mode === "admin";
+  const isManualMode = !isConductorMode;
+  const searchParams = useSearchParams();
+  const requestedBusId = String(searchParams.get("busId") || "").trim();
+
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
 
   const [scheduleClockTick, setScheduleClockTick] = useState(() => Date.now());
+  const [ownerSelectedBusId, setOwnerSelectedBusId] = useState("");
+  const [manualDirectionFilter, setManualDirectionFilter] =
+    useState<ManualDirectionFilter>("both");
+  const [manualTravelDate, setManualTravelDate] = useState(() =>
+    formatDateKey(new Date()),
+  );
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -495,16 +518,113 @@ export default function BoardedUsersBlueprint() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
   const autoSelection = useMemo(
-    () => resolveAutoSelection(assignments, new Date(scheduleClockTick)),
-    [assignments, scheduleClockTick],
+    () =>
+      isConductorMode
+        ? resolveAutoSelection(assignments, new Date(scheduleClockTick))
+        : null,
+    [assignments, isConductorMode, scheduleClockTick],
   );
 
-  const selectedBusId = autoSelection?.assignment?._id || "";
-  const directionFilter = autoSelection?.direction || "forward";
-  const resolvedTravelDate = useMemo(
+  const autoResolvedTravelDate = useMemo(
     () => resolveAutoTravelDate(autoSelection, new Date(scheduleClockTick)),
     [autoSelection, scheduleClockTick],
   );
+  const selectedBusId = isAdminMode
+    ? requestedBusId
+    : isOwnerMode
+      ? ownerSelectedBusId
+      : autoSelection?.assignment?._id || "";
+  const directionFilter: ManualDirectionFilter | "forward" | "return" =
+    isManualMode ? manualDirectionFilter : autoSelection?.direction || "forward";
+  const resolvedTravelDate = isManualMode
+    ? manualTravelDate
+    : autoResolvedTravelDate;
+  
+  const autoSelectionLabel = isConductorMode
+    ? autoSelection
+    : null;
+
+  const activeAssignment = isOwnerMode
+    ? assignments.find((assignment) => assignment._id === selectedBusId) || null
+    : autoSelectionLabel?.assignment || null;
+
+  const opsLabel = isOwnerMode
+    ? "Owner Ops"
+    : isAdminMode
+      ? "Admin Ops"
+      : "Conductor Ops";
+
+  const subtitle = isOwnerMode
+    ? "Seat blueprint of boarded users across your buses."
+    : isAdminMode
+      ? "Seat blueprint with boarded user status for selected fleet buses."
+      : "Today's seat blueprint with live boarded status.";
+
+  const busCardLabel = isOwnerMode
+    ? "Owner Bus"
+    : isAdminMode
+      ? "Selected Bus"
+      : "Assigned Bus";
+
+  const noBusMessage = isOwnerMode
+    ? "No owner buses found. Add buses from Manage Buses to view the seat blueprint."
+    : isAdminMode
+      ? "Select a bus from the bus list to view boarded users."
+      : "No buses assigned for today.";
+
+  const assignedBusLabel = activeAssignment
+    ? `${activeAssignment.busName || "Unnamed bus"} (${activeAssignment.busNumber || "-"})`
+    : data?.bus?.busName && data?.bus?.busNumber
+      ? `${data.bus.busName} (${data.bus.busNumber})`
+      : isManualMode
+        ? "No selected bus"
+        : assignmentsLoading
+          ? "Resolving assigned bus..."
+          : "No assigned bus";
+
+  const directionLabel =
+    directionFilter === "return"
+      ? "Return"
+      : directionFilter === "forward"
+        ? "Forward"
+        : "Both";
+
+  const directionHint = isManualMode
+    ? directionFilter === "both"
+      ? "Showing both forward and return bookings."
+      : "Filter applied by selected trip direction."
+    : !autoSelection
+      ? "Direction unavailable."
+      : autoSelection.mode === "active-trip"
+        ? "Direction auto-detected from current trip timing."
+        : autoSelection.mode === "upcoming-trip"
+          ? `Auto-switched by next trip in ${autoSelection.etaMinutes ?? 0} min.`
+          : "Schedule time not found, defaulting to Forward.";
+
+  const assignmentHint = isOwnerMode
+    ? selectedBusId
+      ? "Showing boarded users for your selected bus."
+      : "Select one of your buses to view seat status."
+    : isAdminMode
+      ? selectedBusId
+        ? "Selected from the fleet bus list."
+        : "No bus selected."
+      : !autoSelection
+        ? "No active conductor assignment found."
+        : autoSelection.isActiveToday
+          ? "Auto-selected from today's active assignment."
+          : "Auto-selected from closest assigned bus schedule.";
+
+  const showBusSelector = isOwnerMode;
+  const showAssignmentsError = !isAdminMode && Boolean(assignmentsError);
+
+  const titleBusFallback = isManualMode ? "Selected Bus" : "Assigned Bus";
+
+  const shouldShowNoBusState = !selectedBusId && !assignmentsLoading;
+
+  const isScheduleClockEnabled = isConductorMode;
+
+  const shouldLoadAssignments = !isAdminMode;
 
   const buildHeaders = useCallback(async () => {
     const token = await firebaseAuth.currentUser?.getIdToken().catch(() => null);
@@ -518,12 +638,22 @@ export default function BoardedUsersBlueprint() {
   }, []);
 
   const loadAssignments = useCallback(async () => {
+    if (!shouldLoadAssignments) {
+      setAssignments([]);
+      setAssignmentsError(null);
+      setAssignmentsLoading(false);
+      return;
+    }
+
     setAssignmentsLoading(true);
     setAssignmentsError(null);
 
     try {
       const headers = await buildHeaders();
-      const response = await fetch(apiUrl("/v1/telemetry/assignments"), {
+      const endpoint = isOwnerMode
+        ? "/v1/telemetry/owner/buses"
+        : "/v1/telemetry/assignments";
+      const response = await fetch(apiUrl(endpoint), {
         method: "GET",
         credentials: "include",
         headers,
@@ -532,20 +662,48 @@ export default function BoardedUsersBlueprint() {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.message || "Unable to load assigned buses.");
+        throw new Error(
+          payload?.message ||
+            (isOwnerMode
+              ? "Unable to load owner buses."
+              : "Unable to load assigned buses."),
+        );
       }
 
       const rows = Array.isArray(payload?.data) ? payload.data : [];
       setAssignments(rows);
+      if (isOwnerMode) {
+        setOwnerSelectedBusId((previous) => {
+          if (
+            requestedBusId &&
+            rows.some((row: Assignment) => row?._id === requestedBusId)
+          ) {
+            return requestedBusId;
+          }
+          if (
+            previous &&
+            rows.some((row: Assignment) => row?._id === previous)
+          ) {
+            return previous;
+          }
+          return rows[0]?._id || "";
+        });
+      }
     } catch (requestError) {
       setAssignments([]);
+      if (isOwnerMode) {
+        setOwnerSelectedBusId("");
+      }
       setAssignmentsError(
-        (requestError as Error).message || "Unable to load assigned buses.",
+        (requestError as Error).message ||
+          (isOwnerMode
+            ? "Unable to load owner buses."
+            : "Unable to load assigned buses."),
       );
     } finally {
       setAssignmentsLoading(false);
     }
-  }, [buildHeaders]);
+  }, [buildHeaders, isOwnerMode, requestedBusId, shouldLoadAssignments]);
 
   const loadBlueprint = useCallback(
     async (options?: { background?: boolean }) => {
@@ -566,7 +724,9 @@ export default function BoardedUsersBlueprint() {
         const headers = await buildHeaders();
         const params = new URLSearchParams();
         params.set("busId", selectedBusId);
-        params.set("direction", directionFilter);
+        if (!(isManualMode && directionFilter === "both")) {
+          params.set("direction", directionFilter);
+        }
         params.set("travelDate", resolvedTravelDate);
 
         const response = await fetch(
@@ -599,14 +759,16 @@ export default function BoardedUsersBlueprint() {
         }
       }
     },
-    [buildHeaders, directionFilter, resolvedTravelDate, selectedBusId],
+    [buildHeaders, directionFilter, isManualMode, resolvedTravelDate, selectedBusId],
   );
 
   useEffect(() => {
+    if (!shouldLoadAssignments) return;
     void loadAssignments();
-  }, [loadAssignments]);
+  }, [loadAssignments, shouldLoadAssignments]);
 
   useEffect(() => {
+    if (!shouldLoadAssignments) return;
     const timer = window.setInterval(() => {
       void loadAssignments();
     }, 5 * 60 * 1000);
@@ -614,9 +776,19 @@ export default function BoardedUsersBlueprint() {
     return () => {
       window.clearInterval(timer);
     };
-  }, [loadAssignments]);
+  }, [loadAssignments, shouldLoadAssignments]);
 
   useEffect(() => {
+    if (!isOwnerMode) return;
+    if (!requestedBusId) return;
+    if (!assignments.some((assignment) => assignment._id === requestedBusId)) {
+      return;
+    }
+    setOwnerSelectedBusId(requestedBusId);
+  }, [assignments, isOwnerMode, requestedBusId]);
+
+  useEffect(() => {
+    if (!isScheduleClockEnabled) return;
     const timer = window.setInterval(() => {
       setScheduleClockTick(Date.now());
     }, 60000);
@@ -624,7 +796,7 @@ export default function BoardedUsersBlueprint() {
     return () => {
       window.clearInterval(timer);
     };
-  }, []);
+  }, [isScheduleClockEnabled]);
 
   useEffect(() => {
     void loadBlueprint();
@@ -655,8 +827,6 @@ export default function BoardedUsersBlueprint() {
       void loadBlueprint({ background: true });
     });
   }, [loadBlueprint]);
-
-  const activeAssignment = autoSelection?.assignment || null;
 
   const seatEntries = useMemo(() => {
     return Object.entries(data?.seats || {}).sort((first, second) =>
@@ -754,43 +924,18 @@ export default function BoardedUsersBlueprint() {
   const totalBoarded = summary.totalBoarded ?? boardedUsers.length;
   const totalPending = summary.totalPending ?? Math.max(totalBooked - totalBoarded, 0);
 
-  const directionLabel = autoSelection
-    ? directionFilter === "return"
-      ? "Return"
-      : "Forward"
-    : "-";
-  const assignedBusLabel = activeAssignment
-    ? `${activeAssignment.busName || "Unnamed bus"} (${activeAssignment.busNumber || "-"})`
-    : assignmentsLoading
-      ? "Resolving assigned bus..."
-      : "No assigned bus";
-
-  const directionHint = !autoSelection
-    ? "Direction unavailable."
-    : autoSelection.mode === "active-trip"
-      ? "Direction auto-detected from current trip timing."
-      : autoSelection.mode === "upcoming-trip"
-        ? `Auto-switched by next trip in ${autoSelection.etaMinutes ?? 0} min.`
-        : "Schedule time not found, defaulting to Forward.";
-
-  const assignmentHint = !autoSelection
-    ? "No active conductor assignment found."
-    : autoSelection.isActiveToday
-      ? "Auto-selected from today's active assignment."
-      : "Auto-selected from closest assigned bus schedule.";
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-            Conductor Ops
+            {opsLabel}
           </p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             Boarded Users
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Today&apos;s seat blueprint with live boarded status.
+            {subtitle}
           </p>
         </div>
 
@@ -814,11 +959,29 @@ export default function BoardedUsersBlueprint() {
       <div className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-white/10 dark:bg-slate-900/70 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Assigned Bus
+            {busCardLabel}
           </p>
-          <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {assignedBusLabel}
-          </p>
+          {showBusSelector ? (
+            <select
+              value={selectedBusId}
+              onChange={(event) => setOwnerSelectedBusId(event.target.value)}
+              disabled={assignmentsLoading || assignments.length === 0}
+              className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:[color-scheme:dark]"
+            >
+              {assignments.length === 0 ? (
+                <option value="">No buses found</option>
+              ) : null}
+              {assignments.map((assignment) => (
+                <option key={assignment._id} value={assignment._id}>
+                  {`${assignment.busName || "Unnamed bus"} (${assignment.busNumber || "-"})`}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {assignedBusLabel}
+            </p>
+          )}
           <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
             {assignmentHint}
           </p>
@@ -828,9 +991,23 @@ export default function BoardedUsersBlueprint() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
             Direction
           </p>
-          <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {directionLabel}
-          </p>
+          {isManualMode ? (
+            <select
+              value={directionFilter}
+              onChange={(event) =>
+                setManualDirectionFilter(event.target.value as ManualDirectionFilter)
+              }
+              className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-700 focus:outline-none dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:[color-scheme:dark]"
+            >
+              <option value="both">Both directions</option>
+              <option value="forward">Forward</option>
+              <option value="return">Return</option>
+            </select>
+          ) : (
+            <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {directionLabel}
+            </p>
+          )}
           <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
             {directionHint}
           </p>
@@ -840,9 +1017,20 @@ export default function BoardedUsersBlueprint() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
             Travel Date
           </p>
-          <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {formatTravelDate(data?.travelDate || resolvedTravelDate)}
-          </p>
+          {isManualMode ? (
+            <input
+              type="date"
+              value={resolvedTravelDate}
+              onChange={(event) =>
+                setManualTravelDate(event.target.value || formatDateKey(new Date()))
+              }
+              className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-700 focus:outline-none dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:[color-scheme:dark]"
+            />
+          ) : (
+            <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {formatTravelDate(data?.travelDate || resolvedTravelDate)}
+            </p>
+          )}
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/5">
@@ -855,10 +1043,10 @@ export default function BoardedUsersBlueprint() {
         </div>
       </div>
 
-      {assignmentsError ? (
+      {showAssignmentsError ? (
         <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{assignmentsError}</span>
+          <span>{assignmentsError || "Unable to load buses."}</span>
         </div>
       ) : null}
 
@@ -869,9 +1057,9 @@ export default function BoardedUsersBlueprint() {
         </div>
       ) : null}
 
-      {!selectedBusId && !assignmentsLoading ? (
+      {shouldShowNoBusState ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 px-5 py-8 text-center text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-          No buses assigned for today.
+          {noBusMessage}
         </div>
       ) : null}
 
@@ -917,7 +1105,9 @@ export default function BoardedUsersBlueprint() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    {activeAssignment?.busName || data?.bus?.busName || "Assigned Bus"}
+                    {activeAssignment?.busName ||
+                      data?.bus?.busName ||
+                      titleBusFallback}
                   </p>
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">
                     {(activeAssignment?.route?.origin || data?.bus?.route?.origin || "-") +

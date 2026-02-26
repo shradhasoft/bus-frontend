@@ -54,6 +54,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Dashboard", icon: Activity },
     { label: "Manage Buses", icon: Bus },
     { label: "Track Bus", icon: MapPinned },
+    { label: "Boarded Users", icon: Users },
     { label: "Manage Bookings", icon: ClipboardList },
     { label: "Manage Cancels", icon: Ban },
     { label: "Manage Users", icon: Users },
@@ -68,6 +69,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Dashboard", icon: Activity },
     { label: "Manage Buses", icon: Bus },
     { label: "Track Bus", icon: MapPinned },
+    { label: "Boarded Users", icon: Users },
     { label: "Manage Bookings", icon: ClipboardList },
     { label: "Manage Cancels", icon: Ban },
     { label: "Manage Users", icon: Users },
@@ -89,7 +91,9 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Dashboard", icon: Activity },
     { label: "Manage conductor", icon: User },
     { label: "Manage Buses", icon: Bus },
+    { label: "Boarded Users", icon: Users },
     { label: "Track Bus", icon: MapPinned },
+    { label: "Manage Reviews", icon: MessageSquareText },
   ],
 };
 
@@ -276,6 +280,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     Dashboard: basePath,
     "Manage Users": `${basePath}/manage-users`,
     "Manage Buses": `${basePath}/manage-buses`,
+    "Boarded Users": `${basePath}/boarded-users`,
     "Track Bus": `${basePath}/track-bus`,
     "Manage Bookings": `${basePath}/manage-bookings`,
     "Manage Cancels": `${basePath}/manage-cancels`,

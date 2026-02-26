@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Eye, Plus, Search, Trash2, Pencil, Bus, MapPin } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Eye, Plus, Search, Trash2, Pencil, Bus, MapPin, Users } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 import {
   Dialog,
@@ -779,6 +780,7 @@ const buildFormStateFromBus = (bus: BusRecord): BusFormState => {
 };
 
 const ManageBusesPage = () => {
+  const router = useRouter();
   const [buses, setBuses] = useState<BusRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -1243,6 +1245,13 @@ const ManageBusesPage = () => {
     setFormError(null);
     setFormOpen(true);
     void loadBusDetails(bus);
+  };
+
+  const openOwnerBoardedUsersBlueprint = (bus: BusRecord) => {
+    if (!bus?._id) return;
+    const params = new URLSearchParams();
+    params.set("busId", bus._id);
+    router.push(`/bus-owner/dashboard/boarded-users?${params.toString()}`);
   };
 
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1717,6 +1726,27 @@ const ManageBusesPage = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap items-center gap-2">
+                          {isOwnerUser ? (
+                            <button
+                              type="button"
+                              onClick={() => openOwnerBoardedUsersBlueprint(bus)}
+                              disabled={bus.isDeleted === true || bus.isActive === false}
+                              title={
+                                bus.isDeleted === true || bus.isActive === false
+                                  ? "Blueprint is available for active buses only."
+                                  : "View boarded users blueprint"
+                              }
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                                bus.isDeleted === true || bus.isActive === false
+                                  ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-500"
+                                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:-translate-y-0.5 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-200",
+                              )}
+                            >
+                              <Users className="h-3.5 w-3.5" />
+                              Blueprint
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => openView(bus)}
