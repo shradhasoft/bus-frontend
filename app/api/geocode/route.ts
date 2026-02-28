@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 
 const MAPBOX_BASE = "https://api.mapbox.com/geocoding/v5/mapbox.places";
 
+type GeocodeResult = {
+  name: string;
+  displayName: string;
+  lat: number;
+  lng: number;
+};
+
+type MapboxFeature = {
+  center?: unknown;
+  text?: unknown;
+  place_name?: unknown;
+};
+
+const toStringValue = (value: unknown) =>
+  typeof value === "string" ? value : "";
+
 const toNumber = (value: string | null) => {
   if (!value) return null;
   const parsed = Number(value);
@@ -45,16 +61,23 @@ export const GET = async (request: Request) => {
 
       const results = Array.isArray(data?.features)
         ? data.features
-            .map((feature: any) => {
-              const center = feature?.center;
+            .map((feature: unknown): GeocodeResult | null => {
+              if (!feature || typeof feature !== "object") return null;
+              const { center, text, place_name: placeName } =
+                feature as MapboxFeature;
               if (!Array.isArray(center) || center.length < 2) return null;
               const [centerLng, centerLat] = center;
-              if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
+              if (
+                typeof centerLat !== "number" ||
+                typeof centerLng !== "number" ||
+                !Number.isFinite(centerLat) ||
+                !Number.isFinite(centerLng)
+              ) {
                 return null;
               }
               return {
-                name: feature?.text || feature?.place_name || "Unknown",
-                displayName: feature?.place_name || "",
+                name: toStringValue(text) || toStringValue(placeName) || "Unknown",
+                displayName: toStringValue(placeName),
                 lat: centerLat,
                 lng: centerLng,
               };
@@ -104,7 +127,7 @@ export const GET = async (request: Request) => {
       { message: "Missing query or coordinates." },
       { status: 400 }
     );
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Geocoding service error." },
       { status: 500 }

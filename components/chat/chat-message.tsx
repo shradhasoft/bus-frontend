@@ -7,13 +7,24 @@ import { User, Bus, Bot } from "lucide-react";
 
 export type MessageType = "text" | "options" | "card" | "error";
 
+type ChatCardDetails = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
+type ChatCardData = {
+  title?: string;
+  subtitle?: string;
+  details?: ChatCardDetails;
+};
+
 export interface Message {
   id: string;
   role: "user" | "bot";
   content: string;
   type?: MessageType;
   options?: { label: string; value: string }[];
-  data?: Record<string, any>; // For flexible card data
+  data?: ChatCardData;
   timestamp: Date;
 }
 

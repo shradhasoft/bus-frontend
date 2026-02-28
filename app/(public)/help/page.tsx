@@ -1,16 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
   BadgePercent,
-  BookOpen,
-  Bus,
   ChevronDown,
   ChevronUp,
-  Clock,
-  CreditCard,
   HelpCircle,
   Headphones,
   Mail,
@@ -20,11 +16,8 @@ import {
   RefreshCcw,
   Search,
   Shield,
-  Smartphone,
-  Star,
   Ticket,
   Users,
-  Zap,
 } from "lucide-react";
 
 /* ───────────────────── Data ───────────────────── */

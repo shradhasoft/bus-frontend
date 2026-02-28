@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Ticket,
   XCircle,
-  Clock,
   MapPin,
   Bus,
   User,

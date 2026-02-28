@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   onAuthStateChanged,
   signOut,
@@ -35,14 +35,12 @@ const ROLE_SWITCH_TARGETS: Record<string, string> = {
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [scrollingUp, setScrollingUp] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [themeReady, setThemeReady] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
-  const lastScrollY = useRef(0);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -53,8 +51,6 @@ const Navbar = () => {
     const onScroll = () => {
       const current = window.scrollY;
       setScrolled(current > 10);
-      setScrollingUp(current < lastScrollY.current && current > 10);
-      lastScrollY.current = current;
     };
 
     onScroll();

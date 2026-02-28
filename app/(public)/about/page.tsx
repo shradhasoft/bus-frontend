@@ -11,7 +11,6 @@ import {
   Headset,
   TrendingUp,
 } from "lucide-react";
-import Image from "next/image";
 
 export default function AboutPage() {
   const stats = [

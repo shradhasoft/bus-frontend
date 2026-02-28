@@ -449,7 +449,7 @@ const ProfilePage = () => {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          ...(headers as any),
+          ...headers,
         },
         body: JSON.stringify({ reason: cancelReason }),
       });
@@ -504,16 +504,19 @@ const ProfilePage = () => {
     setPage(1);
   }, [activeTab, debouncedSearch]);
 
-  const getAuthHeaders = useCallback(async () => {
-    const user = firebaseAuth.currentUser;
-    if (!user) return {};
-    try {
-      const token = await user.getIdToken();
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch {
-      return {};
-    }
-  }, []);
+  const getAuthHeaders = useCallback(
+    async (): Promise<Record<string, string>> => {
+      const user = firebaseAuth.currentUser;
+      if (!user) return {};
+      try {
+        const token = await user.getIdToken();
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      } catch {
+        return {};
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!authReady) return;
@@ -527,7 +530,7 @@ const ProfilePage = () => {
         const response = await fetch(apiUrl("/profile/view"), {
           method: "GET",
           credentials: "include",
-          headers: headers as any,
+          headers,
           signal: controller.signal,
           cache: "no-store",
         });
@@ -592,7 +595,7 @@ const ProfilePage = () => {
           {
             method: "GET",
             credentials: "include",
-            headers: headers as any,
+            headers,
             signal: controller.signal,
             cache: "no-store",
           },
@@ -668,7 +671,7 @@ const ProfilePage = () => {
           {
             method: "GET",
             credentials: "include",
-            headers: headers as any,
+            headers,
             cache: "no-store",
           },
         );
@@ -808,7 +811,7 @@ const ProfilePage = () => {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...(headers as any),
+            ...headers,
           },
           body: JSON.stringify(changedFields),
           cache: "no-store",
@@ -852,7 +855,7 @@ const ProfilePage = () => {
       const response = await fetch(apiUrl(activeDetail.invoice.downloadUrl), {
         method: "GET",
         credentials: "include",
-        headers: headers as any,
+        headers,
         cache: "no-store",
       });
 

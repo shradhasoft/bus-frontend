@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Loader2, Users, FileText, CheckCircle2, Ticket } from "lucide-react";
+import { Loader2, Users, CheckCircle2, Ticket } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 
 type BoardingStatus = "booked" | "boarded";

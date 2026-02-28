@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Minimize2, RefreshCw } from "lucide-react";
+import { Minimize2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import ChatInput from "./chat-input";

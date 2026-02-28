@@ -18,7 +18,6 @@ import {
   MapPin,
   MessageSquare,
   Star,
-  User,
   X,
 } from "lucide-react";
 
