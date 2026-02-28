@@ -15,7 +15,11 @@ import {
   User,
   XCircle,
 } from "lucide-react";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import {
+  Html5QrcodeScanType,
+  Html5QrcodeScanner,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +47,36 @@ type TicketData = {
   createdAt: string;
 };
 
+const extractBookingRefFromScan = (decodedText: string) => {
+  const raw = decodedText.trim();
+  if (!raw) return "";
+
+  try {
+    const parsedUrl = new URL(raw);
+    const queryRef =
+      parsedUrl.searchParams.get("bookingId") ||
+      parsedUrl.searchParams.get("bookingRef");
+    if (queryRef?.trim()) {
+      return decodeURIComponent(queryRef.trim());
+    }
+    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+    const lastPathToken = pathParts[pathParts.length - 1] || "";
+    return decodeURIComponent(lastPathToken.trim());
+  } catch {
+    const normalized = raw.replace(/^bookmyseat:\/\//i, "");
+    const keyedMatch = normalized.match(
+      /(?:bookingId|bookingRef)\s*[:=]\s*([A-Za-z0-9-]+)/i,
+    );
+    if (keyedMatch?.[1]) return keyedMatch[1].trim();
+
+    const pathParts = normalized.split("/").filter(Boolean);
+    if (pathParts.length > 0) {
+      return pathParts[pathParts.length - 1].trim();
+    }
+    return normalized;
+  }
+};
+
 export default function VerifyTicketPage() {
   const [bookingRef, setBookingRef] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,10 +90,12 @@ export default function VerifyTicketPage() {
   const [boardingSuccess, setBoardingSuccess] = useState(false);
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scanRequestInFlightRef = useRef(false);
 
   const fetchTicket = React.useCallback(
     async (ref: string) => {
-      if (!ref.trim()) return;
+      const sanitizedRef = ref.trim();
+      if (!sanitizedRef) return;
       setLoading(true);
       setError(null);
       setTicket(null);
@@ -67,7 +103,12 @@ export default function VerifyTicketPage() {
       setBoardingError(null);
 
       try {
-        const response = await fetch(apiUrl(`/verify-ticket/${ref}`));
+        const response = await fetch(
+          apiUrl(`/verify-ticket/${encodeURIComponent(sanitizedRef)}`),
+          {
+            credentials: "include",
+          },
+        );
         const result = await response.json();
 
         if (!response.ok) {
@@ -139,33 +180,52 @@ export default function VerifyTicketPage() {
     if (activeTab === "scan") {
       const scanner = new Html5QrcodeScanner(
         "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        {
+          fps: 10,
+          qrbox: { width: 260, height: 260 },
+          rememberLastUsedCamera: true,
+          showTorchButtonIfSupported: true,
+          showZoomSliderIfSupported: true,
+          useBarCodeDetectorIfSupported: true,
+          supportedScanTypes: [
+            Html5QrcodeScanType.SCAN_TYPE_CAMERA,
+            Html5QrcodeScanType.SCAN_TYPE_FILE,
+          ],
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        },
         false,
       );
       scannerRef.current = scanner;
 
       scanner.render(
         (decodedText) => {
-          // decodedText is expected to be a URL like http://localhost:3000/ticket/BK-1234
-          // Or a bare booking ref. Let's try to extract the ID from the end.
-          try {
-            const parts = decodedText.split("/");
-            const extractedId = parts[parts.length - 1];
-            if (extractedId) {
-              setBookingRef(extractedId);
-              fetchTicket(extractedId);
-            }
-          } catch {
-            setBookingRef(decodedText);
-            fetchTicket(decodedText);
-          }
+          if (scanRequestInFlightRef.current) return;
+
+          const extractedRef = extractBookingRefFromScan(decodedText);
+          if (!extractedRef) return;
+
+          scanRequestInFlightRef.current = true;
+          setBookingRef(extractedRef);
+          void fetchTicket(extractedRef).finally(() => {
+            scanRequestInFlightRef.current = false;
+          });
         },
-        () => {
-          // Ignore frequent scan errors
+        (errorMessage) => {
+          // Ignore frequent "no code found" errors while scanning.
+          if (
+            errorMessage.includes(
+              "No MultiFormat Readers were able to detect the code",
+            )
+          ) {
+            return;
+          }
+
+          // Keep scanner running for intermittent camera/file decode errors.
         },
       );
 
       return () => {
+        scanRequestInFlightRef.current = false;
         scanner.clear().catch(console.error);
         scannerRef.current = null;
       };
@@ -222,8 +282,14 @@ export default function VerifyTicketPage() {
           </div>
 
           {activeTab === "scan" ? (
-            <div className="w-full relative min-h-[300px] flex items-center justify-center rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-white/10">
-              <div id="qr-reader" className="w-full h-full border-none!" />
+            <div className="space-y-3">
+              <div className="w-full relative min-h-[300px] flex items-center justify-center rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-white/10">
+                <div id="qr-reader" className="w-full h-full border-none!" />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                If image scan fails, upload a tightly-cropped QR image with a
+                white border, or switch to manual booking ID entry.
+              </p>
             </div>
           ) : (
             <form onSubmit={handleManualSubmit} className="space-y-4">

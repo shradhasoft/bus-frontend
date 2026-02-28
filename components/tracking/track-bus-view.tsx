@@ -473,9 +473,10 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
     socketRef.current.emit(
       "tracking:subscribe",
       { busNumber: normalized },
-      (ack: { success: boolean; message?: string }) => {
-        if (!ack?.success) {
-          setSocketError(ack?.message || "Subscribe failed.");
+      (ack: unknown) => {
+        const payload = ack as { success?: boolean; message?: string };
+        if (!payload?.success) {
+          setSocketError(payload?.message || "Subscribe failed.");
           return;
         }
         subscribedBusRef.current = normalized;
@@ -516,26 +517,28 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
       setSocketStatus("disconnected");
     });
 
-    socket.on("connect_error", (error: { message?: string }) => {
+    socket.on("connect_error", (error: unknown) => {
+      const err = error as { message?: string };
       setSocketStatus("disconnected");
-      setSocketError(error?.message || "Socket connection failed.");
+      setSocketError(err?.message || "Socket connection failed.");
     });
 
-    socket.on("tracking.location", (payload: LiveLocation) => {
+    socket.on("tracking.location", (payload: unknown) => {
+      const livePayload = payload as LiveLocation;
       const activeBus = selectedBusNumberRef.current;
-      const payloadBus = normalizeBusNumber(payload?.busNumber);
+      const payloadBus = normalizeBusNumber(livePayload?.busNumber);
       if (!activeBus || !payloadBus || payloadBus !== activeBus) return;
       if (
-        !Number.isFinite(Number(payload.lat)) ||
-        !Number.isFinite(Number(payload.lng))
+        !Number.isFinite(Number(livePayload.lat)) ||
+        !Number.isFinite(Number(livePayload.lng))
       ) {
         return;
       }
 
       setLiveLocation({
-        ...payload,
-        lat: Number(payload.lat),
-        lng: Number(payload.lng),
+        ...livePayload,
+        lat: Number(livePayload.lat),
+        lng: Number(livePayload.lng),
       });
     });
 

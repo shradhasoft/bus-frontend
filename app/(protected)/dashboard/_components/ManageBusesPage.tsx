@@ -1,9 +1,24 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Eye, Plus, Search, Trash2, Pencil, Bus, MapPin, Users } from "lucide-react";
+import {
+  Eye,
+  Plus,
+  Search,
+  Trash2,
+  Pencil,
+  Bus,
+  MapPin,
+  Users,
+} from "lucide-react";
 import { apiUrl } from "@/lib/api";
 import {
   Dialog,
@@ -22,7 +37,11 @@ const MapPicker = dynamic(() => import("@/components/map-picker"), {
   ssr: false,
 });
 
-type TripTime = { hours?: number; minutes?: number } | string | null | undefined;
+type TripTime =
+  | { hours?: number; minutes?: number }
+  | string
+  | null
+  | undefined;
 
 type SeatLayout = {
   schemaVersion?: number;
@@ -149,6 +168,11 @@ type BusRecord = {
     origin?: string | null;
     destination?: string | null;
     stops?: BusRouteStop[];
+    cancellationPolicy?: {
+      before24h?: number | null;
+      before12h?: number | null;
+      noShow?: number | null;
+    } | null;
   } | null;
   seatLayout?: Record<string, unknown> | null;
   farePerKm?: number;
@@ -318,7 +342,7 @@ const formatTimeInput = (value: TripTime) => {
     const minutes = value.minutes ?? 0;
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
       2,
-      "0"
+      "0",
     )}`;
   }
   return "";
@@ -332,7 +356,9 @@ const formatDateInput = (value?: string | Date | null) => {
 };
 
 const normalizeSeatToken = (value?: string | null) =>
-  String(value || "").trim().toUpperCase();
+  String(value || "")
+    .trim()
+    .toUpperCase();
 
 const parseNumber = (value: string) => {
   if (!value.trim()) return null;
@@ -356,7 +382,10 @@ const buildApiErrorMessage = (payload: unknown) => {
       ? normalizedPayload.message
       : "Unable to save bus.";
 
-  if (Array.isArray(normalizedPayload.errors) && normalizedPayload.errors.length > 0) {
+  if (
+    Array.isArray(normalizedPayload.errors) &&
+    normalizedPayload.errors.length > 0
+  ) {
     const details = normalizedPayload.errors
       .map((error) => {
         const field =
@@ -581,19 +610,34 @@ const buildRouteFromForm = (state: BusFormState) => {
     const lat = parseNumber(stop.lat);
     const lng = parseNumber(stop.lng);
     if (lat === null || lng === null) {
-      return { route: null, error: "Each stop must include latitude and longitude." };
+      return {
+        route: null,
+        error: "Each stop must include latitude and longitude.",
+      };
     }
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return { route: null, error: "Latitude/longitude values are out of range." };
+      return {
+        route: null,
+        error: "Latitude/longitude values are out of range.",
+      };
     }
-    if (!isValidTimeInput(stop.upArrival) || !isValidTimeInput(stop.upDeparture)) {
-      return { route: null, error: "Up trip times must be valid HH:MM values." };
+    if (
+      !isValidTimeInput(stop.upArrival) ||
+      !isValidTimeInput(stop.upDeparture)
+    ) {
+      return {
+        route: null,
+        error: "Up trip times must be valid HH:MM values.",
+      };
     }
     if (
       !isValidTimeInput(stop.downArrival) ||
       !isValidTimeInput(stop.downDeparture)
     ) {
-      return { route: null, error: "Down trip times must be valid HH:MM values." };
+      return {
+        route: null,
+        error: "Down trip times must be valid HH:MM values.",
+      };
     }
 
     stops.push({
@@ -697,7 +741,8 @@ const buildFormStateFromBus = (bus: BusRecord): BusFormState => {
   const layoutType = layout?.layoutType ?? "2x2";
   const orientationFront =
     normalizeSeatToken(layout?.orientation?.front) || "TOP";
-  const driverSide = normalizeSeatToken(layout?.orientation?.driverSide) || "LEFT";
+  const driverSide =
+    normalizeSeatToken(layout?.orientation?.driverSide) || "LEFT";
   const seatKind =
     normalizeSeatToken(firstSeat?.kind) ||
     (bus.features?.busType?.toLowerCase().includes("sleeper")
@@ -705,19 +750,20 @@ const buildFormStateFromBus = (bus: BusRecord): BusFormState => {
       : "SEATER");
   const seatClass = normalizeSeatToken(firstSeat?.class) || "ECONOMY";
 
-  const stops = Array.isArray(bus.route?.stops) && bus.route?.stops?.length
-    ? bus.route?.stops.map((stop) => ({
-        city: stop?.city ?? "",
-        lat:
-          stop?.location?.lat !== undefined ? String(stop.location.lat) : "",
-        lng:
-          stop?.location?.lng !== undefined ? String(stop.location.lng) : "",
-        upArrival: formatTimeInput(stop?.upTrip?.arrivalTime),
-        upDeparture: formatTimeInput(stop?.upTrip?.departureTime),
-        downArrival: formatTimeInput(stop?.downTrip?.arrivalTime),
-        downDeparture: formatTimeInput(stop?.downTrip?.departureTime),
-      }))
-    : [createEmptyStop(), createEmptyStop()];
+  const stops =
+    Array.isArray(bus.route?.stops) && bus.route?.stops?.length
+      ? bus.route?.stops.map((stop) => ({
+          city: stop?.city ?? "",
+          lat:
+            stop?.location?.lat !== undefined ? String(stop.location.lat) : "",
+          lng:
+            stop?.location?.lng !== undefined ? String(stop.location.lng) : "",
+          upArrival: formatTimeInput(stop?.upTrip?.arrivalTime),
+          upDeparture: formatTimeInput(stop?.upTrip?.departureTime),
+          downArrival: formatTimeInput(stop?.downTrip?.arrivalTime),
+          downDeparture: formatTimeInput(stop?.downTrip?.departureTime),
+        }))
+      : [createEmptyStop(), createEmptyStop()];
 
   return {
     busName: bus.busName ?? "",
@@ -792,7 +838,7 @@ const ManageBusesPage = () => {
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit" | "view">(
-    "create"
+    "create",
   );
   const [selectedBus, setSelectedBus] = useState<BusRecord | null>(null);
   const [formState, setFormState] = useState<BusFormState>(DEFAULT_FORM);
@@ -820,9 +866,10 @@ const ManageBusesPage = () => {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState(DEFAULT_MAP_CENTER);
   const [mapZoom, setMapZoom] = useState(DEFAULT_MAP_ZOOM);
-  const [mapMarker, setMapMarker] = useState<{ lat: number; lng: number } | null>(
-    null
-  );
+  const [mapMarker, setMapMarker] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const totalPages = useMemo(() => {
     if (!total) return 1;
@@ -832,7 +879,7 @@ const ManageBusesPage = () => {
 
   const seatLayoutPreview = useMemo(
     () => buildSeatLayoutFromForm(formState),
-    [formState]
+    [formState],
   );
 
   const seatLayout = seatLayoutPreview.layout;
@@ -862,7 +909,7 @@ const ManageBusesPage = () => {
         return { ...prev, routeStops: nextStops };
       });
     },
-    []
+    [],
   );
 
   const openLocationPicker = (index: number) => {
@@ -885,7 +932,7 @@ const ManageBusesPage = () => {
       setMapZoom(14);
       setMapMarker({ lat: result.lat, lng: result.lng });
     },
-    [activeStopIndex, updateStopAtIndex]
+    [activeStopIndex, updateStopAtIndex],
   );
 
   const handleMapPick = useCallback(
@@ -901,10 +948,9 @@ const ManageBusesPage = () => {
       setGeoError(null);
 
       try {
-        const response = await fetch(
-          `/api/geocode?lat=${lat}&lng=${lng}`,
-          { method: "GET" }
-        );
+        const response = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`, {
+          method: "GET",
+        });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) return;
         const result = Array.isArray(data?.results) ? data.results[0] : null;
@@ -916,7 +962,7 @@ const ManageBusesPage = () => {
         setGeoError("Unable to look up the selected location.");
       }
     },
-    [activeStopIndex, updateStopAtIndex]
+    [activeStopIndex, updateStopAtIndex],
   );
 
   useEffect(() => {
@@ -966,7 +1012,7 @@ const ManageBusesPage = () => {
       try {
         const response = await fetch(
           `/api/geocode?q=${encodeURIComponent(query)}`,
-          { method: "GET", signal: controller.signal }
+          { method: "GET", signal: controller.signal },
         );
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -1012,7 +1058,7 @@ const ManageBusesPage = () => {
             method: "GET",
             credentials: "include",
             signal,
-          }
+          },
         );
 
         const payload = await response.json().catch(() => ({}));
@@ -1025,10 +1071,7 @@ const ManageBusesPage = () => {
         const totalCount = Number(data.total) || 0;
         setTotal(totalCount);
 
-        const computedTotalPages = Math.max(
-          1,
-          Math.ceil(totalCount / limit)
-        );
+        const computedTotalPages = Math.max(1, Math.ceil(totalCount / limit));
         if (page > computedTotalPages) {
           setPage(computedTotalPages);
         }
@@ -1040,7 +1083,7 @@ const ManageBusesPage = () => {
         setLoading(false);
       }
     },
-    [limit, page, search]
+    [limit, page, search],
   );
 
   const loadOwners = useCallback(
@@ -1068,7 +1111,7 @@ const ManageBusesPage = () => {
             method: "GET",
             credentials: "include",
             signal,
-          }
+          },
         );
 
         const payload = await response.json().catch(() => ({}));
@@ -1082,11 +1125,14 @@ const ManageBusesPage = () => {
         const data = payload?.data ?? {};
         const users = Array.isArray(data.users) ? data.users : [];
         const ownerList = users
-          .filter((user) => typeof user.email === "string" && user.email.trim())
-          .map((user) => ({
-            _id: user._id,
-            email: user.email,
-            fullName: user.fullName ?? "",
+          .filter(
+            (user: Record<string, unknown>) =>
+              typeof user.email === "string" && user.email.trim(),
+          )
+          .map((user: Record<string, unknown>) => ({
+            _id: String(user._id),
+            email: String(user.email),
+            fullName: user.fullName ? String(user.fullName) : "",
           }));
         setOwnerOptions(ownerList);
       } catch (err) {
@@ -1097,7 +1143,7 @@ const ManageBusesPage = () => {
         setOwnerLoading(false);
       }
     },
-    [isOwnerUser]
+    [isOwnerUser],
   );
 
   useEffect(() => {
@@ -1163,7 +1209,12 @@ const ManageBusesPage = () => {
   }, [formOpen, formMode, ownerSearch, loadOwners, isOwnerUser]);
 
   useEffect(() => {
-    if (!formOpen || formMode !== "create" || !isOwnerUser || !currentUserEmail) {
+    if (
+      !formOpen ||
+      formMode !== "create" ||
+      !isOwnerUser ||
+      !currentUserEmail
+    ) {
       return;
     }
 
@@ -1217,7 +1268,9 @@ const ManageBusesPage = () => {
     setFormMode("create");
     setSelectedBus(null);
     const createDraft = draftRef.current.create ?? DEFAULT_FORM;
-    const ownerEmail = isOwnerUser ? currentUserEmail : createDraft.busOwnerEmail;
+    const ownerEmail = isOwnerUser
+      ? currentUserEmail
+      : createDraft.busOwnerEmail;
     setFormState({
       ...createDraft,
       busOwnerEmail: ownerEmail || createDraft.busOwnerEmail,
@@ -1278,7 +1331,9 @@ const ManageBusesPage = () => {
     }
 
     const resolvedBusOwnerEmail = (
-      isOwnerUser ? currentUserEmail || formState.busOwnerEmail : formState.busOwnerEmail
+      isOwnerUser
+        ? currentUserEmail || formState.busOwnerEmail
+        : formState.busOwnerEmail
     )
       .trim()
       .toLowerCase();
@@ -1320,7 +1375,8 @@ const ManageBusesPage = () => {
       return;
     }
 
-    const totalSeats = seatLayoutResult.meta?.totalSeats ?? parseNumber(formState.totalSeats);
+    const totalSeats =
+      seatLayoutResult.meta?.totalSeats ?? parseNumber(formState.totalSeats);
     if (!totalSeats || totalSeats < 1) {
       setFormError("Total seats must be a valid number.");
       return;
@@ -1351,7 +1407,7 @@ const ManageBusesPage = () => {
         expiry: formState.insuranceExpiry || undefined,
       };
       const hasInsurance = Object.values(insurancePayload).some(
-        (value) => value !== undefined
+        (value) => value !== undefined,
       );
 
       const seatLayout = seatLayoutResult.layout;
@@ -1417,13 +1473,10 @@ const ManageBusesPage = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const response = await fetch(
-        apiUrl(`/admin/buses/${deleteTarget._id}`),
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(apiUrl(`/admin/buses/${deleteTarget._id}`), {
+        method: "DELETE",
+        credentials: "include",
+      });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.message || "Unable to delete bus.");
@@ -1442,7 +1495,10 @@ const ManageBusesPage = () => {
   const endIndex = total === 0 ? 0 : Math.min(page * limit, total);
   const isReadOnly = formMode === "view" || detailsLoading;
 
-  const renderDeckGrid = (deck: SeatLayoutDeck | undefined, deckName: string) => {
+  const renderDeckGrid = (
+    deck: SeatLayoutDeck | undefined,
+    deckName: string,
+  ) => {
     if (!deck?.grid) {
       return (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200">
@@ -1472,7 +1528,7 @@ const ManageBusesPage = () => {
       return 0;
     };
     const sortedElements = [...elements].sort(
-      (a, b) => priority(a) - priority(b)
+      (a, b) => priority(a) - priority(b),
     );
 
     return (
@@ -1538,7 +1594,7 @@ const ManageBusesPage = () => {
                     "flex items-center justify-center rounded-md border border-slate-200/70 text-[10px] font-semibold uppercase tracking-[0.08em] shadow-sm",
                     getElementStyles(type),
                     type === "GAP" && "border-transparent",
-                    type === "SEAT" && getSeatFlagClass(seat)
+                    type === "SEAT" && getSeatFlagClass(seat),
                   )}
                   style={{
                     gridColumn: `${x + 1} / span ${w}`,
@@ -1680,7 +1736,9 @@ const ManageBusesPage = () => {
                               {getBusDisplayName(bus)}
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {bus.busNumber ? `No: ${bus.busNumber}` : "No number"}
+                              {bus.busNumber
+                                ? `No: ${bus.busNumber}`
+                                : "No number"}
                             </p>
                           </div>
                         </div>
@@ -1715,7 +1773,7 @@ const ManageBusesPage = () => {
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em]",
-                            status.className
+                            status.className,
                           )}
                         >
                           {status.label}
@@ -1729,8 +1787,12 @@ const ManageBusesPage = () => {
                           {isOwnerUser ? (
                             <button
                               type="button"
-                              onClick={() => openOwnerBoardedUsersBlueprint(bus)}
-                              disabled={bus.isDeleted === true || bus.isActive === false}
+                              onClick={() =>
+                                openOwnerBoardedUsersBlueprint(bus)
+                              }
+                              disabled={
+                                bus.isDeleted === true || bus.isActive === false
+                              }
                               title={
                                 bus.isDeleted === true || bus.isActive === false
                                   ? "Blueprint is available for active buses only."
@@ -1811,7 +1873,7 @@ const ManageBusesPage = () => {
                   "rounded-lg border px-3 py-1 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5",
                   value === page
                     ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900"
-                    : "border-slate-200/80 dark:border-white/10"
+                    : "border-slate-200/80 dark:border-white/10",
                 )}
               >
                 {value}
@@ -2013,7 +2075,7 @@ const ManageBusesPage = () => {
                             owner.email?.toLowerCase() ===
                               formState.busOwnerEmail.trim().toLowerCase()
                               ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900"
-                              : ""
+                              : "",
                           )}
                         >
                           <span>{owner.fullName || owner.email}</span>
@@ -2401,7 +2463,7 @@ const ManageBusesPage = () => {
                               setFormState((prev) => ({
                                 ...prev,
                                 routeStops: prev.routeStops.filter(
-                                  (_, stopIndex) => stopIndex !== index
+                                  (_, stopIndex) => stopIndex !== index,
                                 ),
                               }))
                             }
@@ -2737,8 +2799,7 @@ const ManageBusesPage = () => {
               <div className="rounded-xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span>
-                    Seats per row:{" "}
-                    {seatLayoutPreview.meta?.seatsPerRow ?? "—"}
+                    Seats per row: {seatLayoutPreview.meta?.seatsPerRow ?? "—"}
                   </span>
                   <span>Grid cols: {seatLayoutPreview.meta?.cols ?? "—"}</span>
                   <span>
@@ -2807,7 +2868,7 @@ const ManageBusesPage = () => {
                         key={item.type}
                         className={cn(
                           "inline-flex items-center gap-2 rounded-full border border-slate-200/70 px-3 py-1",
-                          getElementStyles(item.type)
+                          getElementStyles(item.type),
                         )}
                       >
                         {item.label}
@@ -2830,7 +2891,7 @@ const ManageBusesPage = () => {
                       </TabsList>
                       {deckNames.map((deckName) => {
                         const deck = seatLayout.decks?.find(
-                          (item) => normalizeSeatToken(item.deck) === deckName
+                          (item) => normalizeSeatToken(item.deck) === deckName,
                         );
                         return (
                           <TabsContent key={deckName} value={deckName}>
@@ -3046,7 +3107,9 @@ const ManageBusesPage = () => {
             <DialogTitle>Delete bus</DialogTitle>
             <DialogDescription>
               This will permanently remove{" "}
-              <strong>{deleteTarget ? getBusDisplayName(deleteTarget) : "bus"}</strong>
+              <strong>
+                {deleteTarget ? getBusDisplayName(deleteTarget) : "bus"}
+              </strong>
               . This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

@@ -79,8 +79,7 @@ const distanceMeters = (
   const lat2 = toRad(second.lat);
   const sinLat = Math.sin(dLat / 2);
   const sinLng = Math.sin(dLng / 2);
-  const h =
-    sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
   const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   return earthRadius * c;
 };
@@ -153,17 +152,24 @@ const ConductorDashboardPage = () => {
   const [lastSentAt, setLastSentAt] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [retryDelayMs, setRetryDelayMs] = useState(0);
-  const [currentLocation, setCurrentLocation] = useState<LocationPoint | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<LocationPoint | null>(
+    null,
+  );
 
   const watchIdRef = useRef<number | null>(null);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushingRef = useRef(false);
   const backoffRef = useRef(1000);
-  const lastCapturedRef = useRef<{ lat: number; lng: number; ts: number } | null>(null);
+  const lastCapturedRef = useRef<{
+    lat: number;
+    lng: number;
+    ts: number;
+  } | null>(null);
 
   const selectedBus = useMemo(
-    () => assignments.find((item) => item.busNumber === selectedBusNumber) || null,
+    () =>
+      assignments.find((item) => item.busNumber === selectedBusNumber) || null,
     [assignments, selectedBusNumber],
   );
 
@@ -175,7 +181,9 @@ const ConductorDashboardPage = () => {
   }, [currentLocation]);
 
   const buildHeaders = useCallback(async () => {
-    const token = await firebaseAuth.currentUser?.getIdToken().catch(() => null);
+    const token = await firebaseAuth.currentUser
+      ?.getIdToken()
+      .catch(() => null);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -205,13 +213,18 @@ const ConductorDashboardPage = () => {
       setAssignments(rows);
       setSelectedBusNumber((current) => {
         if (rows.length === 0) return "";
-        if (current && rows.some((item) => item.busNumber === current)) {
+        if (
+          current &&
+          rows.some((item: Assignment) => item.busNumber === current)
+        ) {
           return current;
         }
         return String(rows[0].busNumber || "");
       });
     } catch (error) {
-      setAssignmentsError((error as Error).message || "Unable to load assignments.");
+      setAssignmentsError(
+        (error as Error).message || "Unable to load assignments.",
+      );
     } finally {
       setAssignmentsLoading(false);
     }
@@ -222,21 +235,18 @@ const ConductorDashboardPage = () => {
     setQueueCount(queue.length);
   }, []);
 
-  const scheduleRetry = useCallback(
-    (callback: () => void) => {
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-      }
-      const delay = Math.min(backoffRef.current, 30000);
-      setRetryDelayMs(delay);
-      retryTimerRef.current = setTimeout(() => {
-        setRetryDelayMs(0);
-        callback();
-      }, delay);
-      backoffRef.current = Math.min(backoffRef.current * 2, 30000);
-    },
-    [],
-  );
+  const scheduleRetry = useCallback((callback: () => void) => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+    }
+    const delay = Math.min(backoffRef.current, 30000);
+    setRetryDelayMs(delay);
+    retryTimerRef.current = setTimeout(() => {
+      setRetryDelayMs(0);
+      callback();
+    }, delay);
+    backoffRef.current = Math.min(backoffRef.current * 2, 30000);
+  }, []);
 
   const flushQueue = useCallback(async () => {
     if (flushingRef.current) return;
@@ -254,7 +264,9 @@ const ConductorDashboardPage = () => {
     try {
       const first = queue[0];
       const targetBus = first.busNumber;
-      const batch = queue.filter((point) => point.busNumber === targetBus).slice(0, BATCH_SIZE);
+      const batch = queue
+        .filter((point) => point.busNumber === targetBus)
+        .slice(0, BATCH_SIZE);
 
       const payload = {
         busNumber: targetBus,
@@ -490,13 +502,16 @@ const ConductorDashboardPage = () => {
                       key={assignment._id}
                       value={assignment.busNumber || ""}
                     >
-                      {assignment.busName || "Unnamed"} ({assignment.busNumber || "-"})
+                      {assignment.busName || "Unnamed"} (
+                      {assignment.busNumber || "-"})
                     </option>
                   ))
                 )}
               </select>
               {assignmentsError ? (
-                <p className="mt-2 text-xs font-semibold text-rose-600">{assignmentsError}</p>
+                <p className="mt-2 text-xs font-semibold text-rose-600">
+                  {assignmentsError}
+                </p>
               ) : null}
             </div>
 
@@ -505,9 +520,13 @@ const ConductorDashboardPage = () => {
                 Route
               </p>
               <p className="mt-2 text-sm font-semibold text-slate-900">
-                {(selectedBus?.route?.origin || "-") + " -> " + (selectedBus?.route?.destination || "-")}
+                {(selectedBus?.route?.origin || "-") +
+                  " -> " +
+                  (selectedBus?.route?.destination || "-")}
               </p>
-              <p className="text-xs text-slate-500">{selectedBus?.route?.routeCode || "-"}</p>
+              <p className="text-xs text-slate-500">
+                {selectedBus?.route?.routeCode || "-"}
+              </p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
@@ -533,23 +552,37 @@ const ConductorDashboardPage = () => {
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
               <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Queue</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">{queueCount}</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Queue
+                </p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">
+                  {queueCount}
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Upload</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Upload
+                </p>
                 <p className="mt-1 text-lg font-semibold text-slate-900">
                   {sending ? "Sending..." : "Idle"}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Last Sent</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(lastSentAt)}</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Last Sent
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatDateTime(lastSentAt)}
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Retry In</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Retry In
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {retryDelayMs > 0 ? `${Math.ceil(retryDelayMs / 1000)}s` : "-"}
+                  {retryDelayMs > 0
+                    ? `${Math.ceil(retryDelayMs / 1000)}s`
+                    : "-"}
                 </p>
               </div>
             </div>
@@ -565,30 +598,50 @@ const ConductorDashboardPage = () => {
           <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/60">
             <div className="grid gap-4 border-b border-slate-200 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Bus</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Bus
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {selectedBus?.busName || "-"}
                 </p>
-                <p className="text-xs text-slate-500">{selectedBus?.busNumber || "-"}</p>
+                <p className="text-xs text-slate-500">
+                  {selectedBus?.busNumber || "-"}
+                </p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Operator</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedBus?.operator || "-"}</p>
-                <p className="text-xs text-slate-500">{selectedBus?.route?.routeCode || "-"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Operator
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {selectedBus?.operator || "-"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {selectedBus?.route?.routeCode || "-"}
+                </p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Live Coordinates</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Live Coordinates
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {currentLocation
                     ? `${currentLocation.lat.toFixed(6)}, ${currentLocation.lng.toFixed(6)}`
                     : "-"}
                 </p>
-                <p className="text-xs text-slate-500">{formatDateTime(currentLocation?.capturedAt)}</p>
+                <p className="text-xs text-slate-500">
+                  {formatDateTime(currentLocation?.capturedAt)}
+                </p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Status</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Status
+                </p>
                 <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  {isTracking ? <Locate className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                  {isTracking ? (
+                    <Locate className="h-4 w-4" />
+                  ) : (
+                    <WifiOff className="h-4 w-4" />
+                  )}
                   {isTracking ? "Capturing" : "Stopped"}
                 </p>
                 <p className="text-xs text-slate-500">
@@ -600,7 +653,11 @@ const ConductorDashboardPage = () => {
             <div className="h-[520px] bg-slate-100">
               <LiveMap
                 center={mapCenter}
-                marker={currentLocation ? { lat: currentLocation.lat, lng: currentLocation.lng } : null}
+                marker={
+                  currentLocation
+                    ? { lat: currentLocation.lat, lng: currentLocation.lng }
+                    : null
+                }
                 route={[]}
                 zoom={currentLocation ? 15 : 10}
               />
@@ -608,22 +665,33 @@ const ConductorDashboardPage = () => {
 
             <div className="grid gap-3 border-t border-slate-200 px-5 py-4 text-xs sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Accuracy</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Accuracy
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {currentLocation?.accuracy ? `${Math.round(currentLocation.accuracy)} m` : "-"}
+                  {currentLocation?.accuracy
+                    ? `${Math.round(currentLocation.accuracy)} m`
+                    : "-"}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Speed</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Speed
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {currentLocation?.speed ? `${(currentLocation.speed * 3.6).toFixed(1)} km/h` : "-"}
+                  {currentLocation?.speed
+                    ? `${(currentLocation.speed * 3.6).toFixed(1)} km/h`
+                    : "-"}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Direction</p>
+                <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Direction
+                </p>
                 <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
                   <Navigation className="h-4 w-4" />
-                  {currentLocation?.heading !== undefined && currentLocation?.heading !== null
+                  {currentLocation?.heading !== undefined &&
+                  currentLocation?.heading !== null
                     ? `${Math.round(currentLocation.heading)}°`
                     : "-"}
                 </p>
@@ -632,7 +700,8 @@ const ConductorDashboardPage = () => {
 
             <div className="border-t border-slate-200 px-5 py-3 text-xs text-slate-500">
               <CloudUpload className="mr-1 inline h-4 w-4" />
-              Telemetry is sent in reliable HTTPS batches with offline queue + retry.
+              Telemetry is sent in reliable HTTPS batches with offline queue +
+              retry.
             </div>
           </section>
         </div>

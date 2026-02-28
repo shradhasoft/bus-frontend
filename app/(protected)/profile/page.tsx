@@ -1403,9 +1403,9 @@ const ProfilePage = () => {
                           ? `${window.location.origin}/ticket/${activeDetail.bookingId || activeDetail.id}`
                           : ""
                       }
-                      size={140}
+                      size={180}
                       level="H"
-                      includeMargin={false}
+                      includeMargin
                       fgColor="#0f172a"
                       bgColor="#ffffff"
                     />

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  Suspense,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -57,6 +63,11 @@ type SearchResult = {
       arrivalTime?: { hours?: number; minutes?: number } | string | null;
       departureTime?: { hours?: number; minutes?: number } | string | null;
     }[];
+    cancellationPolicy?: {
+      before24h?: number;
+      before12h?: number;
+      noShow?: number;
+    };
   };
   amenities?: {
     ac?: boolean;
@@ -73,6 +84,7 @@ type SearchResult = {
   };
   travelDate?: string;
   dayOfWeek?: string;
+  operatingDays?: string[];
 };
 
 type BusDetails = {
@@ -433,7 +445,7 @@ const titleCase = (value?: string) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-const BusTicketsPage = () => {
+const BusTicketsContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -921,7 +933,7 @@ const BusTicketsPage = () => {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4 shadow-sm dark:shadow-black/20 backdrop-blur-sm">
+        <div className="relative z-30 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-4 shadow-sm dark:shadow-black/20 backdrop-blur-sm">
           <BusSearchForm
             initialFrom={origin}
             initialTo={destination}
@@ -2672,6 +2684,20 @@ const BusTicketsPage = () => {
         </DialogContent>
       </Dialog>
     </div>
+  );
+};
+
+const BusTicketsPage = () => {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fff1f2,_#f8fafc_40%)] px-4 pb-14 pt-24 sm:px-6 lg:px-8 flex items-center justify-center">
+          Loading buses...
+        </div>
+      }
+    >
+      <BusTicketsContent />
+    </Suspense>
   );
 };
 

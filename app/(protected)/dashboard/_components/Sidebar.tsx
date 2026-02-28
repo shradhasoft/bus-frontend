@@ -286,7 +286,10 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     "Manage Cancels": `${basePath}/manage-cancels`,
     "Manage Offers": `${basePath}/manage-offers`,
     "Manage Transactions": `${basePath}/manage-transactions`,
+    "Manage Tickets": `${basePath}/manage-tickets`,
     "Manage Reviews": `${basePath}/manage-reviews`,
+    "Callback Requests": `${basePath}/callback-requests`,
+    Broadcast: `${basePath}/broadcast`,
   };
 
   const isRouteMatch = (route: string) =>

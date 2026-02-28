@@ -138,7 +138,9 @@ const OwnerTrackBusView = () => {
   const subscribedBusRef = useRef<string | null>(null);
 
   const getAuthHeaders = useCallback(async () => {
-    const token = await firebaseAuth.currentUser?.getIdToken().catch(() => null);
+    const token = await firebaseAuth.currentUser
+      ?.getIdToken()
+      .catch(() => null);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -228,7 +230,10 @@ const OwnerTrackBusView = () => {
       const rows = Array.isArray(payload?.data) ? payload.data : [];
       setBuses(rows);
       setSelectedBusId((previous) => {
-        if (previous && rows.some((row: OwnerBusRecord) => row._id === previous)) {
+        if (
+          previous &&
+          rows.some((row: OwnerBusRecord) => row._id === previous)
+        ) {
           return previous;
         }
         return rows[0]?._id || null;
@@ -259,7 +264,9 @@ const OwnerTrackBusView = () => {
       try {
         const headers = await getAuthHeaders();
         const response = await fetch(
-          apiUrl(`/v1/telemetry/owner/buses/${encodeURIComponent(normalized)}/latest`),
+          apiUrl(
+            `/v1/telemetry/owner/buses/${encodeURIComponent(normalized)}/latest`,
+          ),
           {
             method: "GET",
             credentials: "include",
@@ -299,7 +306,9 @@ const OwnerTrackBusView = () => {
         });
         setSocketError(null);
       } catch (error) {
-        setSocketError((error as Error).message || "Unable to fetch live location.");
+        setSocketError(
+          (error as Error).message || "Unable to fetch live location.",
+        );
       } finally {
         setLoadingLatest(false);
       }
@@ -333,9 +342,10 @@ const OwnerTrackBusView = () => {
     socketRef.current.emit(
       "tracking:subscribe",
       { busNumber: normalized },
-      (ack: { success: boolean; message?: string }) => {
-        if (!ack?.success) {
-          setSocketError(ack?.message || "Subscribe failed.");
+      (ack: unknown) => {
+        const payload = ack as { success?: boolean; message?: string };
+        if (!payload?.success) {
+          setSocketError(payload?.message || "Subscribe failed.");
           return;
         }
         subscribedBusRef.current = normalized;
@@ -345,7 +355,8 @@ const OwnerTrackBusView = () => {
 
   useEffect(() => {
     if (!socketClientReady) return;
-    if (typeof window === "undefined" || typeof window.io !== "function") return;
+    if (typeof window === "undefined" || typeof window.io !== "function")
+      return;
 
     setSocketStatus("connecting");
     setSocketError(null);
@@ -375,26 +386,28 @@ const OwnerTrackBusView = () => {
       setSocketStatus("disconnected");
     });
 
-    socket.on("connect_error", (error: { message?: string }) => {
+    socket.on("connect_error", (error: unknown) => {
+      const err = error as { message?: string };
       setSocketStatus("disconnected");
-      setSocketError(error?.message || "Socket connection failed.");
+      setSocketError(err?.message || "Socket connection failed.");
     });
 
-    socket.on("tracking.location", (payload: LiveLocation) => {
+    socket.on("tracking.location", (payload: unknown) => {
+      const livePayload = payload as LiveLocation;
       const activeBusNumber = selectedBusNumberRef.current;
-      const payloadBusNumber = normalizeBusNumber(payload?.busNumber);
+      const payloadBusNumber = normalizeBusNumber(livePayload?.busNumber);
       if (!activeBusNumber || payloadBusNumber !== activeBusNumber) {
         return;
       }
 
-      const lat = toNumberOrNull(payload?.lat);
-      const lng = toNumberOrNull(payload?.lng);
+      const lat = toNumberOrNull(livePayload?.lat);
+      const lng = toNumberOrNull(livePayload?.lng);
       if (lat === null || lng === null) {
         return;
       }
 
       setLiveLocation({
-        ...payload,
+        ...livePayload,
         lat,
         lng,
       });
@@ -456,7 +469,9 @@ const OwnerTrackBusView = () => {
         strategy="afterInteractive"
         onLoad={() => setSocketClientReady(true)}
         onError={() =>
-          setSocketError("Unable to load realtime client script. Polling fallback active.")
+          setSocketError(
+            "Unable to load realtime client script. Polling fallback active.",
+          )
         }
       />
 
@@ -498,7 +513,9 @@ const OwnerTrackBusView = () => {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Owner Buses</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            Owner Buses
+          </p>
           <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
             {fleetCount}
           </p>
@@ -507,21 +524,27 @@ const OwnerTrackBusView = () => {
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Selected Bus</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            Selected Bus
+          </p>
           <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
             {activeBusLabel}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {selectedBus?.route?.origin || "-"} to {selectedBus?.route?.destination || "-"}
+            {selectedBus?.route?.origin || "-"} to{" "}
+            {selectedBus?.route?.destination || "-"}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Last Update</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            Last Update
+          </p>
           <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
             {formatDateTime(liveLocation?.recordedAt)}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {liveLocation?.ageSeconds !== undefined && liveLocation?.ageSeconds !== null
+            {liveLocation?.ageSeconds !== undefined &&
+            liveLocation?.ageSeconds !== null
               ? `${liveLocation.ageSeconds}s ago`
               : "No location yet"}
           </p>
@@ -596,7 +619,8 @@ const OwnerTrackBusView = () => {
                       {bus.busNumber || "NO NUMBER"}
                     </p>
                     <p className="mt-2 text-xs text-slate-500 dark:text-slate-300">
-                      {bus.route?.origin || "-"} to {bus.route?.destination || "-"}
+                      {bus.route?.origin || "-"} to{" "}
+                      {bus.route?.destination || "-"}
                     </p>
                   </button>
                 );
@@ -608,7 +632,9 @@ const OwnerTrackBusView = () => {
         <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0f172a]">
           <div className="grid gap-4 border-b border-slate-200 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-white/10">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Bus</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Bus
+              </p>
               <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                 {selectedBus?.busName || "-"}
               </p>
@@ -617,7 +643,9 @@ const OwnerTrackBusView = () => {
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Route</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Route
+              </p>
               <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                 {(selectedBus?.route?.origin || "-") +
                   " -> " +
@@ -628,18 +656,23 @@ const OwnerTrackBusView = () => {
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Last Update</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Last Update
+              </p>
               <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                 {formatDateTime(liveLocation?.recordedAt)}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {liveLocation?.ageSeconds !== undefined && liveLocation?.ageSeconds !== null
+                {liveLocation?.ageSeconds !== undefined &&
+                liveLocation?.ageSeconds !== null
                   ? `${liveLocation.ageSeconds}s ago`
                   : "No live data"}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Confidence</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Confidence
+              </p>
               <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                 {(liveLocation?.confidence || "unknown").toUpperCase()}
               </p>
@@ -658,7 +691,11 @@ const OwnerTrackBusView = () => {
           <div className="h-[520px] bg-slate-100 dark:bg-[#111827]">
             <LiveMap
               center={mapCenter}
-              marker={liveLocation ? { lat: liveLocation.lat, lng: liveLocation.lng } : null}
+              marker={
+                liveLocation
+                  ? { lat: liveLocation.lat, lng: liveLocation.lng }
+                  : null
+              }
               route={routePoints}
               zoom={liveLocation ? 14 : 11}
             />
@@ -666,34 +703,49 @@ const OwnerTrackBusView = () => {
 
           <div className="grid gap-3 border-t border-slate-200 px-5 py-4 text-xs sm:grid-cols-4 dark:border-white/10">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Accuracy</p>
+              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Accuracy
+              </p>
               <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                {liveLocation?.accuracy !== undefined && liveLocation?.accuracy !== null
+                {liveLocation?.accuracy !== undefined &&
+                liveLocation?.accuracy !== null
                   ? `${Math.round(liveLocation.accuracy)} m`
                   : "-"}
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Speed</p>
+              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Speed
+              </p>
               <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                {liveLocation?.speed !== undefined && liveLocation?.speed !== null
+                {liveLocation?.speed !== undefined &&
+                liveLocation?.speed !== null
                   ? `${(Number(liveLocation.speed) * 3.6).toFixed(1)} km/h`
                   : "-"}
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Direction</p>
+              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Direction
+              </p>
               <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                {liveLocation?.heading !== undefined && liveLocation?.heading !== null
+                {liveLocation?.heading !== undefined &&
+                liveLocation?.heading !== null
                   ? `${Math.round(Number(liveLocation.heading))}°`
                   : "-"}
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">Status</p>
+              <p className="font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Status
+              </p>
               <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
                 <Clock3 className="h-4 w-4" />
-                {loadingLatest ? "Refreshing..." : liveLocation ? "Receiving updates" : "Waiting"}
+                {loadingLatest
+                  ? "Refreshing..."
+                  : liveLocation
+                    ? "Receiving updates"
+                    : "Waiting"}
               </p>
             </div>
           </div>

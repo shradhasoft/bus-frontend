@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -139,7 +139,7 @@ const loadRazorpay = () =>
     document.body.appendChild(script);
   });
 
-const CheckoutPage = () => {
+const CheckoutContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -713,9 +713,9 @@ const CheckoutPage = () => {
               <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
                 <QRCodeCanvas
                   value={ticketUrl}
-                  size={200}
+                  size={240}
                   level="H"
-                  includeMargin={false}
+                  includeMargin
                   fgColor="#0f172a"
                   bgColor="#ffffff"
                 />
@@ -1107,6 +1107,20 @@ const CheckoutPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const CheckoutPage = () => {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-rose-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-6 pb-16 pt-24 flex items-center justify-center">
+          Loading checkout...
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   );
 };
 

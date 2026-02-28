@@ -18,6 +18,7 @@ import {
   Headphones,
   Smartphone,
 } from "lucide-react";
+import { CallbackModal } from "@/components/support/callback-modal";
 
 const Footer = () => {
   const footerLinks = {
@@ -35,9 +36,10 @@ const Footer = () => {
     ],
     support: [
       { name: "Help Center", href: "/help" },
-      { name: "Contact Us", href: "/help#contact" },
-      { name: "Cancellation & Refunds", href: "/help#refunds" },
-      { name: "Travel Guidelines", href: "/help#guidelines" },
+      { name: "Contact Us", href: "/contact" },
+      { name: "Raise a Ticket", href: "/support/ticket" },
+      { name: "Cancellation & Refunds", href: "/refunds" },
+      { name: "Travel Guidelines", href: "/guidelines" },
     ],
     legal: [
       { name: "Privacy Policy", href: "/privacy" },
@@ -197,6 +199,18 @@ const Footer = () => {
                     <MapPin className="h-3.5 w-3.5" />
                   </div>
                   Bengaluru, Karnataka, India
+                </div>
+                <div className="pt-2 flex">
+                  <CallbackModal
+                    trigger={
+                      <div className="group/link flex cursor-pointer items-center gap-2.5 text-sm font-medium text-rose-600 transition hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 transition group-hover/link:bg-rose-100 dark:bg-rose-500/10 dark:group-hover/link:bg-rose-500/20">
+                          <Phone className="h-3.5 w-3.5" />
+                        </div>
+                        Request a Callback
+                      </div>
+                    }
+                  />
                 </div>
               </div>
             </div>

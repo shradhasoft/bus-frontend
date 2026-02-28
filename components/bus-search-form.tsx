@@ -343,7 +343,7 @@ const BusSearchForm = ({
           />
         </div>
         {shouldShowFromDropdown && (
-          <div className="absolute left-0 right-0 top-full z-[70] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_32px_rgba(15,23,42,0.12)]">
+          <div className="absolute left-0 right-0 top-full z-[120] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_32px_rgba(15,23,42,0.12)]">
             {!from.trim() && recentSearches.length > 0 && (
               <div className="border-b border-slate-100">
                 <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -466,7 +466,7 @@ const BusSearchForm = ({
           />
         </div>
         {shouldShowToDropdown && (
-          <div className="absolute left-0 right-0 top-full z-[70] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_32px_rgba(15,23,42,0.12)]">
+          <div className="absolute left-0 right-0 top-full z-[120] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_32px_rgba(15,23,42,0.12)]">
             {!to.trim() && recentSearches.length > 0 && (
               <div className="border-b border-slate-100">
                 <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
