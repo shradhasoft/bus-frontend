@@ -895,7 +895,10 @@ const ProfilePage = () => {
   }, [activeDetail, getAuthHeaders, invoiceDownloading]);
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] space-y-6 pb-4">
+    <div
+      data-testid="profile-page"
+      className="mx-auto w-full max-w-[1180px] space-y-6 pb-4"
+    >
       <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-xl dark:border-white/10">
         <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-sky-500/20 blur-3xl" />
         <div className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-emerald-500/20 blur-3xl" />

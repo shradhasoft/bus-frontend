@@ -1,0 +1,58 @@
+name: website-e2e
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: website-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10"
+
+jobs:
+  staging-e2e:
+    name: staging-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      E2E_SEED_CONTROL_URL: ${{ secrets.E2E_SEED_CONTROL_URL }}
+      E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+      E2E_USER_PHONE: ${{ secrets.E2E_USER_PHONE }}
+      E2E_USER_PASSWORD_OR_OTP_FLOW_SECRET: ${{ secrets.E2E_USER_PASSWORD_OR_OTP_FLOW_SECRET }}
+      TEST_ADMIN_TOKEN: ${{ secrets.TEST_ADMIN_TOKEN }}
+      E2E_RUN_ADMIN_FLOW: ${{ secrets.E2E_RUN_ADMIN_FLOW }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm dlx playwright install --with-deps chromium
+      - name: Validate E2E base URL
+        run: |
+          if [ -z "$E2E_BASE_URL" ]; then
+            echo "::error::Missing required secret: E2E_BASE_URL"
+            exit 1
+          fi
+      - run: pnpm test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7

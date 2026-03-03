@@ -26,3 +26,14 @@ export const apiUrl = (path: string) => {
   const pathWithNoDuplicateApi = dedupeApiBoundary(API_BASE_URL, normalizedPath);
   return `${API_BASE_URL}${pathWithNoDuplicateApi}`;
 };
+
+export const apiFetch = (path: string, init?: RequestInit) =>
+  fetch(apiUrl(path), init);
+
+export const apiFetchJson = async <T = unknown>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> => {
+  const response = await apiFetch(path, init);
+  return (await response.json()) as T;
+};

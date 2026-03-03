@@ -918,7 +918,10 @@ const BusTicketsContent = () => {
     "rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300 data-[state=active]:border-rose-500 data-[state=active]:bg-rose-500 data-[state=active]:text-white";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-rose-50/30 dark:from-[#0b1020] dark:via-slate-900 dark:to-slate-900 pb-16 pt-24">
+    <div
+      data-testid="bus-tickets-page"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-rose-50/30 dark:from-[#0b1020] dark:via-slate-900 dark:to-slate-900 pb-16 pt-24"
+    >
       <div className="mx-auto w-full max-w-7xl px-6">
         <div className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-500 dark:text-rose-400">

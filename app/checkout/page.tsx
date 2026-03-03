@@ -732,7 +732,10 @@ const CheckoutContent = () => {
 
   /* ── Main Checkout ────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-rose-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-4 pb-16 pt-24 sm:px-6">
+    <div
+      data-testid="checkout-page"
+      className="min-h-screen bg-linear-to-br from-slate-50 via-white to-rose-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-4 pb-16 pt-24 sm:px-6"
+    >
       <div className="mx-auto w-full max-w-6xl">
         {/* Header */}
         <div className="mb-8">
@@ -1114,7 +1117,10 @@ const CheckoutPage = () => {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-rose-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-6 pb-16 pt-24 flex items-center justify-center">
+        <div
+          data-testid="checkout-page-loading"
+          className="min-h-screen bg-linear-to-br from-slate-50 via-white to-rose-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-6 pb-16 pt-24 flex items-center justify-center"
+        >
           Loading checkout...
         </div>
       }

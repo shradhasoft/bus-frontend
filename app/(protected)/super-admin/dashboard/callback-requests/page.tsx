@@ -148,7 +148,7 @@ export default function CallbackRequestsPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div data-testid="callback-requests-page" className="w-full space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -169,6 +169,7 @@ export default function CallbackRequestsPage() {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
+            data-testid="callback-search-input"
             placeholder="Search by name, phone, or message..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

@@ -19,7 +19,7 @@ import {
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { computeETA, type RouteStopWithTrips, type ETAResult } from "@/lib/eta";
 
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import {
   getSocketClientScriptUrl,
   getSocketNamespaceUrl,
@@ -227,8 +227,8 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
     setSearchError(null);
 
     try {
-      const response = await fetch(
-        apiUrl(`/v1/tracking/search?q=${encodeURIComponent(trimmed)}`),
+      const response = await apiFetch(
+        `/v1/tracking/search?q=${encodeURIComponent(trimmed)}`,
         { method: "GET", cache: "no-store", signal: controller.signal },
       );
       const data = await response.json().catch(() => ({}));
@@ -325,8 +325,8 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
     setSearchError(null);
 
     try {
-      const response = await fetch(
-        apiUrl(`/v1/tracking/search?q=${encodeURIComponent(q)}`),
+      const response = await apiFetch(
+        `/v1/tracking/search?q=${encodeURIComponent(q)}`,
         {
           method: "GET",
           cache: "no-store",
@@ -382,8 +382,8 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
       setSearching(true);
       setSearchError(null);
       try {
-        const response = await fetch(
-          apiUrl(`/v1/tracking/search?q=${encodeURIComponent(trimmed)}`),
+        const response = await apiFetch(
+          `/v1/tracking/search?q=${encodeURIComponent(trimmed)}`,
           { method: "GET", cache: "no-store" },
         );
         const data = await response.json().catch(() => ({}));
@@ -414,8 +414,8 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
   const fetchLatest = useCallback(async (busNumber: string) => {
     setLoadingLatest(true);
     try {
-      const response = await fetch(
-        apiUrl(`/v1/tracking/bus/${encodeURIComponent(busNumber)}/latest`),
+      const response = await apiFetch(
+        `/v1/tracking/bus/${encodeURIComponent(busNumber)}/latest`,
         {
           method: "GET",
           cache: "no-store",
@@ -634,6 +634,7 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
               <div className="relative flex-1" ref={searchWrapperRef}>
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
+                  data-testid="track-search-input"
                   value={query}
                   onChange={(event) => handleInputChange(event.target.value)}
                   onFocus={() => {
@@ -704,6 +705,7 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
                 )}
               </div>
               <button
+                data-testid="track-search-submit"
                 type="submit"
                 className="h-11 rounded-2xl bg-rose-500 px-4 text-sm font-semibold text-white transition hover:bg-rose-600"
                 disabled={searching}
@@ -713,12 +715,18 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
             </form>
 
             {searchError ? (
-              <p className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+              <p
+                data-testid="track-search-error"
+                className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"
+              >
                 {searchError}
               </p>
             ) : null}
 
-            <div className="max-h-[580px] space-y-2 overflow-y-auto pr-1">
+            <div
+              data-testid="track-results-list"
+              className="max-h-[580px] space-y-2 overflow-y-auto pr-1"
+            >
               {results.length === 0 && !showSuggestions ? (
                 <p className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
                   {query.trim().length > 0
@@ -730,6 +738,7 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
                   const active = selectedBus?._id === bus._id;
                   return (
                     <button
+                      data-testid={`track-result-item-${bus._id}`}
                       key={bus._id}
                       type="button"
                       onClick={() => setSelectedBus(bus)}
@@ -886,7 +895,10 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
                     </button>
                   </div>
                 ) : etaResult ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-linear-to-r from-emerald-50 to-teal-50 px-4 py-3">
+                  <div
+                    data-testid="track-eta-card"
+                    className="rounded-2xl border border-emerald-200 bg-linear-to-r from-emerald-50 to-teal-50 px-4 py-3"
+                  >
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div
@@ -957,7 +969,10 @@ const TrackBusView = ({ embedded = false }: TrackBusViewProps) => {
             )}
 
             {socketError ? (
-              <div className="border-t border-rose-100 bg-rose-50 px-5 py-3 text-xs font-semibold text-rose-700">
+              <div
+                data-testid="track-socket-error"
+                className="border-t border-rose-100 bg-rose-50 px-5 py-3 text-xs font-semibold text-rose-700"
+              >
                 {socketError}
               </div>
             ) : null}
