@@ -1,5 +1,6 @@
 import React from "react";
 import { Scale } from "lucide-react";
+import { Link } from "@/i18n/routing";
 
 export default function TermsOfServicePage() {
   const lastUpdated = "February 24, 2026";
@@ -71,8 +72,8 @@ export default function TermsOfServicePage() {
             Cancellations and refunds are subject to the policies of the
             respective bus operator. BookMySeat may charge a nominal
             cancellation fee in addition to the operator&apos;s fee. Please
-            refer to our <a href="/help#refunds">Refund Policy</a> for detailed
-            information.
+            refer to our <Link href="/help#refunds">Refund Policy</Link> for
+            detailed information.
           </p>
 
           <h2>5. Limitation of Liability</h2>

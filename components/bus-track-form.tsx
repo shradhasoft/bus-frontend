@@ -47,42 +47,45 @@ const BusTrackForm = ({ className }: BusTrackFormProps) => {
   const abortRef = useRef<AbortController | null>(null);
 
   /* ─── debounced search on keystroke ─── */
-  const fetchSuggestions = useCallback(async (q: string) => {
-    const trimmed = q.trim();
-    if (trimmed.length < 2) {
-      setSuggestions([]);
-      setShowDropdown(false);
-      return;
-    }
-
-    // abort previous in-flight request
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setSearching(true);
-    setError(null);
-
-    try {
-      const response = await fetch(
-        apiUrl(`/v1/tracking/search?q=${encodeURIComponent(trimmed)}`),
-        { method: "GET", cache: "no-store", signal: controller.signal },
-      );
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data?.message || t("searchFailed"));
-
-      const items: TrackingBus[] = Array.isArray(data?.data) ? data.data : [];
-      setSuggestions(items);
-      setShowDropdown(true);
-      setHighlightIdx(-1);
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setError((err as Error).message || t("searchFailed"));
+  const fetchSuggestions = useCallback(
+    async (q: string) => {
+      const trimmed = q.trim();
+      if (trimmed.length < 2) {
+        setSuggestions([]);
+        setShowDropdown(false);
+        return;
       }
-    } finally {
-      setSearching(false);
-    }
-  }, []);
+
+      // abort previous in-flight request
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setSearching(true);
+      setError(null);
+
+      try {
+        const response = await fetch(
+          apiUrl(`/v1/tracking/search?q=${encodeURIComponent(trimmed)}`),
+          { method: "GET", cache: "no-store", signal: controller.signal },
+        );
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.message || t("searchFailed"));
+
+        const items: TrackingBus[] = Array.isArray(data?.data) ? data.data : [];
+        setSuggestions(items);
+        setShowDropdown(true);
+        setHighlightIdx(-1);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          setError((err as Error).message || t("searchFailed"));
+        }
+      } finally {
+        setSearching(false);
+      }
+    },
+    [t],
+  );
 
   const handleInputChange = (value: string) => {
     setQuery(value);

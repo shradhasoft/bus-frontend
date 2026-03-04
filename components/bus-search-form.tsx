@@ -169,7 +169,7 @@ const BusSearchForm = ({
         setStopsLoading(false);
       }
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadStops();
