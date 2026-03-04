@@ -16,6 +16,7 @@ import {
   User,
 } from "firebase/auth";
 import { Bus, Phone, ShieldCheck, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -30,23 +31,16 @@ type SignCardProps = {
   onAuthSuccess?: () => void;
 };
 
-const perks = [
-  {
-    title: "Trusted bookings",
-    description: "Seats verified across top-rated bus operators.",
-  },
-  {
-    title: "Easy cancellations",
-    description: "Flexible refunds and fast resolution support.",
-  },
-  {
-    title: "4.8★ community rating",
-    description: "Loved by thousands of happy travelers.",
-  },
-];
-
 const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
+  const t = useTranslations("auth");
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+
+  const perks = [
+    { title: t("trustedBookings"), description: t("trustedBookingsDesc") },
+    { title: t("easyCancellations"), description: t("easyCancellationsDesc") },
+    { title: t("communityRating"), description: t("communityRatingDesc") },
+  ];
+
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -299,7 +293,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
               Sign in or create account
             </h2>
             <p className="text-base text-slate-500 dark:text-slate-400 mt-1">
-              Use your phone number or Google to continue.
+              {t("usePhoneOrGoogle")}
             </p>
           </div>
 
@@ -312,7 +306,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
                 <span className="text-slate-400">+91</span>
                 <Input
                   className="h-auto border-none bg-transparent p-0 shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                  placeholder="Enter mobile number"
+                  placeholder={t("enterMobileNumber")}
                   type="tel"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
@@ -400,9 +394,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
 
             <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-500 shadow-inner dark:border-white/5 dark:bg-white/2 dark:text-slate-400">
               <Phone className="mt-0.5 h-5 w-5 text-slate-400 shrink-0" />
-              <p className="leading-relaxed">
-                We will send you a secure one-time code to verify your number.
-              </p>
+              <p className="leading-relaxed">{t("secureCodeMessage")}</p>
             </div>
 
             {message ? (
@@ -418,9 +410,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
               </div>
             ) : null}
 
-            <p className="text-xs text-slate-400">
-              By continuing, you agree to our terms of use and privacy policy.
-            </p>
+            <p className="text-xs text-slate-400">{t("agreeTerms")}</p>
           </div>
         </div>
       </div>

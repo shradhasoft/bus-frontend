@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from 'next-intl';
 import {
   MapPin,
   Users,
@@ -70,7 +71,9 @@ const FEATURES = [
   },
 ];
 
-const WhyChooseUsSection = () => (
+const WhyChooseUsSection = () => {
+  const t = useTranslations('whyChooseUs');
+  return (
   <section className="relative overflow-hidden bg-slate-50 dark:bg-[#0b1020]">
     {/* Subtle background decoration */}
     <div className="pointer-events-none absolute -left-40 top-20 h-80 w-80 rounded-full bg-rose-500/5 blur-3xl" />
@@ -86,8 +89,7 @@ const WhyChooseUsSection = () => (
           Why Choose BookMySeat?
         </h2>
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          Experience the next generation of bus travel with real-time tracking,
-          verified operators, and a seamless booking experience.
+          {t('whyChooseDescription')}
         </p>
       </div>
 
@@ -138,5 +140,7 @@ const WhyChooseUsSection = () => (
     </div>
   </section>
 );
+
+}
 
 export default WhyChooseUsSection;

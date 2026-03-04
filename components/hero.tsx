@@ -4,23 +4,29 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Bus, Navigation, Ticket } from "lucide-react";
+import { useTranslations } from "next-intl";
 import BusSearchForm from "@/components/bus-search-form";
 import BusTrackForm from "@/components/bus-track-form";
 
 type HeroTab = "book" | "track" | "rent";
 
-const tabs: { id: HeroTab; label: string; icon: React.ReactNode }[] = [
-  { id: "book", label: "Book Tickets", icon: <Ticket className="h-4 w-4" /> },
-  {
-    id: "track",
-    label: "Track Buses",
-    icon: <Navigation className="h-4 w-4" />,
-  },
-  { id: "rent", label: "Rent Buses", icon: <Bus className="h-4 w-4" /> },
-];
-
 const Hero = () => {
   const [activeTab, setActiveTab] = useState<HeroTab>("book");
+  const t = useTranslations("hero");
+
+  const tabs: { id: HeroTab; label: string; icon: React.ReactNode }[] = [
+    {
+      id: "book",
+      label: t("bookTickets"),
+      icon: <Ticket className="h-4 w-4" />,
+    },
+    {
+      id: "track",
+      label: t("trackBuses"),
+      icon: <Navigation className="h-4 w-4" />,
+    },
+    { id: "rent", label: t("rentBuses"), icon: <Bus className="h-4 w-4" /> },
+  ];
 
   return (
     <section id="hero" className="bg-slate-50 dark:bg-[#0b1020]">
@@ -56,7 +62,7 @@ const Hero = () => {
                 ))}
               </div>
               <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
-                India&apos;s Fastest Bus Ticket Booking Platform
+                {t("tagline")}
               </p>
             </div>
 
@@ -66,7 +72,7 @@ const Hero = () => {
               {activeTab === "rent" && (
                 <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/50 py-8 text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-800/30 dark:text-slate-400">
                   <Bus className="mr-2 h-5 w-5" />
-                  Rent a Bus — Coming soon
+                  {t("rentComingSoon")}
                 </div>
               )}
             </div>

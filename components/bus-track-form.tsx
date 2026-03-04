@@ -11,6 +11,7 @@ import {
   Bus,
 } from "lucide-react";
 import { apiUrl } from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 type TrackingBus = {
   _id: string;
@@ -33,6 +34,7 @@ const DEBOUNCE_MS = 350;
 
 const BusTrackForm = ({ className }: BusTrackFormProps) => {
   const router = useRouter();
+  const t = useTranslations("track");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,7 @@ const BusTrackForm = ({ className }: BusTrackFormProps) => {
         { method: "GET", cache: "no-store", signal: controller.signal },
       );
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data?.message || "Search failed.");
+      if (!response.ok) throw new Error(data?.message || t("searchFailed"));
 
       const items: TrackingBus[] = Array.isArray(data?.data) ? data.data : [];
       setSuggestions(items);
@@ -75,7 +77,7 @@ const BusTrackForm = ({ className }: BusTrackFormProps) => {
       setHighlightIdx(-1);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
-        setError((err as Error).message || "Search failed.");
+        setError((err as Error).message || t("searchFailed"));
       }
     } finally {
       setSearching(false);
@@ -173,7 +175,7 @@ const BusTrackForm = ({ className }: BusTrackFormProps) => {
               if (suggestions.length > 0) setShowDropdown(true);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Enter bus name, number, or operator"
+            placeholder={t("placeholder")}
             className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-rose-500 dark:focus:ring-rose-900/30"
             autoComplete="off"
           />
@@ -216,13 +218,13 @@ const BusTrackForm = ({ className }: BusTrackFormProps) => {
 
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                          {bus.busName || "Unnamed Bus"}
+                          {bus.busName || t("unnamedBus")}
                         </p>
                         <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                           {bus.busNumber || "—"} ·{" "}
                           {bus.route?.origin && bus.route?.destination
                             ? `${bus.route.origin} → ${bus.route.destination}`
-                            : "Route N/A"}
+                            : t("routeNA")}
                         </p>
                       </div>
 

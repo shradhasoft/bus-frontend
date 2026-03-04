@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
+import { useTranslations } from "next-intl";
 import { BadgePercent, Copy, Check, Sparkles, ArrowRight } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 
@@ -71,6 +72,7 @@ const FALLBACK: OfferCard[] = [
 
 const OfferCardItem = ({ offer }: { offer: OfferCard }) => {
   const [copied, setCopied] = useState(false);
+  const t = useTranslations("offers");
 
   const copyCode = async () => {
     try {
@@ -97,7 +99,7 @@ const OfferCardItem = ({ offer }: { offer: OfferCard }) => {
             <BadgePercent className="h-4 w-4" />
           </div>
           <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:bg-white/10 dark:text-slate-300">
-            Limited Offer
+            {t("limitedOffer")}
           </span>
         </div>
 
@@ -133,6 +135,7 @@ const OfferCardItem = ({ offer }: { offer: OfferCard }) => {
 };
 
 const OffersSection = () => {
+  const t = useTranslations("offers");
   const [offers, setOffers] = useState<OfferCard[]>(FALLBACK);
 
   useEffect(() => {
@@ -186,8 +189,7 @@ const OffersSection = () => {
               Bus Booking Offers
             </h2>
             <p className="mt-1 max-w-lg text-sm text-slate-500 dark:text-slate-400">
-              Save big on every journey with our latest promo codes and
-              discounts.
+              {t("offerDescription")}
             </p>
           </div>
           <Link

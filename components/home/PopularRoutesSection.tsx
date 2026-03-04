@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
+import { useTranslations } from 'next-intl';
 import { ArrowRight, Clock, MapPin, IndianRupee } from "lucide-react";
 
 const ROUTES = [
@@ -63,7 +64,9 @@ const ROUTES = [
   },
 ];
 
-const PopularRoutesSection = () => (
+const PopularRoutesSection = () => {
+  const t = useTranslations('popularRoutes');
+  return (
   <section className="bg-white dark:bg-[#0d1225]">
     <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       {/* Heading */}
@@ -75,8 +78,7 @@ const PopularRoutesSection = () => (
           Popular Bus Routes
         </h2>
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          Most searched routes by our travellers. Book early for the best
-          prices.
+          {t('routesDescription')}
         </p>
       </div>
 
@@ -116,12 +118,12 @@ const PopularRoutesSection = () => (
                 <IndianRupee className="h-3.5 w-3.5" />
                 {route.startingPrice}
                 <span className="text-xs font-normal text-slate-400 dark:text-slate-500">
-                  onwards
+                  {t('onwards')}
                 </span>
               </div>
               <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                 <MapPin className="h-3 w-3" />
-                {route.operators} buses
+                {route.operators} {t('buses', { count: route.operators })}
               </span>
             </div>
           </Link>
@@ -130,5 +132,7 @@ const PopularRoutesSection = () => (
     </div>
   </section>
 );
+
+}
 
 export default PopularRoutesSection;

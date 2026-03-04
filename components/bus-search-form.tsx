@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { addDays, format, isSameDay, parse, startOfDay } from "date-fns";
 import {
   ArrowLeftRight,
@@ -10,11 +16,16 @@ import {
   Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { apiUrl } from "@/lib/api";
 import { subscribeAuthSessionChanged } from "@/lib/auth-events";
 import { cn } from "@/lib/utils";
@@ -53,17 +64,11 @@ const parseDate = (value?: string) => {
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
-const getSuggestions = (
-  stops: string[],
-  query: string,
-  exclude: string
-) => {
+const getSuggestions = (stops: string[], query: string, exclude: string) => {
   const queryText = normalizeText(query);
   const excludeText = normalizeText(exclude);
   const base = queryText
-    ? stops.filter((stop) =>
-        normalizeText(stop).includes(queryText)
-      )
+    ? stops.filter((stop) => normalizeText(stop).includes(queryText))
     : stops;
 
   return base
@@ -80,11 +85,12 @@ const BusSearchForm = ({
   onSearch,
 }: BusSearchFormProps) => {
   const router = useRouter();
+  const t = useTranslations("search");
   const today = startOfDay(new Date());
   const tomorrow = addDays(today, 1);
 
   const [departureDate, setDepartureDate] = useState<Date>(
-    () => parseDate(initialDate) ?? today
+    () => parseDate(initialDate) ?? today,
   );
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
@@ -136,8 +142,8 @@ const BusSearchForm = ({
       if (!response.ok) {
         const message =
           response.status === 401
-            ? "Sign in to see stop suggestions."
-            : data?.message || "Unable to load stops right now.";
+            ? t("signInForSuggestions")
+            : data?.message || t("unableToLoadStops");
         if (!controller.signal.aborted) {
           setStops([]);
           setStopsError(message);
@@ -145,7 +151,9 @@ const BusSearchForm = ({
         return;
       }
 
-      const fetchedStops = Array.isArray(data?.data?.stops) ? data.data.stops : [];
+      const fetchedStops = Array.isArray(data?.data?.stops)
+        ? data.data.stops
+        : [];
 
       if (!controller.signal.aborted) {
         setStops(fetchedStops);
@@ -154,7 +162,7 @@ const BusSearchForm = ({
       if ((error as Error).name === "AbortError") return;
       if (!controller.signal.aborted) {
         setStops([]);
-        setStopsError("Unable to load stops right now.");
+        setStopsError(t("unableToLoadStops"));
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -187,7 +195,7 @@ const BusSearchForm = ({
           (item) =>
             item &&
             typeof item.origin === "string" &&
-            typeof item.destination === "string"
+            typeof item.destination === "string",
         );
         setRecentSearches(safeItems.slice(0, MAX_RECENT_SEARCHES));
       }
@@ -213,18 +221,15 @@ const BusSearchForm = ({
 
   const fromSuggestions = useMemo(
     () => getSuggestions(stops, from, to),
-    [stops, from, to]
+    [stops, from, to],
   );
 
   const toSuggestions = useMemo(
     () => getSuggestions(stops, to, from),
-    [stops, to, from]
+    [stops, to, from],
   );
 
-  const popularStops = useMemo(
-    () => stops.slice(0, POPULAR_LIMIT),
-    [stops]
-  );
+  const popularStops = useMemo(() => stops.slice(0, POPULAR_LIMIT), [stops]);
 
   const shouldShowFromDropdown =
     fromOpen &&
@@ -251,7 +256,7 @@ const BusSearchForm = ({
       const filtered = prev.filter(
         (item) =>
           normalizeText(item.origin) !== normalizedOrigin ||
-          normalizeText(item.destination) !== normalizedDestination
+          normalizeText(item.destination) !== normalizedDestination,
       );
       const next = [nextItem, ...filtered].slice(0, MAX_RECENT_SEARCHES);
       window.localStorage.setItem(RECENT_SEARCH_KEY, JSON.stringify(next));
@@ -272,12 +277,12 @@ const BusSearchForm = ({
     const destination = to.trim();
 
     if (!origin || !destination) {
-      setFormError("Enter both origin and destination.");
+      setFormError(t("enterBothOriginDest"));
       return;
     }
 
     if (normalizeText(origin) === normalizeText(destination)) {
-      setFormError("Origin and destination must be different.");
+      setFormError(t("originDestDifferent"));
       return;
     }
 
@@ -311,7 +316,7 @@ const BusSearchForm = ({
       role="search"
       className={cn(
         "grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-[1.2fr_0.18fr_1.2fr_0.9fr_0.6fr_0.6fr_0.9fr]",
-        className
+        className,
       )}
     >
       <div
@@ -321,7 +326,7 @@ const BusSearchForm = ({
         <MapPin className="h-4 w-4 text-slate-500" />
         <div className="flex-1">
           <label className="text-xs text-slate-400" htmlFor="search-from">
-            Leaving From
+            {t("leavingFrom")}
           </label>
           <Input
             id="search-from"
@@ -338,7 +343,7 @@ const BusSearchForm = ({
                 handleSearch();
               }
             }}
-            placeholder="City or Station"
+            placeholder={t("cityOrStation")}
             className="h-auto border-0 bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none focus-visible:ring-0"
           />
         </div>
@@ -347,7 +352,7 @@ const BusSearchForm = ({
             {!from.trim() && recentSearches.length > 0 && (
               <div className="border-b border-slate-100">
                 <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  Recently Searched
+                  {t("recentlySearched")}
                 </p>
                 <div className="divide-y divide-slate-100">
                   {recentSearches.map((item) => (
@@ -373,7 +378,7 @@ const BusSearchForm = ({
                         </p>
                       </div>
                       <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                        Route
+                        {t("route")}
                       </span>
                     </button>
                   ))}
@@ -383,18 +388,19 @@ const BusSearchForm = ({
 
             <div>
               <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                {from.trim() ? "Suggestions" : "Popular Cities"}
+                {from.trim() ? t("suggestions") : t("popularCities")}
               </p>
               <div className="max-h-60 overflow-y-auto py-1 no-scrollbar">
                 {stopsLoading ? (
                   <div className="px-4 py-3 text-xs text-slate-500">
-                    Loading suggestions...
+                    {t("loadingSuggestions")}
                   </div>
                 ) : stopsError ? (
                   <div className="px-4 py-3 text-xs text-slate-500">
                     {stopsError}
                   </div>
-                ) : (from.trim() ? fromSuggestions : popularStops).length > 0 ? (
+                ) : (from.trim() ? fromSuggestions : popularStops).length >
+                  0 ? (
                   (from.trim() ? fromSuggestions : popularStops).map((stop) => (
                     <button
                       key={stop}
@@ -412,13 +418,15 @@ const BusSearchForm = ({
                         <p className="text-sm font-semibold text-slate-800">
                           {stop}
                         </p>
-                        <p className="text-xs text-slate-400">Popular stop</p>
+                        <p className="text-xs text-slate-400">
+                          {t("popularStop")}
+                        </p>
                       </div>
                     </button>
                   ))
                 ) : (
                   <div className="px-4 py-3 text-xs text-slate-500">
-                    No matching cities found.
+                    {t("noMatchingCities")}
                   </div>
                 )}
               </div>
@@ -431,7 +439,7 @@ const BusSearchForm = ({
         type="button"
         variant="outline"
         className="hidden h-14 items-center justify-center rounded-xl border-slate-200 bg-white text-slate-500 lg:flex"
-        aria-label="Swap cities"
+        aria-label={t("swapCities")}
         onClick={handleSwap}
       >
         <ArrowLeftRight className="h-4 w-4" />
@@ -444,7 +452,7 @@ const BusSearchForm = ({
         <MapPin className="h-4 w-4 text-slate-500" />
         <div className="flex-1">
           <label className="text-xs text-slate-400" htmlFor="search-to">
-            Going To
+            {t("goingTo")}
           </label>
           <Input
             id="search-to"
@@ -461,7 +469,7 @@ const BusSearchForm = ({
                 handleSearch();
               }
             }}
-            placeholder="City or Station"
+            placeholder={t("cityOrStation")}
             className="h-auto border-0 bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none focus-visible:ring-0"
           />
         </div>
@@ -470,7 +478,7 @@ const BusSearchForm = ({
             {!to.trim() && recentSearches.length > 0 && (
               <div className="border-b border-slate-100">
                 <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  Recently Searched
+                  {t("recentlySearched")}
                 </p>
                 <div className="divide-y divide-slate-100">
                   {recentSearches.map((item) => (
@@ -496,7 +504,7 @@ const BusSearchForm = ({
                         </p>
                       </div>
                       <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                        Route
+                        {t("route")}
                       </span>
                     </button>
                   ))}
@@ -506,12 +514,12 @@ const BusSearchForm = ({
 
             <div>
               <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                {to.trim() ? "Suggestions" : "Popular Cities"}
+                {to.trim() ? t("suggestions") : t("popularCities")}
               </p>
               <div className="max-h-60 overflow-y-auto py-1 no-scrollbar">
                 {stopsLoading ? (
                   <div className="px-4 py-3 text-xs text-slate-500">
-                    Loading suggestions...
+                    {t("loadingSuggestions")}
                   </div>
                 ) : stopsError ? (
                   <div className="px-4 py-3 text-xs text-slate-500">
@@ -535,13 +543,15 @@ const BusSearchForm = ({
                         <p className="text-sm font-semibold text-slate-800">
                           {stop}
                         </p>
-                        <p className="text-xs text-slate-400">Popular stop</p>
+                        <p className="text-xs text-slate-400">
+                          {t("popularStop")}
+                        </p>
                       </div>
                     </button>
                   ))
                 ) : (
                   <div className="px-4 py-3 text-xs text-slate-500">
-                    No matching cities found.
+                    {t("noMatchingCities")}
                   </div>
                 )}
               </div>
@@ -555,11 +565,11 @@ const BusSearchForm = ({
           <button
             type="button"
             className="flex h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors hover:border-rose-200 hover:bg-white"
-            aria-label="Select departure date"
+            aria-label={t("selectDepartureDate")}
           >
             <CalendarIcon className="h-4 w-4 text-slate-500" />
             <div>
-              <p className="text-xs text-slate-400">Departure</p>
+              <p className="text-xs text-slate-400">{t("departure")}</p>
               <p className="text-sm font-semibold text-slate-700">
                 {format(departureDate, "dd/MM/yyyy")}
               </p>
@@ -587,10 +597,10 @@ const BusSearchForm = ({
           "h-14 rounded-xl border px-4 py-3 text-sm font-semibold",
           isToday
             ? "border-rose-300 bg-rose-50 text-rose-600"
-            : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-600"
+            : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-600",
         )}
       >
-        Today
+        {t("today")}
       </Button>
 
       <Button
@@ -602,10 +612,10 @@ const BusSearchForm = ({
           "h-14 rounded-xl border px-4 py-3 text-sm font-semibold",
           isTomorrow
             ? "border-rose-300 bg-rose-50 text-rose-600"
-            : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-600"
+            : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-600",
         )}
       >
-        Tomorrow
+        {t("tomorrow")}
       </Button>
 
       <Button
@@ -614,7 +624,7 @@ const BusSearchForm = ({
         className="h-14 md:col-span-2 rounded-xl bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/30 transition-all hover:bg-rose-600 lg:col-span-1"
       >
         <Search className="h-4 w-4" />
-        Search
+        {t("searchBtn")}
       </Button>
 
       {(formError || stopsError || stopsLoading) && (
@@ -622,7 +632,7 @@ const BusSearchForm = ({
           {formError ? (
             <span className="text-rose-600">{formError}</span>
           ) : stopsLoading ? (
-            <span>Loading stop suggestions...</span>
+            <span>{t("loadingStopSuggestions")}</span>
           ) : (
             <span>{stopsError}</span>
           )}

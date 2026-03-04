@@ -2,7 +2,8 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
+import { useTranslations } from 'next-intl';
 import {
   Bus,
   Instagram,
@@ -21,6 +22,7 @@ import {
 import { CallbackModal } from "@/components/support/callback-modal";
 
 const Footer = () => {
+  const t = useTranslations('footer');
   const footerLinks = {
     product: [
       { name: "Search Buses", href: "/bus-tickets" },
@@ -96,7 +98,7 @@ const Footer = () => {
                   Travel smarter on the go
                 </h3>
                 <p className="mt-1.5 max-w-md text-sm text-white/50">
-                  Book tickets, track buses live, and manage your trips — all
+                  {t('downloadDescription')} — all
                   from your pocket. Download the BookMySeat app today.
                 </p>
               </div>
@@ -268,9 +270,9 @@ const Footer = () => {
           {/* ── Bottom bar ── */}
           <div className="mt-8 flex flex-col items-center justify-between gap-5 border-t border-slate-200/80 pt-8 sm:flex-row dark:border-white/5">
             <p className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
-              © {new Date().getFullYear()} BookMySeat. Crafted with
+              © {new Date().getFullYear()} BookMySeat. {t('craftedWith')}
               <Heart className="inline h-3 w-3 text-rose-500" />
-              in India
+              {t('inIndia')}
             </p>
 
             <div className="flex items-center gap-2">

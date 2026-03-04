@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api";
+import { useTranslations } from "next-intl";
 import { initSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
@@ -44,22 +45,24 @@ const NotificationIcon = ({ type }: { type: string }) => {
   }
 };
 
-const formatTimeAgo = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffInSeconds < 60) return "Just now";
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  return `${Math.floor(diffInSeconds / 86400)}d ago`;
-};
-
 export const NotificationBell = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const t = useTranslations("notifications");
   const [isOpen, setIsOpen] = useState(false);
   const [idToken, setIdToken] = useState<string | null>(null);
 
+  const formatTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffInSeconds < 60) return t("justNow");
+    const diffMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInSeconds < 3600) return t("minutesAgo", { count: diffMinutes });
+    const diffHours = Math.floor(diffInSeconds / 3600);
+    if (diffInSeconds < 86400) return t("hoursAgo", { count: diffHours });
+    const diffDays = Math.floor(diffInSeconds / 86400);
+    return t("daysAgo", { count: diffDays });
+  };
   const fetchNotifications = useCallback(async (token: string) => {
     try {
       const res = await fetch(apiUrl("/api/notifications"), {
@@ -234,7 +237,7 @@ export const NotificationBell = () => {
                   All caught up!
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  You have no new notifications right now.
+                  {t("noNewNotifications")}
                 </p>
               </div>
             </div>

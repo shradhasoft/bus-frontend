@@ -6,10 +6,11 @@ import {
   signOut,
   type User as FirebaseUser,
 } from "firebase/auth";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Bus, Menu, Moon, Sun, User as UserIcon, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/routing";
 
 import SignCard from "@/components/sign-card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -24,6 +25,7 @@ import { apiUrl } from "@/lib/api";
 import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { NotificationBell } from "@/components/notification-bell";
+import LanguageSwitcher from "@/components/language-switcher";
 
 const ROLE_SWITCH_TARGETS: Record<string, string> = {
   admin: "/admin/dashboard",
@@ -46,6 +48,9 @@ const Navbar = () => {
   const pathname = usePathname();
   const { setTheme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
 
   useEffect(() => {
     const onScroll = () => {
@@ -140,14 +145,10 @@ const Navbar = () => {
   }, [currentUser, roleRefreshKey]);
 
   const links = [
-    { label: "Track Bus", href: "/track" },
-    {
-      label: "Rent Bus",
-      href: "/rent",
-    },
-    { label: "Offers", href: "/offers" },
-
-    { label: "Help", href: "/help" },
+    { label: t("trackBus"), href: "/track" },
+    { label: t("rentBus"), href: "/rent" },
+    { label: t("offers"), href: "/offers" },
+    { label: t("help"), href: "/help" },
   ];
 
   const handleNavClick = useCallback(
@@ -288,6 +289,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             {currentUser ? (
               <>
                 <NotificationBell />
@@ -311,7 +313,7 @@ const Navbar = () => {
                       className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
                       onSelect={goProfile}
                     >
-                      My Profile
+                      {tc("profile")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
@@ -321,18 +323,18 @@ const Navbar = () => {
                         isDark ? (
                           <>
                             <Sun className="h-4 w-4" />
-                            Light mode
+                            {tc("lightMode")}
                           </>
                         ) : (
                           <>
                             <Moon className="h-4 w-4" />
-                            Dark mode
+                            {tc("darkMode")}
                           </>
                         )
                       ) : (
                         <>
                           <Moon className="h-4 w-4" />
-                          Theme
+                          {tc("theme")}
                         </>
                       )}
                     </DropdownMenuItem>
@@ -342,14 +344,14 @@ const Navbar = () => {
                       disabled={isLoggingOut}
                       onSelect={handleLogout}
                     >
-                      {isLoggingOut ? "Logging out..." : "Log out"}
+                      {isLoggingOut ? tc("loggingOut") : tc("logout")}
                     </DropdownMenuItem>
                     {roleSwitchPath ? (
                       <DropdownMenuItem
                         className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
                         onSelect={handleRoleSwitch}
                       >
-                        Switch to {profileRole}
+                        {tc("switchTo", { role: profileRole ?? "" })}
                       </DropdownMenuItem>
                     ) : null}
                   </DropdownMenuContent>
@@ -361,7 +363,7 @@ const Navbar = () => {
                 onClick={openAuth}
                 className="text-sm font-semibold text-slate-700 transition-all duration-300 hover:opacity-70 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
               >
-                Login/SignUp
+                {tc("login")}
               </button>
             )}
 
@@ -399,14 +401,18 @@ const Navbar = () => {
                   onClick={goProfile}
                   className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
                 >
-                  My Profile
+                  {tc("profile")}
                 </button>
                 <button
                   type="button"
                   onClick={toggleTheme}
                   className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
                 >
-                  {themeReady ? (isDark ? "Light mode" : "Dark mode") : "Theme"}
+                  {themeReady
+                    ? isDark
+                      ? tc("lightMode")
+                      : tc("darkMode")
+                    : tc("theme")}
                 </button>
                 <button
                   type="button"
@@ -414,7 +420,7 @@ const Navbar = () => {
                   disabled={isLoggingOut}
                   className="block w-full py-2 text-left text-rose-600 font-medium disabled:opacity-60"
                 >
-                  {isLoggingOut ? "Logging out..." : "Log out"}
+                  {isLoggingOut ? tc("loggingOut") : tc("logout")}
                 </button>
                 {roleSwitchPath ? (
                   <button
@@ -422,7 +428,7 @@ const Navbar = () => {
                     onClick={handleRoleSwitch}
                     className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
                   >
-                    Switch to {profileRole}
+                    {tc("switchTo", { role: profileRole ?? "" })}
                   </button>
                 ) : null}
               </>
@@ -432,7 +438,7 @@ const Navbar = () => {
                 onClick={openAuth}
                 className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
               >
-                Login/SignUp
+                {tc("login")}
               </button>
             )}
           </div>

@@ -5,7 +5,7 @@ vi.mock("@/components/tracking/track-bus-view", () => ({
   default: () => <div data-testid="track-bus-view">Track view</div>,
 }));
 
-import TrackPage from "@/app/track/page";
+import TrackPage from "@/app/[locale]/track/page";
 
 describe("/track page", () => {
   test("renders track view within suspense boundary", () => {
@@ -13,4 +13,3 @@ describe("/track page", () => {
     expect(screen.getByTestId("track-bus-view")).toBeInTheDocument();
   });
 });
-

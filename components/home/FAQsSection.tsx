@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
+import { useTranslations } from 'next-intl';
 import { ChevronDown, HelpCircle, ArrowRight } from "lucide-react";
 
 const FAQS = [
@@ -95,6 +96,7 @@ const FAQItem = ({
 );
 
 const FAQsSection = () => {
+  const t = useTranslations('faq');
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
@@ -109,7 +111,7 @@ const FAQsSection = () => {
             Frequently Asked Questions
           </h2>
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            Quick answers to the most common questions about BookMySeat.
+            {t('description')}
           </p>
         </div>
 

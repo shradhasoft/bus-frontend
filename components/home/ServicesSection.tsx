@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
+import { useTranslations } from 'next-intl';
 import { Ticket, MapPin, Bus, Users, ArrowRight } from "lucide-react";
 
 const SERVICES = [
@@ -49,7 +50,9 @@ const SERVICES = [
   },
 ];
 
-const ServicesSection = () => (
+const ServicesSection = () => {
+  const t = useTranslations('services');
+  return (
   <section className="bg-white dark:bg-[#0d1225]">
     <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       {/* Heading */}
@@ -61,8 +64,7 @@ const ServicesSection = () => (
           Our Services
         </h2>
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          Everything you need for a smooth and affordable bus journey — all in
-          one place.
+          {t('servicesDescription')}
         </p>
       </div>
 
@@ -96,7 +98,7 @@ const ServicesSection = () => (
                 </p>
 
                 <div className="mt-5 flex items-center gap-1 text-sm font-semibold text-rose-600 transition group-hover:gap-2 dark:text-rose-400">
-                  Learn more
+                  {t('learnMore')}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </div>
@@ -107,5 +109,7 @@ const ServicesSection = () => (
     </div>
   </section>
 );
+
+}
 
 export default ServicesSection;

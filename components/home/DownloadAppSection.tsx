@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from 'next-intl';
 import {
   Smartphone,
   Zap,
@@ -17,7 +18,9 @@ const FEATURES = [
   { icon: Bell, text: "Smart trip alerts & reminders" },
 ];
 
-const DownloadAppSection = () => (
+const DownloadAppSection = () => {
+  const t = useTranslations('downloadApp');
+  return (
   <section className="bg-slate-50 dark:bg-[#0b1020]">
     <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 shadow-2xl sm:p-12 lg:p-16 dark:from-slate-800/80 dark:to-slate-800/80">
@@ -35,10 +38,10 @@ const DownloadAppSection = () => (
             </div>
 
             <h2 className="text-3xl font-bold text-white sm:text-4xl">
-              Your journey starts in
+              {t('journeyStarts')}
               <span className="bg-gradient-to-r from-rose-400 to-pink-400 bg-clip-text text-transparent">
                 {" "}
-                your pocket
+                {t('yourPocket')}
               </span>
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-300/80">
@@ -120,7 +123,7 @@ const DownloadAppSection = () => (
                   <Smartphone className="h-6 w-6" />
                 </div>
                 <p className="mt-3 text-sm font-bold text-white">BookMySeat</p>
-                <p className="mt-1 text-[10px] text-white/40">Coming Soon</p>
+                <p className="mt-1 text-[10px] text-white/40">{t('comingSoon')}</p>
                 <div className="mt-4 flex flex-col gap-1.5">
                   {["Book", "Track", "Save"].map((t) => (
                     <div
@@ -140,5 +143,7 @@ const DownloadAppSection = () => (
     </div>
   </section>
 );
+
+}
 
 export default DownloadAppSection;
