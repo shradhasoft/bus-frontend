@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -408,6 +414,9 @@ const ProfilePage = () => {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
 
+  // Auto-open Support
+  const initialLoadRef = useRef(false);
+
   const calculateRefundEstimate = (booking: BookingDetail) => {
     const departure = getDepartureDateTime(booking);
     const referenceTime = departure || new Date(booking.travelDate);
@@ -504,19 +513,18 @@ const ProfilePage = () => {
     setPage(1);
   }, [activeTab, debouncedSearch]);
 
-  const getAuthHeaders = useCallback(
-    async (): Promise<Record<string, string>> => {
-      const user = firebaseAuth.currentUser;
-      if (!user) return {};
-      try {
-        const token = await user.getIdToken();
-        return token ? { Authorization: `Bearer ${token}` } : {};
-      } catch {
-        return {};
-      }
-    },
-    [],
-  );
+  const getAuthHeaders = useCallback(async (): Promise<
+    Record<string, string>
+  > => {
+    const user = firebaseAuth.currentUser;
+    if (!user) return {};
+    try {
+      const token = await user.getIdToken();
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
+  }, []);
 
   useEffect(() => {
     if (!authReady) return;
@@ -703,6 +711,17 @@ const ProfilePage = () => {
     },
     [getAuthHeaders],
   );
+
+  // Auto-open effect moved here to be after openBookingDetail is initialized
+  useEffect(() => {
+    if (!authReady || initialLoadRef.current) return;
+
+    const bookingRefParam = searchParams.get("bookingRef");
+    if (bookingRefParam) {
+      initialLoadRef.current = true;
+      openBookingDetail(bookingRefParam);
+    }
+  }, [authReady, searchParams, openBookingDetail]);
 
   const handleTabChange = (nextTab: VisibleTab) => {
     setActiveTab(nextTab);

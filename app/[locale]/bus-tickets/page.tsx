@@ -142,6 +142,7 @@ type SeatLayoutElement = {
   seatId?: string;
   status?: "available" | "booked" | "locked";
   available?: boolean;
+  gender?: "male" | "female" | "other";
   seat?: {
     label?: string;
     kind?: string;
@@ -378,6 +379,12 @@ const getSeatElementClasses = (
   }
 
   if (status === "booked") {
+    if (element.gender === "female") {
+      return "bg-rose-200 dark:bg-rose-800/60 border border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 line-through";
+    }
+    if (element.gender === "male") {
+      return "bg-sky-200 dark:bg-sky-800/60 border border-sky-300 dark:border-sky-700 text-sky-600 dark:text-sky-400 line-through";
+    }
     return "bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-500 dark:text-slate-400 line-through";
   }
 
@@ -1390,7 +1397,21 @@ const BusTicketsContent = () => {
                                     Locked
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-slate-300 dark:border-slate-500 bg-slate-300 dark:bg-slate-600" />
+                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-sky-300 dark:border-sky-700 bg-sky-200 dark:bg-sky-800/60 relative overflow-hidden">
+                                      <span className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-sky-600 dark:bg-sky-400 -translate-y-1/2" />
+                                    </span>
+                                    Booked (M)
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-rose-300 dark:border-rose-700 bg-rose-200 dark:bg-rose-800/60 relative overflow-hidden">
+                                      <span className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-rose-600 dark:bg-rose-400 -translate-y-1/2" />
+                                    </span>
+                                    Booked (F)
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="inline-flex h-4 w-6 rounded-[6px] border border-slate-300 dark:border-slate-500 bg-slate-300 dark:bg-slate-600 relative overflow-hidden">
+                                      <span className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-slate-500 dark:bg-slate-400 -translate-y-1/2" />
+                                    </span>
                                     Booked
                                   </div>
                                 </div>

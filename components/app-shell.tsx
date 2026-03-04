@@ -7,6 +7,7 @@ import Footer from "@/components/footer";
 import Navbar from "@/components/navbar";
 import { subscribeAuthSessionChanged } from "@/lib/auth-events";
 import ChatWidget from "@/components/chat/chat-widget";
+import GoogleOneTap from "@/components/google-one-tap";
 
 const HIDE_SHELL_ROUTES = [
   "/admin/dashboard",
@@ -34,6 +35,7 @@ const AppShell = ({ children }: { children: React.ReactNode }) => {
       <React.Fragment key={authSessionVersion}>{children}</React.Fragment>
       {!hideShell && <Footer />}
       {!hideShell && <ChatWidget />}
+      <GoogleOneTap />
     </>
   );
 };
