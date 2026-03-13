@@ -691,10 +691,20 @@ const OwnerTrackBusView = () => {
           <div className="h-[520px] bg-slate-100 dark:bg-[#111827]">
             <LiveMap
               center={mapCenter}
-              marker={
+              markers={
                 liveLocation
-                  ? { lat: liveLocation.lat, lng: liveLocation.lng }
-                  : null
+                  ? [
+                      {
+                        position: {
+                          lat: liveLocation.lat,
+                          lng: liveLocation.lng,
+                        },
+                        type: "bus" as const,
+                        label: selectedBus?.busName || "Bus",
+                        heading: liveLocation.heading,
+                      },
+                    ]
+                  : []
               }
               route={routePoints}
               zoom={liveLocation ? 14 : 11}

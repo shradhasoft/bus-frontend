@@ -11,6 +11,7 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
+import AnimatedBusMarker from "@/components/tracking/animated-bus-marker";
 
 type LatLng = {
   lat: number;
@@ -22,6 +23,7 @@ export type MapMarker = {
   type?: "bus" | "boarding" | "dropping" | "stop" | "default";
   label?: string;
   pulse?: boolean;
+  heading?: number | null;
 };
 
 type LiveMapProps = {
@@ -67,27 +69,10 @@ const makeSvgIcon = (color: string, glyph: string, size = 36) =>
     </div>`,
   });
 
-const busPulseIcon = new L.DivIcon({
-  className: "",
-  iconSize: [44, 44],
-  iconAnchor: [22, 22],
-  popupAnchor: [0, -22],
-  html: `<div style="position:relative;width:44px;height:44px;">
-    <div style="position:absolute;inset:0;border-radius:50%;background:rgba(59,130,246,.25);animation:livePulse 2s ease-out infinite;"></div>
-    <div style="position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;
-      background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border-radius:50%;
-      border:3px solid #fff;box-shadow:0 2px 10px rgba(37,99,235,.5);font-size:18px;font-weight:700;">
-      🚌
-    </div>
-  </div>
-  <style>@keyframes livePulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.2);opacity:0}}</style>`,
-});
-
 const boardingIcon = makeSvgIcon("#10b981", "▲", 32);
 const droppingIcon = makeSvgIcon("#ef4444", "▼", 32);
 
 const MARKER_ICONS: Record<string, L.DivIcon | L.Icon> = {
-  bus: busPulseIcon,
   boarding: boardingIcon,
   dropping: droppingIcon,
   default: defaultIcon,
@@ -184,7 +169,17 @@ const LiveMap = ({
       {/* Multi-marker mode */}
       {markers.map((m, idx) => {
         const mType = m.type || "default";
-        const icon = MARKER_ICONS[mType] || MARKER_ICONS.default;
+
+        if (mType === "bus") {
+          return (
+            <AnimatedBusMarker
+              key={`bus-${idx}`}
+              position={m.position}
+              heading={m.heading}
+              label={m.label}
+            />
+          );
+        }
 
         if (mType === "stop") {
           return (
@@ -208,6 +203,7 @@ const LiveMap = ({
           );
         }
 
+        const icon = MARKER_ICONS[mType] || MARKER_ICONS.default;
         return (
           <Marker
             key={`marker-${idx}`}

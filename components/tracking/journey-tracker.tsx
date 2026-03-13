@@ -443,8 +443,9 @@ const JourneyTracker = ({ bookingId }: JourneyTrackerProps) => {
       markers.push({
         position: { lat: liveLocation.lat, lng: liveLocation.lng },
         type: "bus",
-        label: `🚌 ${data.busName || "Bus"} — Live`,
+        label: `${data.busName || "Bus"} — Live`,
         pulse: true,
+        heading: liveLocation.heading,
       });
     }
 
