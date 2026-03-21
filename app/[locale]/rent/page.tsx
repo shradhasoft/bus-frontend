@@ -62,7 +62,7 @@ const RENTAL_FORM_SCHEMA = z.object({
   tripType: z.enum(TRIP_TYPES),
   pickupLocation: z.string().min(2).max(120),
   dropLocation: z.string().min(2).max(120),
-  viaPointsText: z.string().optional().default(""),
+  viaPointsText: z.string(),
 
   journeyDate: z.string().min(1),
   reportingTime: z
@@ -72,30 +72,30 @@ const RENTAL_FORM_SCHEMA = z.object({
 
   rentalDurationUnit: z.enum(["hours", "days", "kilometers"]),
   rentalDurationValue: z.number().min(0.1),
-  returnRequired: z.boolean().default(false),
+  returnRequired: z.boolean(),
 
   passengerCount: z.number().int().min(1).max(500),
-  luggageQuantity: z.number().int().min(0).max(100).default(0),
-  luggageType: z.string().optional().default(""),
+  luggageQuantity: z.number().int().min(0).max(100),
+  luggageType: z.string(),
 
-  busTypesNeeded: z.array(z.enum(BUS_TYPES_NEEDED)).default([]),
+  busTypesNeeded: z.array(z.enum(BUS_TYPES_NEEDED)),
   seatingCapacityRequired: z.number().int().min(1).max(500),
 
   specialNeeds: z.object({
-    wheelchairAccess: z.boolean().default(false),
-    elderlyFriendly: z.boolean().default(false),
-    childSeats: z.boolean().default(false),
+    wheelchairAccess: z.boolean(),
+    elderlyFriendly: z.boolean(),
+    childSeats: z.boolean(),
   }),
 
   purposeOfTrip: z.enum(PURPOSE_OF_TRIP),
   groupCategory: z.enum(GROUP_CATEGORY),
-  requiredAmenities: z.array(z.enum(AMENITIES)).default([]),
+  requiredAmenities: z.array(z.enum(AMENITIES)),
 
   customerName: z.string().min(2).max(100),
   mobileNumber: z.string().regex(/^\+?[0-9]{10,15}$/, "Enter a valid mobile number"),
   email: z.string().email(),
-  companyName: z.string().optional().default(""),
-  gstNumber: z.string().optional().default(""),
+  companyName: z.string(),
+  gstNumber: z.string(),
 });
 
 type RentalFormValues = z.infer<typeof RENTAL_FORM_SCHEMA>;
