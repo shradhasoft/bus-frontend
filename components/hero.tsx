@@ -3,12 +3,12 @@
 // components/hero.tsx
 import React, { useState } from "react";
 import Image from "next/image";
-import { Bus, Navigation, Ticket } from "lucide-react";
+import { Navigation, Ticket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import BusSearchForm from "@/components/bus-search-form";
 import BusTrackForm from "@/components/bus-track-form";
 
-type HeroTab = "book" | "track" | "rent";
+type HeroTab = "book" | "track";
 
 const Hero = () => {
   const [activeTab, setActiveTab] = useState<HeroTab>("book");
@@ -25,7 +25,6 @@ const Hero = () => {
       label: t("trackBuses"),
       icon: <Navigation className="h-4 w-4" />,
     },
-    { id: "rent", label: t("rentBuses"), icon: <Bus className="h-4 w-4" /> },
   ];
 
   return (
@@ -69,12 +68,6 @@ const Hero = () => {
             <div className="mt-5">
               {activeTab === "book" && <BusSearchForm />}
               {activeTab === "track" && <BusTrackForm />}
-              {activeTab === "rent" && (
-                <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/50 py-8 text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-800/30 dark:text-slate-400">
-                  <Bus className="mr-2 h-5 w-5" />
-                  {t("rentComingSoon")}
-                </div>
-              )}
             </div>
           </div>
         </div>
