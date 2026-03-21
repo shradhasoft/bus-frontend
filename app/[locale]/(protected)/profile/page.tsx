@@ -147,6 +147,30 @@ type BookingDetailResponse = {
   message?: string;
 };
 
+type RentalRequestItem = {
+  _id: string;
+  rentalRequestId: string;
+  status: "New" | "In Progress" | "Quoted" | "Closed";
+  tripType: string;
+  pickupLocation: string;
+  dropLocation: string;
+  journeyDate: string;
+  reportingTime: string;
+  tripEndDateTime: string;
+  passengerCount: number;
+  seatingCapacityRequired: number;
+  requiredAmenities?: string[];
+  createdAt: string;
+};
+
+type RentalListResponse = {
+  success: boolean;
+  data?: RentalRequestItem[];
+  total?: number;
+  totalPages?: number;
+  message?: string;
+};
+
 type ProfileUser = {
   fullName?: string;
   email?: string;
@@ -211,6 +235,16 @@ const STATUS_STYLES: Record<BookingListItem["lifecycleBucket"], string> = {
 
 const RUNNING_STYLE =
   "border-indigo-200/80 bg-indigo-50 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200";
+
+const RENTAL_STATUS_STYLES: Record<RentalRequestItem["status"], string> = {
+  New: "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200",
+  "In Progress":
+    "border-blue-200/80 bg-blue-50 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-200",
+  Quoted:
+    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200",
+  Closed:
+    "border-slate-200/80 bg-slate-50 text-slate-700 dark:border-white/15 dark:bg-white/5 dark:text-slate-200",
+};
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -390,6 +424,9 @@ const ProfilePage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [rentals, setRentals] = useState<RentalRequestItem[]>([]);
+  const [rentalLoading, setRentalLoading] = useState(false);
+  const [rentalError, setRentalError] = useState<string | null>(null);
 
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(
     null,
@@ -663,6 +700,62 @@ const ProfilePage = () => {
 
     return () => controller.abort();
   }, [activeTab, authReady, debouncedSearch, getAuthHeaders, page, reloadKey]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    const controller = new AbortController();
+
+    const loadRentals = async () => {
+      setRentalLoading(true);
+      setRentalError(null);
+      try {
+        const params = new URLSearchParams({
+          page: "1",
+          limit: "5",
+        });
+        if (debouncedSearch) {
+          params.set("search", debouncedSearch);
+        }
+
+        const headers = await getAuthHeaders();
+        const response = await fetch(apiUrl(`/api/rentals/my?${params.toString()}`), {
+          method: "GET",
+          credentials: "include",
+          headers,
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (response.status === 401) {
+          setRentals([]);
+          setRentalError("Sign in to access your rental requests.");
+          return;
+        }
+
+        const payload = (await response
+          .json()
+          .catch(() => ({}))) as RentalListResponse;
+        if (!response.ok) {
+          throw new Error(payload?.message || "Unable to load rental requests.");
+        }
+
+        setRentals(Array.isArray(payload?.data) ? payload.data : []);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        setRentals([]);
+        setRentalError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load rental requests right now.",
+        );
+      } finally {
+        setRentalLoading(false);
+      }
+    };
+
+    void loadRentals();
+    return () => controller.abort();
+  }, [authReady, debouncedSearch, getAuthHeaders, reloadKey]);
 
   const openBookingDetail = useCallback(
     async (bookingRef: string) => {
@@ -1041,6 +1134,79 @@ const ProfilePage = () => {
           </Button>
         </section>
       ) : null}
+
+      <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0f172a]/70">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Rental Requests
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Latest requests and statuses
+          </p>
+        </div>
+
+        {rentalLoading ? (
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading rental requests...
+          </div>
+        ) : rentalError ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+            {rentalError}
+          </div>
+        ) : rentals.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+            No rental requests found.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {rentals.map((rental) => (
+              <article
+                key={rental._id}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {rental.pickupLocation} to {rental.dropLocation}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Request ID: {rental.rentalRequestId}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
+                      RENTAL_STATUS_STYLES[rental.status],
+                    )}
+                  >
+                    {rental.status}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-2 text-xs text-slate-600 dark:text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
+                  <p>
+                    <span className="font-semibold">Trip:</span> {rental.tripType}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Journey:</span> {formatDate(rental.journeyDate)}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Passengers:</span> {rental.passengerCount}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Seats needed:</span> {rental.seatingCapacityRequired}
+                  </p>
+                </div>
+
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Submitted on {formatDateTime(rental.createdAt)}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
         <div className="space-y-4">
