@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import {
@@ -127,7 +127,7 @@ function mapApiOffers(rows: ApiOfferItem[]): OfferCard[] {
     if (!Number.isFinite(dv) || dv <= 0) continue;
 
     const isPct = item?.discountType === "percentage";
-    const tone = TONES[i % TONES.length];
+    const tone = TONES[i % TONES.length] ?? TONES[0];
 
     mapped.push({
       title: isPct ? `${dv}% off` : `Flat ₹${dv} off`,
@@ -151,22 +151,35 @@ const OfferCardItem = ({
   index: number;
 }) => {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = useTranslations("offers");
 
-  const copyCode = async () => {
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const copyCode = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(offer.code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       /* clipboard API unavailable */
     }
-  };
+  }, [offer.code]);
+
+  const delayStyle = useMemo(
+    () => ({ animationDelay: `${index * 100}ms` }),
+    [index],
+  );
 
   return (
     <div
       className={`group relative overflow-hidden rounded-2xl border p-6 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl ${offer.tone} ${offer.border} ${offer.glow}`}
-      style={{ animationDelay: `${index * 100}ms` }}
+      style={delayStyle}
     >
       {/* Animated shine effect */}
       <div className="pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-500 group-hover:opacity-100">
