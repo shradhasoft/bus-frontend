@@ -6,6 +6,7 @@ import WhyChooseUsSection from "@/components/home/WhyChooseUsSection";
 import PopularRoutesSection from "@/components/home/PopularRoutesSection";
 import DownloadAppSection from "@/components/home/DownloadAppSection";
 import FAQsSection from "@/components/home/FAQsSection";
+import Testimonials from "@/components/home/testimonials";
 
 export default function Home() {
   return (
@@ -14,6 +15,7 @@ export default function Home() {
       <OffersSection />
       <ServicesSection />
       <WhyChooseUsSection />
+      <Testimonials />
       <PopularRoutesSection />
       <DownloadAppSection />
       <FAQsSection />
