@@ -39,7 +39,7 @@ const DownloadAppSection = () => {
 
             <h2 className="text-3xl font-bold text-white sm:text-4xl">
               {t('journeyStarts')}
-              <span className="bg-gradient-to-r from-rose-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-rose-500 to-pink-400 bg-clip-text text-transparent">
                 {" "}
                 {t('yourPocket')}
               </span>
@@ -59,7 +59,7 @@ const DownloadAppSection = () => {
                     className="flex items-center gap-2.5 text-sm text-white/80"
                   >
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10">
-                      <Icon className="h-3.5 w-3.5 text-rose-400" />
+                      <Icon className="h-3.5 w-3.5 text-rose-500" />
                     </div>
                     {f.text}
                   </div>
@@ -118,8 +118,8 @@ const DownloadAppSection = () => {
           {/* Right — phone mockup placeholder */}
           <div className="hidden lg:block">
             <div className="relative flex h-[340px] w-[180px] items-center justify-center rounded-[2rem] border-2 border-white/10 bg-gradient-to-b from-white/5 to-transparent p-1 shadow-2xl">
-              <div className="flex h-full w-full flex-col items-center justify-center rounded-[1.7rem] bg-slate-800/80 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30">
+              <div className="flex h-full w-full flex-col items-center justify-center rounded-[1.7rem] bg-black text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500 text-white shadow-lg shadow-rose-500/30">
                   <Smartphone className="h-6 w-6" />
                 </div>
                 <p className="mt-3 text-sm font-bold text-white">BookMySeat</p>
