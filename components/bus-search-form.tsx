@@ -26,7 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { subscribeAuthSessionChanged } from "@/lib/auth-events";
 import { cn } from "@/lib/utils";
 
@@ -131,9 +131,8 @@ const BusSearchForm = ({
     setStopsError(null);
 
     try {
-      const response = await fetch(apiUrl("/stops?limit=200"), {
+      const response = await apiFetch("/stops?limit=200", {
         method: "GET",
-        credentials: "include",
         signal: controller.signal,
       });
 

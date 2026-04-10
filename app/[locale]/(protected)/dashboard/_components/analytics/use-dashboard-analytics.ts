@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 export type Period = "7d" | "30d" | "90d" | "1y" | "all";
 
@@ -142,13 +142,12 @@ export function useDashboardAnalytics(initialPeriod: Period = "30d") {
     setError(null);
 
     try {
-      const response = await fetch(
-        apiUrl(`/admin/dashboard/analytics?period=${p}`),
+      const response = await apiFetch(
+        `/admin/dashboard/analytics?period=${p}`,
         {
           method: "GET",
-          credentials: "include",
           signal: controller.signal,
-        }
+        },
       );
 
       if (!response.ok) {

@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiUrl } from "@/lib/api";
-import { firebaseAuth } from "@/lib/firebase/client";
+import { apiFetch } from "@/lib/api";
 
 export type OwnerAnalyticsBus = {
   _id: string;
@@ -83,35 +82,15 @@ export function useOwnerAnalytics() {
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const buildHeaders = useCallback(async (): Promise<
-    Record<string, string>
-  > => {
-    const token = await firebaseAuth.currentUser
-      ?.getIdToken()
-      .catch(() => null);
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    return headers;
+  const fetchJson = useCallback(async (path: string) => {
+    const res = await apiFetch(path, {
+      method: "GET",
+      cache: "no-store",
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.message || `Request failed: ${path}`);
+    return payload;
   }, []);
-
-  const fetchJson = useCallback(
-    async (path: string) => {
-      const headers = await buildHeaders();
-      const res = await fetch(apiUrl(path), {
-        method: "GET",
-        credentials: "include",
-        headers,
-        cache: "no-store",
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok)
-        throw new Error(payload?.message || `Request failed: ${path}`);
-      return payload;
-    },
-    [buildHeaders],
-  );
 
   const fetchAllPages = useCallback(
     async <T>(

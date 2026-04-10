@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { computeETA, type RouteStopWithTrips, type ETAResult } from "@/lib/eta";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import {
   getSocketClientScriptUrl,
   getSocketNamespaceUrl,
@@ -199,15 +199,10 @@ const JourneyTracker = ({ bookingId }: JourneyTrackerProps) => {
       setLoading(true);
       setError(null);
       try {
-        const headers = await getAuthHeaders();
-        const response = await fetch(
-          apiUrl(
-            `/mybookings/${encodeURIComponent(bookingId)}/journey-tracking`,
-          ),
+        const response = await apiFetch(
+          `/mybookings/${encodeURIComponent(bookingId)}/journey-tracking`,
           {
             method: "GET",
-            credentials: "include",
-            headers,
             cache: "no-store",
           },
         );
@@ -237,8 +232,8 @@ const JourneyTracker = ({ bookingId }: JourneyTrackerProps) => {
   // ─── fetch latest bus location ───
   const fetchLatest = useCallback(async (bn: string) => {
     try {
-      const response = await fetch(
-        apiUrl(`/v1/tracking/bus/${encodeURIComponent(bn)}/latest`),
+      const response = await apiFetch(
+        `/v1/tracking/bus/${encodeURIComponent(bn)}/latest`,
         { method: "GET", cache: "no-store" },
       );
       const payload = await response.json().catch(() => ({}));
