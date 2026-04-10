@@ -63,7 +63,6 @@ const CHART_COLORS = {
   cyan: "#06b6d4",
 };
 
-const PIE_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 const STAR_COLOR = "#fbbf24";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -321,7 +320,7 @@ function TooltipContent({
 function QuickActionCard({
   label,
   description,
-  href,
+  href: _href,
   icon: Icon,
   accent,
   onClick,
@@ -363,11 +362,17 @@ export default function OwnerAnalyticsDashboard() {
   const router = useRouter();
 
   // ── Derived metrics ──────────────────────────────────────────────────────
-  const buses = data?.buses ?? [];
-  const operationalBuses = data?.operationalBuses ?? [];
+  const buses = useMemo(() => data?.buses ?? [], [data?.buses]);
+  const operationalBuses = useMemo(
+    () => data?.operationalBuses ?? [],
+    [data?.operationalBuses],
+  );
   const conductors = data?.conductors ?? [];
   const reviewStats = data?.reviewStats ?? {};
-  const busSummaries = data?.busSummaries ?? [];
+  const busSummaries = useMemo(
+    () => data?.busSummaries ?? [],
+    [data?.busSummaries],
+  );
 
   const totalBuses = buses.length;
   const activeBuses = buses.filter((b) => b.isActive).length;

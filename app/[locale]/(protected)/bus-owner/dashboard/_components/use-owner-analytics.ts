@@ -207,26 +207,42 @@ export function useOwnerAnalytics() {
       try {
         const [busResult, opResult, conductorResult, reviewResult] =
           await Promise.allSettled([
-            fetchAllPages(
+            fetchAllPages<OwnerAnalyticsBus>(
               (p) => `/admin/buses?page=${p}&limit=100`,
-              (payload: any) => ({
-                rows: Array.isArray(payload?.data?.buses)
-                  ? payload.data.buses
-                  : [],
-                totalPages: Number(payload?.data?.totalPages || 1),
-                hasNext: Boolean(payload?.data?.hasNext),
-              }),
+              (payload: unknown) => {
+                const p2 = payload as {
+                  data?: {
+                    buses?: OwnerAnalyticsBus[];
+                    totalPages?: number;
+                    hasNext?: boolean;
+                  };
+                };
+                return {
+                  rows: Array.isArray(p2?.data?.buses) ? p2.data!.buses! : [],
+                  totalPages: Number(p2?.data?.totalPages || 1),
+                  hasNext: Boolean(p2?.data?.hasNext),
+                };
+              },
             ),
             fetchJson("/v1/telemetry/owner/buses"),
-            fetchAllPages(
+            fetchAllPages<OwnerConductor>(
               (p) => `/v1/telemetry/owner/conductors?page=${p}&limit=100`,
-              (payload: any) => ({
-                rows: Array.isArray(payload?.data?.conductors)
-                  ? payload.data.conductors
-                  : [],
-                totalPages: Number(payload?.data?.totalPages || 1),
-                hasNext: Boolean(payload?.data?.hasNext),
-              }),
+              (payload: unknown) => {
+                const p2 = payload as {
+                  data?: {
+                    conductors?: OwnerConductor[];
+                    totalPages?: number;
+                    hasNext?: boolean;
+                  };
+                };
+                return {
+                  rows: Array.isArray(p2?.data?.conductors)
+                    ? p2.data!.conductors!
+                    : [],
+                  totalPages: Number(p2?.data?.totalPages || 1),
+                  hasNext: Boolean(p2?.data?.hasNext),
+                };
+              },
             ),
             fetchJson("/api/reviews/owner/overview?page=1&limit=10"),
           ]);
@@ -238,29 +254,40 @@ export function useOwnerAnalytics() {
             ? busResult.value
             : (failedModules.push("fleet"), [] as OwnerAnalyticsBus[]);
 
-        const operationalBuses =
+        const operationalBuses: OwnerOperationalBus[] =
           opResult.status === "fulfilled"
-            ? Array.isArray(opResult.value?.data)
-              ? opResult.value.data
+            ? Array.isArray((opResult.value as { data?: unknown })?.data)
+              ? (opResult.value as { data: OwnerOperationalBus[] }).data
               : []
-            : (failedModules.push("operations"), [] as OwnerOperationalBus[]);
+            : (failedModules.push("operations"), []);
 
         const conductors =
           conductorResult.status === "fulfilled"
             ? conductorResult.value
             : (failedModules.push("conductors"), [] as OwnerConductor[]);
 
-        const reviewStats =
+        const reviewStats: OwnerReviewStats =
           reviewResult.status === "fulfilled"
-            ? (reviewResult.value?.data?.stats ?? {})
-            : (failedModules.push("reviews"), {} as OwnerReviewStats);
+            ? ((
+                reviewResult.value as {
+                  data?: { stats?: OwnerReviewStats };
+                }
+              )?.data?.stats ?? {})
+            : (failedModules.push("reviews"), {});
 
-        const busSummaries =
+        const busSummaries: OwnerBusSummary[] =
           reviewResult.status === "fulfilled"
-            ? Array.isArray(reviewResult.value?.data?.busSummaries)
-              ? reviewResult.value.data.busSummaries
+            ? Array.isArray(
+                (reviewResult.value as { data?: { busSummaries?: unknown } })
+                  ?.data?.busSummaries,
+              )
+              ? (
+                  reviewResult.value as {
+                    data: { busSummaries: OwnerBusSummary[] };
+                  }
+                ).data.busSummaries
               : []
-            : ([] as OwnerBusSummary[]);
+            : [];
 
         // Fetch today's actual seat occupancy from boarding blueprints
         const todaySeatSummary = await fetchTodaySeatSummary(buses).catch(

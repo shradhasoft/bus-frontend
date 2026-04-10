@@ -7,17 +7,12 @@ import {
   BarChart3,
   BookOpen,
   Bus,
-  Calendar,
-  CreditCard,
   HeadphonesIcon,
   IndianRupee,
   Loader2,
-  MessageSquare,
   RefreshCw,
   Star,
   Tag,
-  TrendingUp,
-  Truck,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -472,7 +467,13 @@ function KpiSection({ data }: { data: DashboardData }) {
 
 // --- Overview Tab ---
 
-function OverviewTab({ data, role }: { data: DashboardData; role: string }) {
+function OverviewTab({
+  data,
+  role: _role,
+}: {
+  data: DashboardData;
+  role: string;
+}) {
   return (
     <>
       {/* Revenue + Bookings Chart */}

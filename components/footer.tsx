@@ -3,14 +3,7 @@
 
 import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import {
-  Bus,
-  Instagram,
-  Twitter,
-  Facebook,
-  Youtube,
-  ArrowUp,
-} from "lucide-react";
+import { Bus, Instagram, Twitter, Facebook, Youtube } from "lucide-react";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -155,8 +148,7 @@ const Footer = () => {
               "linear-gradient(to top, rgba(10, 10, 10, 1) 0%, rgba(10, 10, 10, 0) 100%)",
             backdropFilter: "blur(6px)",
             WebkitBackdropFilter: "blur(6px)",
-            maskImage:
-              "linear-gradient(to top, black 20%, transparent 100%)",
+            maskImage: "linear-gradient(to top, black 20%, transparent 100%)",
             WebkitMaskImage:
               "linear-gradient(to top, black 20%, transparent 100%)",
           }}
