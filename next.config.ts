@@ -3,52 +3,44 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+const isProd = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
-  // Compress responses
   compress: true,
-
-  // Strict mode for better React practices
   reactStrictMode: true,
-
-  // Disable X-Powered-By header (security + SEO best practice)
   poweredByHeader: false,
 
-  // Image optimization
   images: {
     formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+    minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
-  // Security + SEO HTTP headers
   async headers() {
-    return [
+    const securityHeaders = [
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-XSS-Protection", value: "1; mode=block" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
-        source: "/(.*)",
-        headers: [
-          // Prevent clickjacking
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          // Prevent MIME sniffing
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          // XSS protection
-          { key: "X-XSS-Protection", value: "1; mode=block" },
-          // Referrer policy — sends origin on same-site, nothing cross-site
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // Permissions policy — disable unused browser features
-          {
-            key: "Permissions-Policy",
-            value:
-              "camera=(), microphone=(), geolocation=(self), interest-cohort=()",
-          },
-          // HSTS — force HTTPS for 1 year
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=31536000; includeSubDomains; preload",
-          },
-        ],
+        key: "Permissions-Policy",
+        value:
+          "camera=(), microphone=(), geolocation=(self), interest-cohort=()",
       },
-      // Cache static assets aggressively
+      // HSTS only in production — causes Chrome interstitial on HTTP (local/CI)
+      ...(isProd
+        ? [
+            {
+              key: "Strict-Transport-Security",
+              value: "max-age=31536000; includeSubDomains; preload",
+            },
+          ]
+        : []),
+    ];
+
+    return [
+      { source: "/(.*)", headers: securityHeaders },
       {
         source: "/_next/static/(.*)",
         headers: [
@@ -58,7 +50,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Cache images
       {
         source: "/images/(.*)",
         headers: [
@@ -71,16 +62,8 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Redirects for SEO — ensure canonical URLs
   async redirects() {
-    return [
-      // Redirect root to default locale
-      {
-        source: "/",
-        destination: "/en",
-        permanent: false,
-      },
-    ];
+    return [{ source: "/", destination: "/en", permanent: false }];
   },
 };
 
