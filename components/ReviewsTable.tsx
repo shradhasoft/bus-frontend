@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { format } from "date-fns";
 import { Loader2, Trash2, Star, ChevronLeft, ChevronRight } from "lucide-react";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -86,11 +86,9 @@ export function ReviewsTable() {
           params.append("rating", ratingFilter);
         }
 
-        const response = await fetch(
-          apiUrl(`/api/reviews/admin/all?${params.toString()}`),
-          {
-            credentials: "include",
-          },
+        const response = await apiFetch(
+          `/api/reviews/admin/all?${params.toString()}`,
+          {},
         );
 
         if (!response.ok) {
@@ -120,9 +118,8 @@ export function ReviewsTable() {
 
     try {
       setIsDeleting(true);
-      const response = await fetch(apiUrl(`/api/reviews/admin/${deleteId}`), {
+      const response = await apiFetch(`/api/reviews/admin/${deleteId}`, {
         method: "DELETE",
-        credentials: "include",
       });
 
       if (!response.ok) {
