@@ -1,4 +1,7 @@
-import { firebaseAuth } from "@/lib/firebase/client";
+// lib/api.ts
+// Shared API client. Firebase auth is imported lazily so unit tests that
+// re-import this module (via vi.resetModules) don't trigger Firebase
+// initialisation with missing env vars.
 
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -29,10 +32,15 @@ export const apiUrl = (path: string) => {
 
 /**
  * Get the Firebase ID token for the currently signed-in user.
- * Returns null if no user is signed in or token fetch fails.
+ * Firebase client is imported lazily — only when this function is called —
+ * so test files that re-import lib/api.ts don't trigger Firebase init.
+ * Returns null if no user is signed in, Firebase is unavailable, or token
+ * fetch fails.
  */
 const getIdToken = async (): Promise<string | null> => {
   try {
+    // Lazy import — avoids top-level Firebase initialisation in test env
+    const { firebaseAuth } = await import("@/lib/firebase/client");
     const user = firebaseAuth.currentUser;
     if (!user) return null;
     return await user.getIdToken();
@@ -43,7 +51,7 @@ const getIdToken = async (): Promise<string | null> => {
 
 /**
  * Build auth headers — always sends the Firebase ID token as a Bearer token.
- * This works cross-origin (Vercel → Render) unlike cookies.
+ * Works cross-origin (Vercel → Render) unlike cookies.
  */
 export const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const headers: Record<string, string> = {
