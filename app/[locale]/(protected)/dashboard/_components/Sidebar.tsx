@@ -28,7 +28,10 @@ import {
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/api";
-import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
+import {
+  dispatchAuthSessionChangedEvent,
+  subscribeAuthSessionChanged,
+} from "@/lib/auth-events";
 
 type NavItem = {
   label: string;
@@ -133,15 +136,21 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const { setTheme, resolvedTheme } = useTheme();
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [impersonationStatus, setImpersonationStatus] =
-    useState<ImpersonationStatus>({
-      active: false,
-    });
+    useState<ImpersonationStatus>({ active: false });
   const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
   const [activeItem, setActiveItem] = useState<string>("Dashboard");
+  // Increments whenever the auth session changes so role/impersonation re-fetch
+  const [sessionVersion, setSessionVersion] = useState(0);
   const themeReady = typeof resolvedTheme === "string";
   const isDark = resolvedTheme === "dark";
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    return subscribeAuthSessionChanged(() => {
+      setSessionVersion((v) => v + 1);
+    });
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -153,34 +162,28 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           method: "GET",
           credentials: "include",
           signal: controller.signal,
+          cache: "no-store",
         });
-
         if (!response.ok) {
           if (active) setProfileRole(null);
           return;
         }
-
         const data = await response.json().catch(() => ({}));
         const role = data?.data?.role;
-
-        if (active) {
-          setProfileRole(typeof role === "string" ? role : null);
-        }
+        if (active) setProfileRole(typeof role === "string" ? role : null);
       } catch (error) {
         if (active && (error as Error).name !== "AbortError") {
-          console.error("Failed to load user role:", error);
           setProfileRole(null);
         }
       }
     };
 
-    loadRole();
-
+    void loadRole();
     return () => {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [sessionVersion]);
 
   useEffect(() => {
     let mounted = true;
@@ -194,16 +197,13 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           signal: controller.signal,
           cache: "no-store",
         });
-
         if (!response.ok) {
           if (mounted) setImpersonationStatus({ active: false });
           return;
         }
-
         const payload = await response.json().catch(() => ({}));
         const data = payload?.data ?? {};
         if (!mounted) return;
-
         setImpersonationStatus({
           active: data?.active === true,
           actor: data?.actor ?? null,
@@ -217,12 +217,11 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     };
 
     void loadImpersonationStatus();
-
     return () => {
       mounted = false;
       controller.abort();
     };
-  }, [pathname]);
+  }, [sessionVersion, pathname]);
 
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark");
@@ -257,9 +256,11 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
       setImpersonationStatus({ active: false });
       const redirectPath = payload?.data?.redirectPath || "/admin/dashboard";
+      // Dispatch first so the shell increments authSessionVersion and starts
+      // its role-check fetch, then navigate. Do NOT call router.refresh() here
+      // because it would abort the shell's in-flight fetch and leave the UI stuck.
       dispatchAuthSessionChangedEvent();
       router.replace(redirectPath);
-      router.refresh();
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
         console.error("Failed to stop impersonation:", error);
@@ -282,6 +283,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     Dashboard: basePath,
     "Manage Users": `${basePath}/manage-users`,
     "Manage Buses": `${basePath}/manage-buses`,
+    "Manage Bus": `${basePath}/manage-buses`,
     "Boarded Users": `${basePath}/boarded-users`,
     "Track Bus": `${basePath}/track-bus`,
     "Manage Bookings": `${basePath}/manage-bookings`,
@@ -293,6 +295,11 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     "Manage Reviews": `${basePath}/manage-reviews`,
     "Callback Requests": `${basePath}/callback-requests`,
     Broadcast: `${basePath}/broadcast`,
+    // Conductor-specific routes
+    "Verify Ticket": `${basePath}/verify-ticket`,
+    "Mark Offline Book": `${basePath}/mark-offline-book`,
+    // Owner-specific routes
+    "Manage conductor": `${basePath}/manage-conductor`,
   };
 
   const isRouteMatch = (route: string) =>

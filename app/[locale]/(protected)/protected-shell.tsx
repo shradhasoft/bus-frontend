@@ -1,7 +1,13 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Navbar } from "./dashboard/_components/navbar";
 import { Sidebar } from "./dashboard/_components/Sidebar";
@@ -45,6 +51,8 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
   const routeValidationKey = `${authSessionVersion}:${pathname}`;
+  const routeValidationKeyRef = useRef(routeValidationKey);
+  routeValidationKeyRef.current = routeValidationKey;
 
   const toggleSidebar = useCallback(() => {
     setCollapsed((prev) => !prev);
@@ -57,22 +65,23 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
         toggleSidebar();
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
   useEffect(() => {
     return subscribeAuthSessionChanged(() => {
-      setAuthSessionVersion((value) => value + 1);
+      setAuthSessionVersion((v) => v + 1);
     });
   }, []);
 
   useEffect(() => {
     if (isStandaloneRoute(pathname)) return;
+    if (validatedRouteKey === routeValidationKey) return;
 
-    let active = true;
+    let cancelled = false;
     const controller = new AbortController();
+    const capturedKey = routeValidationKey;
 
     const enforceRoleRoute = async () => {
       try {
@@ -83,38 +92,47 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
           cache: "no-store",
         });
 
-        if (!response.ok || !active) {
-          if (active) {
-            // Fail open if role endpoint responds with transient non-200 status.
-            setValidatedRouteKey(routeValidationKey);
+        if (cancelled) return;
+
+        if (!response.ok) {
+          if (!cancelled && routeValidationKeyRef.current === capturedKey) {
+            setValidatedRouteKey(capturedKey);
           }
           return;
         }
 
         const payload = await response.json().catch(() => ({}));
-        if (!active) return;
+        if (cancelled) return;
 
         const normalizedRole = normalizeRole(payload?.data?.role ?? null);
         const expectedBasePath = ROLE_BASE_PATHS[normalizedRole];
-        if (!expectedBasePath) return;
 
-        const currentBasePath = resolveRouteBasePath(pathname);
-        if (!currentBasePath || currentBasePath === expectedBasePath) {
-          if (active) setValidatedRouteKey(routeValidationKey);
+        if (!expectedBasePath) {
+          if (!cancelled && routeValidationKeyRef.current === capturedKey) {
+            setValidatedRouteKey(capturedKey);
+          }
           return;
         }
 
+        const currentBasePath = resolveRouteBasePath(pathname);
+
+        if (!currentBasePath || currentBasePath === expectedBasePath) {
+          if (!cancelled && routeValidationKeyRef.current === capturedKey) {
+            setValidatedRouteKey(capturedKey);
+          }
+          return;
+        }
+
+        // Wrong path for this role — redirect without router.refresh() to avoid
+        // aborting the in-flight fetch. The pathname change will re-trigger this effect.
         router.replace(expectedBasePath);
-        router.refresh();
       } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          if (process.env.NODE_ENV === "development") {
-            console.error("Role route enforcement failed:", error);
-          }
-          if (active) {
-            // Fail open if role-check endpoint is temporarily unavailable.
-            setValidatedRouteKey(routeValidationKey);
-          }
+        if (cancelled || (error as Error).name === "AbortError") return;
+        if (process.env.NODE_ENV === "development") {
+          console.error("Role route enforcement failed:", error);
+        }
+        if (!cancelled && routeValidationKeyRef.current === capturedKey) {
+          setValidatedRouteKey(capturedKey);
         }
       }
     };
@@ -122,10 +140,11 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
     void enforceRoleRoute();
 
     return () => {
-      active = false;
+      cancelled = true;
       controller.abort();
     };
-  }, [authSessionVersion, pathname, routeValidationKey, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSessionVersion, pathname]);
 
   const canRenderChildren =
     isStandaloneRoute(pathname) || validatedRouteKey === routeValidationKey;
@@ -152,7 +171,7 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
       className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0b1020] dark:text-slate-100"
       style={shellStyle}
     >
-      <div className="fixed inset-x-0 top-0 z-50 h-[var(--navbar-height,64px)] md:pl-[var(--sidebar-width,17rem)]">
+      <div className="fixed inset-x-0 top-0 z-50 h-(--navbar-height,64px) md:pl-(--sidebar-width,17rem)">
         <Navbar key={`protected-navbar-${authSessionVersion}`} />
       </div>
 
@@ -167,7 +186,7 @@ const ProtectedShell = ({ children }: { children: ReactNode }) => {
         />
       </div>
 
-      <main className="min-h-screen pt-[var(--navbar-height,64px)] transition-[padding] duration-300 md:pl-[var(--sidebar-width,17rem)]">
+      <main className="min-h-screen pt-(--navbar-height,64px) transition-[padding] duration-300 md:pl-(--sidebar-width,17rem)">
         <div className="px-6 py-6">
           {canRenderChildren ? (
             <React.Fragment key={authSessionVersion}>{children}</React.Fragment>
