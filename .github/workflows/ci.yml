@@ -93,6 +93,7 @@ jobs:
       NEXT_PUBLIC_SOCKET_PATH: ${{ secrets.NEXT_PUBLIC_SOCKET_PATH }}
       NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
       MAPBOX_API_KEY: ${{ secrets.MAPBOX_API_KEY }}
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -151,6 +152,7 @@ jobs:
       NEXT_PUBLIC_SOCKET_PATH: ${{ secrets.NEXT_PUBLIC_SOCKET_PATH }}
       NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
       MAPBOX_API_KEY: ${{ secrets.MAPBOX_API_KEY }}
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
