@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { ChevronDown, Search, User } from "lucide-react";
 import { apiUrl } from "@/lib/api";
+import { subscribeAuthSessionChanged } from "@/lib/auth-events";
 import { NotificationBell } from "@/components/notification-bell";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -28,9 +29,15 @@ type ImpersonationStatus = {
 const Navbar = () => {
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [impersonationStatus, setImpersonationStatus] =
-    useState<ImpersonationStatus>({
-      active: false,
+    useState<ImpersonationStatus>({ active: false });
+  // Increments whenever the auth session changes so effects re-run
+  const [sessionVersion, setSessionVersion] = useState(0);
+
+  useEffect(() => {
+    return subscribeAuthSessionChanged(() => {
+      setSessionVersion((v) => v + 1);
     });
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -42,34 +49,28 @@ const Navbar = () => {
           method: "GET",
           credentials: "include",
           signal: controller.signal,
+          cache: "no-store",
         });
-
         if (!response.ok) {
           if (active) setProfileRole(null);
           return;
         }
-
         const data = await response.json().catch(() => ({}));
         const role = data?.data?.role;
-
-        if (active) {
-          setProfileRole(typeof role === "string" ? role : null);
-        }
+        if (active) setProfileRole(typeof role === "string" ? role : null);
       } catch (error) {
         if (active && (error as Error).name !== "AbortError") {
-          console.error("Failed to load user role:", error);
           setProfileRole(null);
         }
       }
     };
 
-    loadRole();
-
+    void loadRole();
     return () => {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [sessionVersion]);
 
   useEffect(() => {
     let active = true;
@@ -83,18 +84,13 @@ const Navbar = () => {
           signal: controller.signal,
           cache: "no-store",
         });
-
         if (!response.ok) {
-          if (active) {
-            setImpersonationStatus({ active: false });
-          }
+          if (active) setImpersonationStatus({ active: false });
           return;
         }
-
         const payload = await response.json().catch(() => ({}));
         const data = payload?.data ?? {};
         if (!active) return;
-
         setImpersonationStatus({
           active: data?.active === true,
           actor: data?.actor ?? null,
@@ -108,12 +104,11 @@ const Navbar = () => {
     };
 
     void loadImpersonationStatus();
-
     return () => {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [sessionVersion]);
 
   const roleLabel = profileRole
     ? (ROLE_LABELS[profileRole] ?? profileRole)

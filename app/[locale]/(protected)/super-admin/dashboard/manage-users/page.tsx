@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, LogIn, Plus, Search, Trash2, UserRound, Pencil } from "lucide-react";
+import {
+  Eye,
+  LogIn,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
+  Pencil,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/api";
 import { dispatchAuthSessionChangedEvent } from "@/lib/auth-events";
@@ -56,8 +64,7 @@ const ROLE_BADGE_STYLES: Record<string, string> = {
     "border-violet-200 bg-violet-100 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200",
   conductor:
     "border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200",
-  user:
-    "border-slate-200 bg-slate-100 text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-200",
+  user: "border-slate-200 bg-slate-100 text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-200",
 };
 
 const DEFAULT_FORM: UserFormState = {
@@ -119,7 +126,9 @@ const ManageUsersPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
-  const [formMode, setFormMode] = useState<"create" | "edit" | "view">("create");
+  const [formMode, setFormMode] = useState<"create" | "edit" | "view">(
+    "create",
+  );
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
   const [formState, setFormState] = useState<UserFormState>(DEFAULT_FORM);
   const [formError, setFormError] = useState<string | null>(null);
@@ -127,7 +136,7 @@ const ManageUsersPage = () => {
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(
-    null
+    null,
   );
 
   const totalPages = useMemo(() => {
@@ -152,11 +161,14 @@ const ManageUsersPage = () => {
         params.set("limit", String(limit));
         if (search) params.set("search", search);
 
-        const response = await fetch(apiUrl(`/admin/users?${params.toString()}`), {
-          method: "GET",
-          credentials: "include",
-          signal,
-        });
+        const response = await fetch(
+          apiUrl(`/admin/users?${params.toString()}`),
+          {
+            method: "GET",
+            credentials: "include",
+            signal,
+          },
+        );
 
         const payload = await response.json().catch(() => ({}));
 
@@ -181,7 +193,7 @@ const ManageUsersPage = () => {
         setLoading(false);
       }
     },
-    [limit, page, search]
+    [limit, page, search],
   );
 
   useEffect(() => {
@@ -299,13 +311,10 @@ const ManageUsersPage = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const response = await fetch(
-        apiUrl(`/admin/users/${deleteTarget._id}`),
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(apiUrl(`/admin/users/${deleteTarget._id}`), {
+        method: "DELETE",
+        credentials: "include",
+      });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.message || "Unable to delete user.");
@@ -341,16 +350,18 @@ const ManageUsersPage = () => {
 
         const redirectPath =
           payload?.data?.redirectPath || getRoleDashboardPath(user.role);
+        // Dispatch first so the shell starts its role-check fetch, then navigate.
+        // Do NOT call router.refresh() — it aborts the shell's in-flight fetch
+        // and leaves the UI stuck on "Syncing role access...".
         dispatchAuthSessionChangedEvent();
         router.replace(redirectPath);
-        router.refresh();
       } catch (err) {
         setError((err as Error).message || "Unable to start impersonation.");
       } finally {
         setImpersonatingUserId(null);
       }
     },
-    [router]
+    [router],
   );
 
   const startIndex = total === 0 ? 0 : (page - 1) * limit + 1;
@@ -474,7 +485,7 @@ const ManageUsersPage = () => {
                         className={cn(
                           "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em]",
                           ROLE_BADGE_STYLES[user.role ?? "user"] ??
-                            ROLE_BADGE_STYLES.user
+                            ROLE_BADGE_STYLES.user,
                         )}
                       >
                         {normalizeRoleLabel(user.role)}
@@ -486,9 +497,9 @@ const ManageUsersPage = () => {
                     <td className="px-6 py-4 text-slate-700 dark:text-slate-200">
                       {formatDate(user.updatedAt)}
                     </td>
-	                    <td className="px-6 py-4">
-	                      <div className="flex flex-wrap items-center gap-2">
-	                        <button
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
                           type="button"
                           onClick={() => openView(user)}
                           className="inline-flex items-center gap-1 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200"
@@ -510,30 +521,30 @@ const ManageUsersPage = () => {
                           className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:-translate-y-0.5 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-	                          Delete
-	                        </button>
-	                        {IMPERSONATABLE_ROLES.has(
-	                          String(user.role || "").toLowerCase()
-	                        ) ? (
-	                          <button
-	                            type="button"
-	                            onClick={() => void handleImpersonate(user)}
-	                            disabled={
-	                              impersonatingUserId === user._id ||
-	                              user.isActive === false ||
-	                              user.isBlocked === true
-	                            }
-	                            className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-500/40 dark:bg-indigo-500/15 dark:text-indigo-200"
-	                          >
-	                            <LogIn className="h-3.5 w-3.5" />
-	                            {impersonatingUserId === user._id
-	                              ? "Impersonating..."
-	                              : "Impersonate"}
-	                          </button>
-	                        ) : null}
-	                      </div>
-	                    </td>
-	                  </tr>
+                          Delete
+                        </button>
+                        {IMPERSONATABLE_ROLES.has(
+                          String(user.role || "").toLowerCase(),
+                        ) ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleImpersonate(user)}
+                            disabled={
+                              impersonatingUserId === user._id ||
+                              user.isActive === false ||
+                              user.isBlocked === true
+                            }
+                            className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-500/40 dark:bg-indigo-500/15 dark:text-indigo-200"
+                          >
+                            <LogIn className="h-3.5 w-3.5" />
+                            {impersonatingUserId === user._id
+                              ? "Impersonating..."
+                              : "Impersonate"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>
@@ -570,7 +581,7 @@ const ManageUsersPage = () => {
                   "rounded-lg border px-3 py-1 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5",
                   value === page
                     ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900"
-                    : "border-slate-200/80 dark:border-white/10"
+                    : "border-slate-200/80 dark:border-white/10",
                 )}
               >
                 {value}
@@ -761,7 +772,9 @@ const ManageUsersPage = () => {
             <DialogTitle>Delete user</DialogTitle>
             <DialogDescription>
               This will permanently remove{" "}
-              <strong>{deleteTarget ? getDisplayName(deleteTarget) : "user"}</strong>
+              <strong>
+                {deleteTarget ? getDisplayName(deleteTarget) : "user"}
+              </strong>
               . This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

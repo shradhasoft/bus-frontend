@@ -1,7 +1,11 @@
-import OwnerDashboardOverview from "./_components/owner-dashboard-overview";
+import OwnerAnalyticsDashboard from "./_components/owner-analytics-dashboard";
 
 const BusOwnerDashboardPage = () => {
-  return <OwnerDashboardOverview />;
+  return (
+    <div className="p-6">
+      <OwnerAnalyticsDashboard />
+    </div>
+  );
 };
 
 export default BusOwnerDashboardPage;
