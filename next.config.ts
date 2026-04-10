@@ -3,9 +3,6 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://bookmyseat-eosin.vercel.app";
-
 const nextConfig: NextConfig = {
   // Compress responses
   compress: true,
