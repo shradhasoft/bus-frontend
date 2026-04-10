@@ -46,6 +46,8 @@ import {
   useOwnerAnalytics,
   type OwnerAnalyticsBus,
   type OwnerBusSummary,
+  type OwnerConductor,
+  type OwnerOperationalBus,
 } from "./use-owner-analytics";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -745,11 +747,11 @@ function OverviewTab({
   activeBuses,
   totalBuses,
   assignedBuses,
-  assignmentCoverage,
+  assignmentCoverage: _assignmentCoverage,
   activeConductors,
   totalConductors,
-  conductorAvailability,
-  occupancyRate,
+  conductorAvailability: _conductorAvailability,
+  occupancyRate: _occupancyRate,
   occupiedSeats,
   totalSeats,
   todayDate,
@@ -759,13 +761,13 @@ function OverviewTab({
   zeroReviewBuses,
   unassignedConductors,
   fleetStatusData,
-  conductorStatusData,
+  conductorStatusData: _conductorStatusData,
   seatData,
   topRatedBuses,
   ratingDistribution,
   totalReviews,
   avgRating,
-  router,
+  router: _router,
 }: {
   activeBuses: number;
   totalBuses: number;
@@ -1090,10 +1092,10 @@ function FleetTab({
   totalBuses,
   occupancyRate,
   uniqueRoutes,
-  assignedBuses,
+  assignedBuses: _assignedBuses,
 }: {
   buses: OwnerAnalyticsBus[];
-  opMap: Map<string, any>;
+  opMap: Map<string, OwnerOperationalBus>;
   summaryMap: Map<string, OwnerBusSummary>;
   activeBuses: number;
   totalBuses: number;
@@ -1318,7 +1320,7 @@ function ConductorsTab({
   unassignedConductors,
   conductorStatusData,
 }: {
-  conductors: any[];
+  conductors: OwnerConductor[];
   totalConductors: number;
   activeConductors: number;
   blockedConductors: number;
@@ -1540,7 +1542,7 @@ function ReviewsTab({
   ratingDistribution,
   ratingBarData,
   busPerformanceData,
-  topRatedBuses,
+  topRatedBuses: _topRatedBuses,
   busSummaries,
 }: {
   avgRating: number;
