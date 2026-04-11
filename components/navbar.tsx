@@ -251,25 +251,25 @@ const Navbar = () => {
   }, [roleSwitchPath, router]);
 
   return (
-    <header className="fixed top-4 left-1/2 z-[999] w-full -translate-x-1/2 px-4">
+    <header className="fixed top-4 left-1/2 z-[999] w-full -translate-x-1/2 px-2 sm:px-4">
       <nav
         className={`transition-all duration-500 custom-expo ${
           scrolled
-            ? "w-[95%] max-w-6xl nav-glass shadow-card rounded-full py-3 px-6"
-            : "w-full max-w-7xl py-4 px-6 bg-transparent"
-        } mx-auto`}
+            ? "w-[95%] max-w-6xl nav-glass shadow-card rounded-full py-3 px-3 sm:px-6"
+            : "w-full max-w-7xl py-4 px-3 sm:px-6 bg-transparent"
+        } mx-auto relative`}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between min-w-0">
           <Link
             href="/"
-            className="flex items-center gap-2 group"
+            className="flex items-center gap-2 group shrink-0"
             aria-label="Home"
             onClick={() => setOpen(false)}
           >
-            <div className="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <Bus className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-rose-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <Bus className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <span className="font-bold text-lg tracking-tight text-slate-900/90 transition-colors duration-300 dark:text-white/90">
+            <span className="font-bold text-base sm:text-lg tracking-tight text-slate-900/90 transition-colors duration-300 dark:text-white/90">
               BookMySeat
             </span>
           </Link>
@@ -288,7 +288,7 @@ const Navbar = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3 shrink-0">
             <LanguageSwitcher />
             {currentUser ? (
               <>
@@ -377,73 +377,74 @@ const Navbar = () => {
             </button>
           </div>
         </div>
+      </nav>
 
-        <div
-          className={`md:hidden absolute top-full left-0 right-0 mt-2 nav-glass rounded-2xl overflow-hidden transition-all duration-300 custom-expo ${
-            open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          <div className="py-4 px-6 space-y-2">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={handleNavClick(l.href)}
-                className="block py-2 text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
-              >
-                {l.label}
-              </Link>
-            ))}
-            {currentUser ? (
-              <>
-                <button
-                  type="button"
-                  onClick={goProfile}
-                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
-                >
-                  {tc("profile")}
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
-                >
-                  {themeReady
-                    ? isDark
-                      ? tc("lightMode")
-                      : tc("darkMode")
-                    : tc("theme")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="block w-full py-2 text-left text-rose-600 font-medium disabled:opacity-60"
-                >
-                  {isLoggingOut ? tc("loggingOut") : tc("logout")}
-                </button>
-                {roleSwitchPath ? (
-                  <button
-                    type="button"
-                    onClick={handleRoleSwitch}
-                    className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
-                  >
-                    {tc("switchTo", { role: profileRole ?? "" })}
-                  </button>
-                ) : null}
-              </>
-            ) : (
+      {/* Mobile dropdown — outside nav to avoid being clipped by rounded-full */}
+      <div
+        className={`md:hidden mt-2 nav-glass rounded-2xl overflow-hidden transition-all duration-300 custom-expo mx-auto ${
+          scrolled ? "w-[95%] max-w-6xl" : "w-full max-w-7xl"
+        } ${open ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0 pointer-events-none"}`}
+      >
+        <div className="py-4 px-6 space-y-2">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={handleNavClick(l.href)}
+              className="block py-2 text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+            >
+              {l.label}
+            </Link>
+          ))}
+          {currentUser ? (
+            <>
               <button
                 type="button"
-                onClick={openAuth}
+                onClick={goProfile}
                 className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
               >
-                {tc("login")}
+                {tc("profile")}
               </button>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+              >
+                {themeReady
+                  ? isDark
+                    ? tc("lightMode")
+                    : tc("darkMode")
+                  : tc("theme")}
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="block w-full py-2 text-left text-rose-600 font-medium disabled:opacity-60"
+              >
+                {isLoggingOut ? tc("loggingOut") : tc("logout")}
+              </button>
+              {roleSwitchPath ? (
+                <button
+                  type="button"
+                  onClick={handleRoleSwitch}
+                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                >
+                  {tc("switchTo", { role: profileRole ?? "" })}
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={openAuth}
+              className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+            >
+              {tc("login")}
+            </button>
+          )}
         </div>
-      </nav>
+      </div>
 
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
         <DialogContent className="border-0 bg-transparent p-0 shadow-none sm:max-w-[1040px]">

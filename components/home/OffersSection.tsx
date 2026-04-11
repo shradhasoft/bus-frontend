@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+} from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import {
-  Copy,
-  Check,
-  Sparkles,
-  ArrowRight,
-} from "lucide-react";
+import { Copy, Check, Sparkles, ArrowRight } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 
 interface OfferCard {
@@ -32,10 +34,31 @@ interface ApiOfferItem {
 }
 
 const BusIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    className={className}
+    viewBox="0 0 100 100"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <rect x="15" y="20" width="70" height="50" rx="8" />
-    <rect x="20" y="28" width="25" height="18" rx="3" fill="white" opacity="0.3" />
-    <rect x="55" y="28" width="25" height="18" rx="3" fill="white" opacity="0.3" />
+    <rect
+      x="20"
+      y="28"
+      width="25"
+      height="18"
+      rx="3"
+      fill="white"
+      opacity="0.3"
+    />
+    <rect
+      x="55"
+      y="28"
+      width="25"
+      height="18"
+      rx="3"
+      fill="white"
+      opacity="0.3"
+    />
     <circle cx="30" cy="78" r="7" />
     <circle cx="70" cy="78" r="7" />
     <rect x="10" y="55" width="80" height="4" rx="2" />
@@ -43,95 +66,110 @@ const BusIcon = ({ className }: { className?: string }) => (
 );
 
 const TicketIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    className={className}
+    viewBox="0 0 100 100"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <path d="M10 30 C10 25 15 20 20 20 L80 20 C85 20 90 25 90 30 L90 42 C85 42 80 46 80 52 C80 58 85 62 90 62 L90 70 C90 75 85 80 80 80 L20 80 C15 80 10 75 10 70 L10 62 C15 62 20 58 20 52 C20 46 15 42 10 42 Z" />
-    <line x1="35" y1="20" x2="35" y2="80" stroke="white" strokeWidth="2" strokeDasharray="4 4" opacity="0.3" />
+    <line
+      x1="35"
+      y1="20"
+      x2="35"
+      y2="80"
+      stroke="white"
+      strokeWidth="2"
+      strokeDasharray="4 4"
+      opacity="0.3"
+    />
   </svg>
 );
 
 const StarBurst = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    className={className}
+    viewBox="0 0 100 100"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <polygon points="50,5 61,35 95,35 68,57 79,90 50,70 21,90 32,57 5,35 39,35" />
   </svg>
 );
 
 const WalletIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    className={className}
+    viewBox="0 0 100 100"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <rect x="10" y="25" width="80" height="55" rx="8" />
-    <rect x="60" y="42" width="30" height="20" rx="5" fill="white" opacity="0.3" />
+    <rect
+      x="60"
+      y="42"
+      width="30"
+      height="20"
+      rx="5"
+      fill="white"
+      opacity="0.3"
+    />
     <circle cx="72" cy="52" r="4" fill="white" opacity="0.5" />
-    <path d="M10 35 L10 28 C10 22 15 18 20 18 L75 18 C75 18 80 18 80 23 L80 25" fill="none" stroke="currentColor" strokeWidth="4" />
+    <path
+      d="M10 35 L10 28 C10 22 15 18 20 18 L75 18 C75 18 80 18 80 23 L80 25"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
   </svg>
 );
 
 const CARD_THEMES = [
   {
-    gradientStyle: { background: "linear-gradient(135deg, #f97316, #ea580c, #dc2626)" },
+    gradientStyle: {
+      background: "linear-gradient(135deg, #f97316, #ea580c, #dc2626)",
+    },
     accentColor: "#fde047",
     tagline: "FIRST ORDER",
     decorativeIcon: <BusIcon className="h-full w-full" />,
   },
   {
-    gradientStyle: { background: "linear-gradient(135deg, #7c3aed, #9333ea, #4338ca)" },
+    gradientStyle: {
+      background: "linear-gradient(135deg, #7c3aed, #9333ea, #4338ca)",
+    },
     accentColor: "#fde047",
     tagline: "FLASH DEAL",
     decorativeIcon: <TicketIcon className="h-full w-full" />,
   },
   {
-    gradientStyle: { background: "linear-gradient(135deg, #10b981, #16a34a, #0f766e)" },
+    gradientStyle: {
+      background: "linear-gradient(135deg, #10b981, #16a34a, #0f766e)",
+    },
     accentColor: "#fef08a",
     tagline: "CASHBACK",
     decorativeIcon: <WalletIcon className="h-full w-full" />,
   },
   {
-    gradientStyle: { background: "linear-gradient(135deg, #ec4899, #e11d48, #be123c)" },
+    gradientStyle: {
+      background: "linear-gradient(135deg, #ec4899, #e11d48, #be123c)",
+    },
     accentColor: "#fde047",
     tagline: "WEEKEND SPECIAL",
     decorativeIcon: <StarBurst className="h-full w-full" />,
   },
 ] as const;
 
-const FALLBACK: OfferCard[] = [
-  {
-    title: "Get 15% off",
-    subtitle: "on your 1st booking",
-    discount: "15%",
-    code: "BMSFIRST",
-    ...CARD_THEMES[0],
-  },
-  {
-    title: "Flat ₹80 off",
-    subtitle: "on Bus Booking",
-    discount: "₹80",
-    code: "BMS8OFF",
-    ...CARD_THEMES[1],
-  },
-  {
-    title: "Save up to ₹200",
-    subtitle: "on cards & wallets",
-    discount: "₹200",
-    code: "SAVE20",
-    ...CARD_THEMES[2],
-  },
-  {
-    title: "Up to ₹100 off",
-    subtitle: "for weekend rides",
-    discount: "₹100",
-    code: "WEEKEND",
-    ...CARD_THEMES[3],
-  },
-];
-
 function mapApiOffers(rows: ApiOfferItem[]): OfferCard[] {
   const mapped: OfferCard[] = [];
 
   for (let i = 0; i < rows.length; i++) {
     const item = rows[i];
-    const code = typeof item?.promoCode === "string"
-      ? item.promoCode.trim()
-      : typeof item?.code === "string"
-        ? item.code.trim()
-        : "";
+    const code =
+      typeof item?.promoCode === "string"
+        ? item.promoCode.trim()
+        : typeof item?.code === "string"
+          ? item.code.trim()
+          : "";
     if (!code) continue;
 
     const dv = Number(item?.discountValue);
@@ -141,9 +179,12 @@ function mapApiOffers(rows: ApiOfferItem[]): OfferCard[] {
     const theme = CARD_THEMES[i % CARD_THEMES.length] ?? CARD_THEMES[0];
 
     mapped.push({
-      title: typeof item?.title === "string" && item.title.trim()
-        ? item.title.trim()
-        : isPct ? `${dv}% off` : `Flat ₹${dv} off`,
+      title:
+        typeof item?.title === "string" && item.title.trim()
+          ? item.title.trim()
+          : isPct
+            ? `${dv}% off`
+            : `Flat ₹${dv} off`,
       subtitle:
         typeof item?.minOrderAmount === "number" && item.minOrderAmount > 0
           ? `Min booking ₹${item.minOrderAmount}`
@@ -270,7 +311,7 @@ const OfferCardItem = ({
 
 const OffersSection = () => {
   const t = useTranslations("offers");
-  const [offers, setOffers] = useState<OfferCard[]>(FALLBACK);
+  const [offers, setOffers] = useState<OfferCard[] | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -281,21 +322,29 @@ const OffersSection = () => {
           signal: controller.signal,
         });
 
-        if (!res.ok) return;
+        if (!res.ok) {
+          setOffers([]);
+          return;
+        }
 
         const payload: unknown = await res.json().catch(() => null);
-        if (payload == null || typeof payload !== "object") return;
+        if (payload == null || typeof payload !== "object") {
+          setOffers([]);
+          return;
+        }
 
         const data = (payload as Record<string, unknown>).data;
-        if (!Array.isArray(data) || data.length === 0) return;
+        if (!Array.isArray(data) || data.length === 0) {
+          setOffers([]);
+          return;
+        }
 
         const valid = mapApiOffers(data as ApiOfferItem[]);
-        if (valid.length > 0) {
-          setOffers(valid);
-        }
+        setOffers(valid.length > 0 ? valid : []);
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           console.error("[OffersSection] Failed to fetch offers:", err);
+          setOffers([]);
         }
       }
     }
@@ -303,6 +352,38 @@ const OffersSection = () => {
     void loadOffers();
     return () => controller.abort();
   }, []);
+
+  // Still loading — show skeleton
+  if (offers === null) {
+    return (
+      <section className="relative overflow-hidden bg-linear-to-b from-slate-50 via-white to-slate-50 dark:from-[#0b1020] dark:via-[#0d1328] dark:to-[#0b1020]">
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          {/* Header skeleton */}
+          <div className="flex items-end justify-between">
+            <div className="space-y-3">
+              <div className="h-6 w-36 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700" />
+              <div className="h-9 w-64 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+              <div className="h-4 w-80 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            </div>
+            <div className="hidden h-10 w-28 animate-pulse rounded-full bg-slate-200 sm:block dark:bg-slate-700" />
+          </div>
+          {/* Cards skeleton */}
+          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-700"
+                style={{ minHeight: "260px", animationDelay: `${i * 80}ms` }}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // No offers — render nothing
+  if (offers.length === 0) return null;
 
   return (
     <section className="relative overflow-hidden bg-linear-to-b from-slate-50 via-white to-slate-50 dark:from-[#0b1020] dark:via-[#0d1328] dark:to-[#0b1020]">
