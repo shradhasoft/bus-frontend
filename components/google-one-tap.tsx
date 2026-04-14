@@ -139,7 +139,7 @@ const GoogleOneTap = () => {
         cancel_on_tap_outside: true,
         use_fedcm_for_prompt: true,
         itp_support: true,
-        log_level: "error", // Suppress info/warning logs
+        log_level: "debug", // Suppress info/warning logs
       });
 
       window.google.accounts.id.prompt((notification) => {
