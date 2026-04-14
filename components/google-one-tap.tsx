@@ -31,6 +31,41 @@ const GoogleOneTap = () => {
   const initCalledRef = useRef(false);
   const pathname = usePathname();
 
+  // Suppress Google One Tap FedCM warnings
+  useEffect(() => {
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+
+    console.warn = (...args) => {
+      const message = args.join(" ");
+      if (
+        message.includes("GSI_LOGGER") ||
+        message.includes("FedCM") ||
+        message.includes("Google One Tap")
+      ) {
+        return; // Suppress these warnings
+      }
+      originalConsoleWarn.apply(console, args);
+    };
+
+    console.error = (...args) => {
+      const message = args.join(" ");
+      if (
+        message.includes("GSI_LOGGER") ||
+        message.includes("FedCM") ||
+        message.includes("Google One Tap")
+      ) {
+        return; // Suppress these errors
+      }
+      originalConsoleError.apply(console, args);
+    };
+
+    return () => {
+      console.warn = originalConsoleWarn;
+      console.error = originalConsoleError;
+    };
+  }, []);
+
   // ── Track auth state ─────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
@@ -104,9 +139,15 @@ const GoogleOneTap = () => {
         cancel_on_tap_outside: true,
         use_fedcm_for_prompt: true,
         itp_support: true,
+        log_level: "error", // Suppress info/warning logs
       });
 
-      window.google.accounts.id.prompt();
+      window.google.accounts.id.prompt((notification) => {
+        // Silently handle prompt dismissal
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // User dismissed or skipped - this is normal, don't log
+        }
+      });
     };
 
     // If the script is already loaded (e.g. hot reload), just re-init

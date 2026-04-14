@@ -13,7 +13,12 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 
 import SignCard from "@/components/sign-card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  VisuallyHidden,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,9 +45,9 @@ const Navbar = () => {
   const [authOpen, setAuthOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [profileRole, setProfileRole] = useState<string | null>(null);
-  const [themeReady, setThemeReady] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -79,7 +84,7 @@ const Navbar = () => {
   }, [open]);
 
   useEffect(() => {
-    setThemeReady(true);
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -150,6 +155,14 @@ const Navbar = () => {
     { label: t("offers"), href: "/offers" },
     { label: t("help"), href: "/help" },
   ];
+
+  const isActive = (href: string) => {
+    // next/navigation usePathname returns raw path including locale prefix
+    // Strip locale prefix only when followed by / or end-of-string
+    // e.g. /en/offers → /offers, /hi/track → /track, /offers → /offers
+    const stripped = pathname.replace(/^\/[a-z]{2}(-[A-Z]{2})?(\/|$)/, "/");
+    return stripped === href || stripped.startsWith(`${href}/`);
+  };
 
   const handleNavClick = useCallback(
     (href: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -275,17 +288,28 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={handleNavClick(l.href)}
-                className="text-sm font-medium text-slate-600 transition-all duration-300 hover:opacity-70 hover:text-slate-900 relative group dark:text-white/70 dark:hover:text-white"
-              >
-                {l.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full" />
-              </Link>
-            ))}
+            {links.map((l) => {
+              const active = isActive(l.href);
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onClick={handleNavClick(l.href)}
+                  className={`text-sm font-medium relative group transition-all duration-300 ${
+                    active
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-slate-600 hover:text-slate-900 hover:opacity-70 dark:text-white/70 dark:hover:text-white"
+                  }`}
+                >
+                  {l.label}
+                  <span
+                    className={`absolute -bottom-1 left-0 h-0.5 bg-rose-500 transition-all duration-300 ${
+                      active ? "w-full" : "w-0 group-hover:w-full"
+                    }`}
+                  />
+                </Link>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-3 shrink-0">
@@ -319,7 +343,7 @@ const Navbar = () => {
                       className="rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-white/85"
                       onSelect={toggleTheme}
                     >
-                      {themeReady ? (
+                      {mounted ? (
                         isDark ? (
                           <>
                             <Sun className="h-4 w-4" />
@@ -381,36 +405,46 @@ const Navbar = () => {
 
       {/* Mobile dropdown — outside nav to avoid being clipped by rounded-full */}
       <div
-        className={`md:hidden mt-2 nav-glass rounded-2xl overflow-hidden transition-all duration-300 custom-expo mx-auto ${
+        className={`md:hidden mt-2 bg-white dark:bg-slate-900 rounded-2xl overflow-hidden transition-all duration-300 custom-expo mx-auto shadow-lg border border-slate-200 dark:border-slate-800 ${
           scrolled ? "w-[95%] max-w-6xl" : "w-full max-w-7xl"
         } ${open ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0 pointer-events-none"}`}
       >
         <div className="py-4 px-6 space-y-2">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={handleNavClick(l.href)}
-              className="block py-2 text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
-            >
-              {l.label}
-            </Link>
-          ))}
+          {links.map((l) => {
+            const active = isActive(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={handleNavClick(l.href)}
+                className={`flex items-center gap-2 py-2.5 px-3 rounded-xl font-medium transition-colors ${
+                  active
+                    ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400"
+                    : "text-slate-900 hover:text-rose-600 dark:text-white dark:hover:text-rose-400"
+                }`}
+              >
+                {active && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                )}
+                {l.label}
+              </Link>
+            );
+          })}
           {currentUser ? (
             <>
               <button
                 type="button"
                 onClick={goProfile}
-                className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                className="block w-full py-2 text-left text-slate-900 font-medium transition-colors hover:text-rose-600 dark:text-white dark:hover:text-rose-400"
               >
                 {tc("profile")}
               </button>
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                className="block w-full py-2 text-left text-slate-900 font-medium transition-colors hover:text-rose-600 dark:text-white dark:hover:text-rose-400"
               >
-                {themeReady
+                {mounted
                   ? isDark
                     ? tc("lightMode")
                     : tc("darkMode")
@@ -420,7 +454,7 @@ const Navbar = () => {
                 type="button"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="block w-full py-2 text-left text-rose-600 font-medium disabled:opacity-60"
+                className="block w-full py-2 text-left text-rose-600 font-medium disabled:opacity-60 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
               >
                 {isLoggingOut ? tc("loggingOut") : tc("logout")}
               </button>
@@ -428,7 +462,7 @@ const Navbar = () => {
                 <button
                   type="button"
                   onClick={handleRoleSwitch}
-                  className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+                  className="block w-full py-2 text-left text-slate-900 font-medium transition-colors hover:text-rose-600 dark:text-white dark:hover:text-rose-400"
                 >
                   {tc("switchTo", { role: profileRole ?? "" })}
                 </button>
@@ -438,7 +472,7 @@ const Navbar = () => {
             <button
               type="button"
               onClick={openAuth}
-              className="block w-full py-2 text-left text-slate-800/90 font-medium transition-colors hover:text-slate-900 dark:text-white/85 dark:hover:text-white"
+              className="block w-full py-2 text-left text-slate-900 font-medium transition-colors hover:text-rose-600 dark:text-white dark:hover:text-rose-400"
             >
               {tc("login")}
             </button>
@@ -447,7 +481,16 @@ const Navbar = () => {
       </div>
 
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
-        <DialogContent className="border-0 bg-transparent p-0 shadow-none sm:max-w-[1040px]">
+        <DialogContent
+          className="border-0 bg-transparent p-0 shadow-none sm:max-w-[1040px]"
+          aria-describedby="auth-dialog-description"
+        >
+          <VisuallyHidden>
+            <DialogTitle>{tc("login")}</DialogTitle>
+          </VisuallyHidden>
+          <span id="auth-dialog-description" className="sr-only">
+            Sign in or sign up to BookMySeat
+          </span>
           <SignCard onAuthSuccess={handleAuthSuccess} />
         </DialogContent>
       </Dialog>

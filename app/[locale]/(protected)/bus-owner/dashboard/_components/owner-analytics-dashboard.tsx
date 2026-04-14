@@ -874,8 +874,13 @@ function OverviewTab({
             <CardContent>
               {fleetStatusData.length > 0 ? (
                 <>
-                  <div className="h-[140px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-[140px] w-full min-w-0">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                      minWidth={200}
+                      minHeight={140}
+                    >
                       <PieChart>
                         <Pie
                           data={fleetStatusData}
@@ -930,8 +935,13 @@ function OverviewTab({
             <CardContent>
               {seatData.length > 0 ? (
                 <>
-                  <div className="h-[140px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-[140px] w-full min-w-0">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                      minWidth={200}
+                      minHeight={140}
+                    >
                       <PieChart>
                         <Pie
                           data={seatData}
@@ -1154,9 +1164,14 @@ function FleetTab({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px]">
+          <div className="h-[280px] w-full min-w-0">
             {routeFrequency.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={300}
+                minHeight={280}
+              >
                 <BarChart
                   data={routeFrequency}
                   layout="vertical"
@@ -1376,8 +1391,13 @@ function ConductorsTab({
           <CardContent>
             {conductorStatusData.length > 0 ? (
               <>
-                <div className="h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[220px] w-full min-w-0">
+                  <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={250}
+                    minHeight={220}
+                  >
                     <PieChart>
                       <Pie
                         data={conductorStatusData}
@@ -1589,9 +1609,14 @@ function ReviewsTab({
             <CardDescription>Number of reviews per star rating</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[240px]">
+            <div className="h-[240px] w-full min-w-0">
               {ratingBarData.some((d) => d.count > 0) ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={300}
+                  minHeight={240}
+                >
                   <BarChart data={ratingBarData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -1653,9 +1678,14 @@ function ReviewsTab({
             <CardDescription>Average rating per bus (top 8)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[280px]">
+            <div className="h-[280px] w-full min-w-0">
               {busPerformanceData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={300}
+                  minHeight={280}
+                >
                   <BarChart
                     data={busPerformanceData}
                     layout="vertical"

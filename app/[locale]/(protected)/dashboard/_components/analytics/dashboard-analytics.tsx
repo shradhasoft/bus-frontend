@@ -484,9 +484,14 @@ function OverviewTab({
             <CardDescription>Revenue over selected period</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[300px] w-full min-w-0">
               {data.revenue.timeline.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={400}
+                  minHeight={300}
+                >
                   <AreaChart data={data.revenue.timeline}>
                     <defs>
                       <linearGradient
@@ -556,8 +561,13 @@ function OverviewTab({
           <CardContent>
             {data.bookings.statusBreakdown.length > 0 ? (
               <>
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[200px] w-full min-w-0">
+                  <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={250}
+                    minHeight={200}
+                  >
                     <PieChart>
                       <Pie
                         data={data.bookings.statusBreakdown}
@@ -610,8 +620,13 @@ function OverviewTab({
           </CardHeader>
           <CardContent>
             {data.topRoutes.length > 0 ? (
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[300px] w-full min-w-0">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={400}
+                  minHeight={300}
+                >
                   <BarChart
                     data={data.topRoutes}
                     layout="vertical"
@@ -806,9 +821,14 @@ function BookingsTab({ data }: { data: DashboardData }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[350px]">
+          <div className="h-[350px] w-full min-w-0">
             {data.bookings.timeline.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={400}
+                minHeight={350}
+              >
                 <BarChart data={data.bookings.timeline}>
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -980,9 +1000,14 @@ function RevenueTab({ data }: { data: DashboardData }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[300px] w-full min-w-0">
               {data.revenue.timeline.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={400}
+                  minHeight={300}
+                >
                   <AreaChart data={data.revenue.timeline}>
                     <defs>
                       <linearGradient id="revGrad2" x1="0" y1="0" x2="0" y2="1">
@@ -1048,8 +1073,13 @@ function RevenueTab({ data }: { data: DashboardData }) {
           <CardContent>
             {data.revenue.paymentMethods.length > 0 ? (
               <>
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[200px] w-full min-w-0">
+                  <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={250}
+                    minHeight={200}
+                  >
                     <PieChart>
                       <Pie
                         data={data.revenue.paymentMethods}
@@ -1128,9 +1158,14 @@ function RevenueTab({ data }: { data: DashboardData }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div className="h-[300px] w-full min-w-0">
             {data.revenue.timeline.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={400}
+                minHeight={300}
+              >
                 <BarChart data={data.revenue.timeline}>
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -1282,8 +1317,13 @@ function OperationsTab({ data }: { data: DashboardData }) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-[180px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[180px] w-full min-w-0">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={200}
+                minHeight={180}
+              >
                 <PieChart>
                   <Pie
                     data={ticketData}
@@ -1323,8 +1363,13 @@ function OperationsTab({ data }: { data: DashboardData }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[180px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[180px] w-full min-w-0">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={200}
+                minHeight={180}
+              >
                 <PieChart>
                   <Pie
                     data={callbackData}
@@ -1384,8 +1429,13 @@ function OperationsTab({ data }: { data: DashboardData }) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-[180px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[180px] w-full min-w-0">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={200}
+                minHeight={180}
+              >
                 <PieChart>
                   <Pie
                     data={rentalData}
@@ -1470,8 +1520,13 @@ function OperationsTab({ data }: { data: DashboardData }) {
               </div>
             </div>
             <div>
-              <div className="h-[220px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[220px] w-full min-w-0">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={300}
+                  minHeight={220}
+                >
                   <BarChart data={data.reviews.distribution}>
                     <CartesianGrid
                       strokeDasharray="3 3"

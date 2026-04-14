@@ -3,6 +3,7 @@
 
 import React from "react";
 import { useTheme } from "next-themes";
+import { User } from "lucide-react";
 
 /* ─────────────────────── Testimonial Data ─────────────────────── */
 
@@ -19,7 +20,15 @@ interface Testimonial {
 /* Traveller icons */
 function BusIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M8 6v6m4-6v6m4-6v6M3 20h2l1-2h12l1 2h2M5 14h14V6a2 2 0 00-2-2H7a2 2 0 00-2 2v8zm0 0v3a1 1 0 001 1h2a1 1 0 001-1v-1m6 0v1a1 1 0 001 1h2a1 1 0 001-1v-3" />
     </svg>
   );
@@ -27,7 +36,15 @@ function BusIcon() {
 
 function MapPinIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
       <circle cx="12" cy="9" r="2.5" />
     </svg>
@@ -36,7 +53,15 @@ function MapPinIcon() {
 
 function TicketIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M2 9V7a2 2 0 012-2h16a2 2 0 012 2v2a2 2 0 100 4v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2a2 2 0 100-4zm7-4v2m0 10v2m0-8v4" />
     </svg>
   );
@@ -44,7 +69,15 @@ function TicketIcon() {
 
 function UsersIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m22 0v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 11a4 4 0 100-8 4 4 0 000 8z" />
     </svg>
   );
@@ -60,7 +93,15 @@ function StarIcon() {
 
 function ShieldIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       <path d="M9 12l2 2 4-4" />
     </svg>
@@ -69,7 +110,15 @@ function ShieldIcon() {
 
 function ClockIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v6l4 2" />
     </svg>
@@ -241,17 +290,19 @@ function TestimonialCard({
       {/* Author */}
       <div className="flex items-center gap-3">
         <div
-          className={`h-9 w-9 shrink-0 overflow-hidden rounded-full ${
+          className={`h-9 w-9 shrink-0 overflow-hidden rounded-full flex items-center justify-center ${
             isDark ? "bg-white/10" : "bg-slate-200"
           }`}
         >
           <div
-            className={`h-full w-full rounded-full ${
+            className={`h-full w-full rounded-full flex items-center justify-center ${
               isDark
                 ? "bg-gradient-to-br from-indigo-500 to-purple-600"
                 : "bg-gradient-to-br from-indigo-400 to-purple-500"
             }`}
-          />
+          >
+            <User className="h-4 w-4 text-white" />
+          </div>
         </div>
         <div>
           <p
@@ -296,7 +347,8 @@ export default function Testimonials() {
           What Our Travellers Say
         </h2>
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          Hear from our happy travellers who have experienced the best in bus booking with us.
+          Hear from our happy travellers who have experienced the best in bus
+          booking with us.
         </p>
       </div>
 
