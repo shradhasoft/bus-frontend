@@ -138,6 +138,9 @@ const ManageUsersPage = () => {
   const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(
     null,
   );
+  // Tracks the currently logged-in user's _id so we can detect self-role-changes.
+  // Populated on mount via GET /profile/me. Stays null if the fetch fails (safe degradation).
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const totalPages = useMemo(() => {
     if (!total) return 1;
@@ -209,6 +212,39 @@ const ManageUsersPage = () => {
     }, 350);
     return () => window.clearTimeout(handle);
   }, [searchInput]);
+
+  // Fetch the currently logged-in user's _id on mount so we can detect
+  // self-role-changes in handleFormSubmit. If this fetch fails, currentUserId
+  // stays null and we fall back to the existing behavior (safe degradation).
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch(apiUrl("/profile/me"), {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!response.ok || cancelled) return;
+        const payload = await response.json().catch(() => ({}));
+        const id = payload?.data?._id;
+        if (!cancelled && typeof id === "string" && id) {
+          setCurrentUserId(id);
+        }
+      } catch {
+        // Silently ignore — currentUserId stays null (safe degradation)
+      }
+    };
+
+    void fetchCurrentUser();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
 
   const openCreate = () => {
     setFormMode("create");
@@ -293,6 +329,21 @@ const ManageUsersPage = () => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.message || "Unable to save user.");
+      }
+
+      // Self-role-change detection: if the admin just changed their OWN role,
+      // dispatch the auth session changed event and redirect to the new role's
+      // dashboard immediately. This prevents ProtectedShell from detecting the
+      // path mismatch later and producing a broken blank-page redirect.
+      if (
+        formMode === "edit" &&
+        selectedUser?._id &&
+        currentUserId &&
+        selectedUser._id === currentUserId
+      ) {
+        dispatchAuthSessionChangedEvent();
+        router.replace(getRoleDashboardPath(formState.role));
+        return; // do NOT call loadUsers — we are navigating away
       }
 
       setFormOpen(false);
