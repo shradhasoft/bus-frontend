@@ -197,6 +197,13 @@ const CheckoutContent = () => {
       ? appliedOffer.pricing.finalAmount
       : totalFare;
 
+  // Storage key for persisting form data
+  const storageKey = useMemo(
+    () =>
+      `checkout_draft_${busId}_${travelDate}_${direction}_${boardingPoint}_${droppingPoint}_${seatKey}`,
+    [busId, travelDate, direction, boardingPoint, droppingPoint, seatKey],
+  );
+
   useEffect(() => {
     if (!busId || !travelDate) return;
     const key = `checkout_session_${busId}_${travelDate}_${direction}_${boardingPoint}_${droppingPoint}_${seatKey}`;
@@ -209,6 +216,47 @@ const CheckoutContent = () => {
     sessionStorage.setItem(key, fresh);
     setSessionId(fresh);
   }, [busId, travelDate, direction, boardingPoint, droppingPoint, seatKey]);
+
+  // Load persisted form data on mount
+  useEffect(() => {
+    if (typeof window === "undefined" || !storageKey) return;
+
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.passengers && Array.isArray(parsed.passengers)) {
+          setPassengers(parsed.passengers);
+        }
+        if (parsed.promoCode && typeof parsed.promoCode === "string") {
+          setPromoCode(parsed.promoCode);
+        }
+        if (parsed.appliedOffer) {
+          setAppliedOffer(parsed.appliedOffer);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load checkout draft:", error);
+    }
+  }, [storageKey]);
+
+  // Persist form data whenever it changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !storageKey) return;
+    if (passengers.length === 0) return;
+
+    try {
+      const draft = {
+        passengers,
+        promoCode,
+        appliedOffer,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch (error) {
+      console.error("Failed to save checkout draft:", error);
+    }
+  }, [passengers, promoCode, appliedOffer, storageKey]);
 
   useEffect(() => {
     setPassengers((prev) =>
@@ -528,6 +576,13 @@ const CheckoutContent = () => {
             }
 
             setSuccess({ bookingId, paymentId });
+
+            // Clear the draft from localStorage after successful payment
+            try {
+              localStorage.removeItem(storageKey);
+            } catch (error) {
+              console.error("Failed to clear checkout draft:", error);
+            }
           } catch (verifyError) {
             setError(
               verifyError instanceof Error

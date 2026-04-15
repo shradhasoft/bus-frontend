@@ -58,7 +58,6 @@ const SOCIALS = [
 
 const Footer = () => {
   const t = useTranslations("footer");
-  const year = new Date().getFullYear();
 
   return (
     <footer className="relative overflow-hidden border-t border-white/8 bg-[#0a0a0a]">
@@ -87,8 +86,11 @@ const Footer = () => {
             </h2>
 
             {/* Copyright */}
-            <p className="mt-3 text-[13px] text-center sm:text-left text-white/35">
-              &copy; {year}{" "}
+            <p
+              className="mt-3 text-[13px] text-center sm:text-left text-white/35"
+              suppressHydrationWarning
+            >
+              &copy; {new Date().getFullYear()}{" "}
               <span className="underline underline-offset-2 decoration-white/20">
                 BookMySeat
               </span>{" "}

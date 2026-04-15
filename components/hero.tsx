@@ -35,7 +35,7 @@ const Hero = () => {
           alt="Modern intercity bus on a scenic highway at sunrise"
           fill
           priority
-          sizes="100vw"
+          sizes="(max-width: 768px) 0vw, 100vw"
           className="hidden object-cover md:block"
         />
         <div className="absolute inset-0 hidden bg-gradient-to-b from-sky-500/10 via-sky-400/10 to-rose-950/40 md:block" />

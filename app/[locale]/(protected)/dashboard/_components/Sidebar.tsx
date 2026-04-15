@@ -134,6 +134,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     ? "Expand (⌘/Ctrl + B)"
     : "Collapse (⌘/Ctrl + B)";
   const { setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [impersonationStatus, setImpersonationStatus] =
     useState<ImpersonationStatus>({ active: false });
@@ -141,10 +142,14 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const [activeItem, setActiveItem] = useState<string>("Dashboard");
   // Increments whenever the auth session changes so role/impersonation re-fetch
   const [sessionVersion, setSessionVersion] = useState(0);
-  const themeReady = typeof resolvedTheme === "string";
-  const isDark = resolvedTheme === "dark";
+  const themeReady = mounted && typeof resolvedTheme === "string";
+  const isDark = mounted && resolvedTheme === "dark";
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     return subscribeAuthSessionChanged(() => {
