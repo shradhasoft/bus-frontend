@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Activity,
   BadgeCheck,
@@ -34,6 +35,7 @@ import {
 } from "@/lib/auth-events";
 
 type NavItem = {
+  key: string;
   label: string;
   icon: LucideIcon;
 };
@@ -51,58 +53,6 @@ type ImpersonationStatus = {
     role?: string | null;
   } | null;
 };
-
-const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
-  superadmin: [
-    { label: "Dashboard", icon: Activity },
-    { label: "Manage Buses", icon: Bus },
-    { label: "Track Bus", icon: MapPinned },
-    { label: "Boarded Users", icon: Users },
-    { label: "Manage Bookings", icon: ClipboardList },
-    { label: "Manage Rental", icon: Bus },
-    { label: "Manage Cancels", icon: Ban },
-    { label: "Manage Users", icon: Users },
-    { label: "Manage Offers", icon: BadgeCheck },
-    { label: "Manage Transactions", icon: Banknote },
-    { label: "Callback Requests", icon: CalendarCheck2 },
-    { label: "Manage Tickets", icon: FileText },
-    { label: "Broadcast", icon: MessageSquareText },
-    { label: "Manage Reviews", icon: MessageSquareText },
-  ],
-  admin: [
-    { label: "Dashboard", icon: Activity },
-    { label: "Manage Buses", icon: Bus },
-    { label: "Track Bus", icon: MapPinned },
-    { label: "Boarded Users", icon: Users },
-    { label: "Manage Bookings", icon: ClipboardList },
-    { label: "Manage Rental", icon: Bus },
-    { label: "Manage Cancels", icon: Ban },
-    { label: "Manage Users", icon: Users },
-    { label: "Manage Offers", icon: BadgeCheck },
-    { label: "Manage Transactions", icon: Banknote },
-    { label: "Callback Requests", icon: CalendarCheck2 },
-    { label: "Manage Tickets", icon: FileText },
-    { label: "Broadcast", icon: MessageSquareText },
-    { label: "Manage Reviews", icon: MessageSquareText },
-  ],
-  conductor: [
-    { label: "Dashboard", icon: Activity },
-    { label: "Verify Ticket", icon: QrCode },
-    { label: "Boarded Users", icon: Users },
-    { label: "Manage Bus", icon: Bus },
-    { label: "Mark Offline Book", icon: FileText },
-  ],
-  owner: [
-    { label: "Dashboard", icon: Activity },
-    { label: "Manage conductor", icon: User },
-    { label: "Manage Buses", icon: Bus },
-    { label: "Boarded Users", icon: Users },
-    { label: "Track Bus", icon: MapPinned },
-    { label: "Manage Reviews", icon: MessageSquareText },
-  ],
-};
-
-const DEFAULT_NAV_ITEMS: NavItem[] = [{ label: "Dashboard", icon: Activity }];
 
 const ROLE_BASE_PATHS: Record<string, string> = {
   superadmin: "/super-admin/dashboard",
@@ -130,16 +80,70 @@ type SidebarProps = {
 };
 
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+  const t = useTranslations("sidebar");
   const tooltipLabel = collapsed
-    ? "Expand (⌘/Ctrl + B)"
-    : "Collapse (⌘/Ctrl + B)";
+    ? t("expandTooltip")
+    : t("collapseTooltip");
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [impersonationStatus, setImpersonationStatus] =
     useState<ImpersonationStatus>({ active: false });
   const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
-  const [activeItem, setActiveItem] = useState<string>("Dashboard");
+  const [activeItem, setActiveItem] = useState<string>(t("dashboard"));
+  
+  const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
+    superadmin: [
+      { key: "dashboard", label: t("dashboard"), icon: Activity },
+      { key: "manageBuses", label: t("manageBuses"), icon: Bus },
+      { key: "trackBus", label: t("trackBus"), icon: MapPinned },
+      { key: "boardedUsers", label: t("boardedUsers"), icon: Users },
+      { key: "manageBookings", label: t("manageBookings"), icon: ClipboardList },
+      { key: "manageRental", label: t("manageRental"), icon: Bus },
+      { key: "manageCancels", label: t("manageCancels"), icon: Ban },
+      { key: "manageUsers", label: t("manageUsers"), icon: Users },
+      { key: "manageOffers", label: t("manageOffers"), icon: BadgeCheck },
+      { key: "manageTransactions", label: t("manageTransactions"), icon: Banknote },
+      { key: "callbackRequests", label: t("callbackRequests"), icon: CalendarCheck2 },
+      { key: "manageTickets", label: t("manageTickets"), icon: FileText },
+      { key: "broadcast", label: t("broadcast"), icon: MessageSquareText },
+      { key: "manageReviews", label: t("manageReviews"), icon: MessageSquareText },
+    ],
+    admin: [
+      { key: "dashboard", label: t("dashboard"), icon: Activity },
+      { key: "manageBuses", label: t("manageBuses"), icon: Bus },
+      { key: "trackBus", label: t("trackBus"), icon: MapPinned },
+      { key: "boardedUsers", label: t("boardedUsers"), icon: Users },
+      { key: "manageBookings", label: t("manageBookings"), icon: ClipboardList },
+      { key: "manageRental", label: t("manageRental"), icon: Bus },
+      { key: "manageCancels", label: t("manageCancels"), icon: Ban },
+      { key: "manageUsers", label: t("manageUsers"), icon: Users },
+      { key: "manageOffers", label: t("manageOffers"), icon: BadgeCheck },
+      { key: "manageTransactions", label: t("manageTransactions"), icon: Banknote },
+      { key: "callbackRequests", label: t("callbackRequests"), icon: CalendarCheck2 },
+      { key: "manageTickets", label: t("manageTickets"), icon: FileText },
+      { key: "broadcast", label: t("broadcast"), icon: MessageSquareText },
+      { key: "manageReviews", label: t("manageReviews"), icon: MessageSquareText },
+    ],
+    conductor: [
+      { key: "dashboard", label: t("dashboard"), icon: Activity },
+      { key: "verifyTicket", label: t("verifyTicket"), icon: QrCode },
+      { key: "boardedUsers", label: t("boardedUsers"), icon: Users },
+      { key: "manageBus", label: t("manageBus"), icon: Bus },
+      { key: "markOfflineBook", label: t("markOfflineBook"), icon: FileText },
+    ],
+    owner: [
+      { key: "dashboard", label: t("dashboard"), icon: Activity },
+      { key: "manageConductor", label: t("manageConductor"), icon: User },
+      { key: "manageBuses", label: t("manageBuses"), icon: Bus },
+      { key: "boardedUsers", label: t("boardedUsers"), icon: Users },
+      { key: "trackBus", label: t("trackBus"), icon: MapPinned },
+      { key: "manageReviews", label: t("manageReviews"), icon: MessageSquareText },
+    ],
+  };
+
+  const DEFAULT_NAV_ITEMS: NavItem[] = [{ key: "dashboard", label: t("dashboard"), icon: Activity }];
+
   // Increments whenever the auth session changes so role/impersonation re-fetch
   const [sessionVersion, setSessionVersion] = useState(0);
   const themeReady = mounted && typeof resolvedTheme === "string";
@@ -285,47 +289,45 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     inferredBasePath ?? ROLE_BASE_PATHS[normalizedRole] ?? "/dashboard";
 
   const navRoutes: Record<string, string> = {
-    Dashboard: basePath,
-    "Manage Users": `${basePath}/manage-users`,
-    "Manage Buses": `${basePath}/manage-buses`,
-    "Manage Bus": `${basePath}/manage-buses`,
-    "Boarded Users": `${basePath}/boarded-users`,
-    "Track Bus": `${basePath}/track-bus`,
-    "Manage Bookings": `${basePath}/manage-bookings`,
-    "Manage Rental": `${basePath}/manage-rental`,
-    "Manage Cancels": `${basePath}/manage-cancels`,
-    "Manage Offers": `${basePath}/manage-offers`,
-    "Manage Transactions": `${basePath}/manage-transactions`,
-    "Manage Tickets": `${basePath}/manage-tickets`,
-    "Manage Reviews": `${basePath}/manage-reviews`,
-    "Callback Requests": `${basePath}/callback-requests`,
-    Broadcast: `${basePath}/broadcast`,
-    // Conductor-specific routes
-    "Verify Ticket": `${basePath}/verify-ticket`,
-    "Mark Offline Book": `${basePath}/mark-offline-book`,
-    // Owner-specific routes
-    "Manage conductor": `${basePath}/manage-conductor`,
+    dashboard: basePath,
+    manageUsers: `${basePath}/manage-users`,
+    manageBuses: `${basePath}/manage-buses`,
+    manageBus: `${basePath}/manage-bus`,
+    boardedUsers: `${basePath}/boarded-users`,
+    trackBus: `${basePath}/track-bus`,
+    manageBookings: `${basePath}/manage-bookings`,
+    manageRental: `${basePath}/manage-rental`,
+    manageCancels: `${basePath}/manage-cancels`,
+    manageOffers: `${basePath}/manage-offers`,
+    manageTransactions: `${basePath}/manage-transactions`,
+    manageTickets: `${basePath}/manage-tickets`,
+    manageReviews: `${basePath}/manage-reviews`,
+    callbackRequests: `${basePath}/callback-requests`,
+    broadcast: `${basePath}/broadcast`,
+    verifyTicket: `${basePath}/verify-ticket`,
+    markOfflineBook: `${basePath}/mark-offline-book`,
+    manageConductor: `${basePath}/manage-conductor`,
   };
 
   const isRouteMatch = (route: string) =>
     pathname === route || pathname.startsWith(`${route}/`);
 
-  const isItemPathMatch = (label: string) => {
-    if (label === "Dashboard") {
+  const isItemPathMatch = (item: NavItem) => {
+    if (item.key === "dashboard") {
       return pathname === basePath || pathname === `${basePath}/`;
     }
 
-    const destination = navRoutes[label];
-    const slugRoute = `${basePath}/${toSlug(label)}`;
+    const destination = navRoutes[item.key];
+    const slugRoute = `${basePath}/${toSlug(item.key)}`;
     return destination ? isRouteMatch(destination) : isRouteMatch(slugRoute);
   };
 
-  const hasRouteMatch = navItems.some((item) => isItemPathMatch(item.label));
+  const hasRouteMatch = navItems.some((item) => isItemPathMatch(item));
   const fallbackActiveItem =
-    navItems.find((item) => item.label === "Dashboard")?.label ??
-    navItems[0]?.label ??
-    "Dashboard";
-  const effectiveActiveItem = navItems.some((item) => item.label === activeItem)
+    navItems.find((item) => item.key === "dashboard")?.key ??
+    navItems[0]?.key ??
+    "dashboard";
+  const effectiveActiveItem = navItems.some((item) => item.key === activeItem)
     ? activeItem
     : fallbackActiveItem;
 
@@ -370,20 +372,20 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
       <nav className="mt-8 flex-1 space-y-1">
         {navItems.map((item) => {
           const destination =
-            navRoutes[item.label] ?? `${basePath}/${toSlug(item.label)}`;
-          const matchesPath = isItemPathMatch(item.label);
+            navRoutes[item.key] ?? `${basePath}/${toSlug(item.key)}`;
+          const matchesPath = isItemPathMatch(item);
           const isActive =
             matchesPath ||
-            (!hasRouteMatch && item.label === effectiveActiveItem);
+            (!hasRouteMatch && item.key === effectiveActiveItem);
           return (
             <button
-              key={item.label}
+              key={item.key}
               type="button"
               title={item.label}
               aria-current={isActive ? "page" : undefined}
               onClick={() => {
                 router.push(destination);
-                setActiveItem(item.label);
+                setActiveItem(item.key);
               }}
               className={`flex w-full items-center rounded-2xl border py-2 text-sm transition hover:-translate-y-0.5 ${
                 isActive
@@ -425,7 +427,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             type="button"
             onClick={() => void handleStopImpersonation()}
             disabled={stoppingImpersonation}
-            title="Stop impersonation"
+            title={t("stopImpersonation")}
             className={`inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-300/90 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 dark:border-indigo-400/40 dark:bg-indigo-950/40 dark:text-indigo-100 ${
               collapsed ? "w-full px-2" : "w-full"
             }`}
@@ -435,7 +437,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             ) : (
               <LogOut className="h-4 w-4" />
             )}
-            {!collapsed ? "Stop Impersonation" : null}
+            {!collapsed ? t("stopImpersonation") : null}
           </button>
         </div>
       ) : null}
@@ -454,7 +456,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             type="button"
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            title="Toggle theme"
+            title={t("toggleTheme")}
             className={`inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 px-3 py-2 text-xs font-semibold transition dark:border-white/10 ${
               themeReady
                 ? "bg-white text-slate-700 dark:bg-white/10 dark:text-white"
@@ -466,13 +468,13 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             ) : (
               <Moon className="h-4 w-4" />
             )}
-            {!collapsed ? (isDark ? "Light" : "Dark") : null}
+            {!collapsed ? (isDark ? t("light") : t("dark")) : null}
           </button>
           <button
             type="button"
             onClick={handleScrollTop}
             aria-label="Scroll to top"
-            title="Scroll to top"
+            title={t("scrollToTop")}
             className="inline-flex items-center justify-center rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition dark:border-white/10 dark:bg-white/10 dark:text-white"
           >
             <ArrowUp className="h-4 w-4" />
@@ -481,7 +483,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             type="button"
             onClick={handleGoProfile}
             aria-label="Open profile"
-            title="Open profile"
+            title={t("openProfile")}
             className="inline-flex items-center justify-center rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition dark:border-white/10 dark:bg-white/10 dark:text-white"
           >
             <User className="h-4 w-4" />
@@ -492,7 +494,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             type="button"
             onClick={handleGoHome}
             aria-label="Home page"
-            title="Home Page"
+            title={t("homePage")}
             className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-white"
           >
             <LogIn className="h-4 w-4" />
@@ -504,7 +506,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-white"
           >
             <LogIn className="h-4 w-4" />
-            Home Page
+            {t("homePage")}
           </button>
         )}
       </div>

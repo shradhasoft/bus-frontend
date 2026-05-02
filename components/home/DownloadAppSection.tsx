@@ -11,15 +11,16 @@ import {
   Check,
 } from "lucide-react";
 
-const FEATURES = [
-  { icon: Zap, text: "Instant ticket booking in seconds" },
-  { icon: MapPin, text: "Real-time live bus tracking" },
-  { icon: BadgePercent, text: "App-exclusive deals & cashbacks" },
-  { icon: Bell, text: "Smart trip alerts & reminders" },
-];
+export default function DownloadAppSection() {
+  const t = useTranslations("downloadApp");
 
-const DownloadAppSection = () => {
-  const t = useTranslations('downloadApp');
+  const FEATURES = [
+    { icon: Zap, text: t("instantBooking") },
+    { icon: MapPin, text: t("liveTracking") },
+    { icon: BadgePercent, text: t("exclusiveDeals") },
+    { icon: Bell, text: t("smartAlerts") },
+  ];
+
   return (
   <section className="bg-slate-50 dark:bg-[#0b1020]">
     <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
@@ -143,7 +144,4 @@ const DownloadAppSection = () => {
     </div>
   </section>
 );
-
 }
-
-export default DownloadAppSection;

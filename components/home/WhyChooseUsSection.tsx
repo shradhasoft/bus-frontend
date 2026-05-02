@@ -13,66 +13,61 @@ import {
   Clock,
 } from "lucide-react";
 
-const STATS = [
-  { value: "650K+", label: "Bus Routes", icon: MapPin },
-  { value: "6,200+", label: "Bus Partners", icon: Users },
-  { value: "50K+", label: "Happy Travellers", icon: Star },
-  { value: "4.8★", label: "User Rating", icon: Star },
-];
+export default function WhyChooseUsSection() {
+  const t = useTranslations("whyChooseUs");
 
-const FEATURES = [
-  {
-    icon: Zap,
-    title: "Fastest Booking",
-    description:
-      "Book your seat in under 60 seconds with our lightning-fast search and checkout.",
-    tone: "from-amber-500 to-orange-500",
-    shadow: "shadow-amber-500/25",
-  },
-  {
-    icon: Shield,
-    title: "Safe & Secure",
-    description:
-      "PCI-DSS compliant payments with SSL encryption. Your data is always protected.",
-    tone: "from-emerald-500 to-teal-500",
-    shadow: "shadow-emerald-500/25",
-  },
-  {
-    icon: CreditCard,
-    title: "Easy Refunds",
-    description:
-      "Hassle-free cancellations with instant refunds — no questions asked policy.",
-    tone: "from-blue-500 to-indigo-500",
-    shadow: "shadow-blue-500/25",
-  },
-  {
-    icon: Headphones,
-    title: "24/7 Support",
-    description:
-      "Our dedicated support team is available around the clock via phone, email, or chat.",
-    tone: "from-rose-500 to-pink-500",
-    shadow: "shadow-rose-500/25",
-  },
-  {
-    icon: MapPin,
-    title: "Live GPS Tracking",
-    description:
-      "Track your bus on a live map with real-time location updates and accurate ETAs.",
-    tone: "from-violet-500 to-purple-500",
-    shadow: "shadow-violet-500/25",
-  },
-  {
-    icon: Clock,
-    title: "Verified Operators",
-    description:
-      "Every partner is vetted for safety, punctuality, and service quality standards.",
-    tone: "from-cyan-500 to-blue-500",
-    shadow: "shadow-cyan-500/25",
-  },
-];
+  const STATS = [
+    { value: "650K+", label: t("busRoutes"), icon: MapPin },
+    { value: "6,200+", label: t("busPartners"), icon: Users },
+    { value: "50K+", label: t("happyTravellers"), icon: Star },
+    { value: "4.8★", label: t("userRating"), icon: Star },
+  ];
 
-const WhyChooseUsSection = () => {
-  const t = useTranslations('whyChooseUs');
+  const FEATURES = [
+    {
+      icon: Zap,
+      title: t("fastestBooking"),
+      description: t("fastestBookingDesc"),
+      tone: "from-amber-500 to-orange-500",
+      shadow: "shadow-amber-500/25",
+    },
+    {
+      icon: Shield,
+      title: t("safeAndSecure"),
+      description: t("safeAndSecureDesc"),
+      tone: "from-emerald-500 to-teal-500",
+      shadow: "shadow-emerald-500/25",
+    },
+    {
+      icon: CreditCard,
+      title: t("easyRefunds"),
+      description: t("easyRefundsDesc"),
+      tone: "from-blue-500 to-indigo-500",
+      shadow: "shadow-blue-500/25",
+    },
+    {
+      icon: Headphones,
+      title: t("support247"),
+      description: t("support247Desc"),
+      tone: "from-rose-500 to-pink-500",
+      shadow: "shadow-rose-500/25",
+    },
+    {
+      icon: Clock,
+      title: t("liveGPSTracking"),
+      description: t("liveGPSTrackingDesc"),
+      tone: "from-purple-500 to-violet-500",
+      shadow: "shadow-purple-500/25",
+    },
+    {
+      icon: Star,
+      title: t("verifiedOperators"),
+      description: t("verifiedOperatorsDesc"),
+      tone: "from-indigo-500 to-blue-500",
+      shadow: "shadow-indigo-500/25",
+    },
+  ];
+
   return (
   <section className="relative overflow-hidden bg-slate-50 dark:bg-[#0b1020]">
     {/* Subtle background decoration */}
@@ -140,7 +135,4 @@ const WhyChooseUsSection = () => {
     </div>
   </section>
 );
-
 }
-
-export default WhyChooseUsSection;

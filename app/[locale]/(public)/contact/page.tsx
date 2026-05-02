@@ -3,8 +3,10 @@
 import React from "react";
 import { Mail, Phone, MapPin, MessageSquare, Clock, Globe } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function ContactUsPage() {
+  const t = useTranslations("contact");
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Hero Section */}
@@ -14,12 +16,10 @@ export default function ContactUsPage() {
 
         <div className="relative mx-auto max-w-7xl px-6 lg:px-8 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-6xl">
-            We&apos;re here to help
+            {t("heroTitle")}
           </h1>
           <p className="mt-6 text-lg leading-8 text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
-            Whether you have a question about your booking, need help with a
-            refund, or just want to share feedback, our team is ready to assist
-            you.
+            {t("heroDescription")}
           </p>
         </div>
       </section>
@@ -33,16 +33,16 @@ export default function ContactUsPage() {
               <Phone className="h-6 w-6" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Call Us
+              {t("callUs")}
             </h3>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              For immediate assistance with your bookings or urgent inquiries.
+              {t("callDescription")}
             </p>
             <p className="mt-6 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <Phone className="h-4 w-4 text-indigo-500" /> +91 12345 67890
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Available Mon-Sat, 8am-10pm IST
+              {t("callAvailability")}
             </p>
           </div>
 
@@ -52,17 +52,16 @@ export default function ContactUsPage() {
               <Mail className="h-6 w-6" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Email Us
+              {t("emailUs")}
             </h3>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              For general queries, feedback, or issues that require detailed
-              explanation.
+              {t("emailDescription")}
             </p>
             <p className="mt-6 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <Mail className="h-4 w-4 text-rose-500" /> support@bookmyseat.in
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              We aim to reply within 4 hours
+              {t("emailResponseTime")}
             </p>
           </div>
 
@@ -72,22 +71,21 @@ export default function ContactUsPage() {
               <MessageSquare className="h-6 w-6" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Raise a Ticket
+              {t("raiseTicket")}
             </h3>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Create a dedicated support ticket to track your issue through to
-              resolution.
+              {t("ticketDescription")}
             </p>
             <div className="mt-6">
               <Link
                 href="/support/ticket"
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
               >
-                Submit a Ticket
+                {t("submitTicket")}
               </Link>
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              Trackable status & priority handling
+              {t("ticketTracking")}
             </p>
           </div>
         </div>
@@ -98,10 +96,10 @@ export default function ContactUsPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-              Our Offices
+              {t("ourOffices")}
             </h2>
             <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">
-              Come say hi at any of our primary locations across India.
+              {t("officesDescription")}
             </p>
           </div>
 
@@ -110,7 +108,7 @@ export default function ContactUsPage() {
               <div className="flex items-center gap-3 mb-6">
                 <MapPin className="h-6 w-6 text-rose-500" />
                 <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
-                  Bengaluru (HQ)
+                  {t("bengaluru")}
                 </h3>
               </div>
               <p className="text-slate-600 dark:text-slate-300 leading-relaxed flex-1">
@@ -124,8 +122,7 @@ export default function ContactUsPage() {
               </p>
               <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
                 <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                  <Clock className="h-4 w-4" /> standard business hours: 9am -
-                  6pm
+                  <Clock className="h-4 w-4" /> {t("businessHours")}
                 </p>
               </div>
             </div>
@@ -134,7 +131,7 @@ export default function ContactUsPage() {
               <div className="flex items-center gap-3 mb-6">
                 <Globe className="h-6 w-6 text-rose-500" />
                 <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
-                  Mumbai
+                  {t("mumbai")}
                 </h3>
               </div>
               <p className="text-slate-600 dark:text-slate-300 leading-relaxed flex-1">
@@ -148,8 +145,7 @@ export default function ContactUsPage() {
               </p>
               <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
                 <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                  <Clock className="h-4 w-4" /> standard business hours: 9am -
-                  6pm
+                  <Clock className="h-4 w-4" /> {t("businessHours")}
                 </p>
               </div>
             </div>

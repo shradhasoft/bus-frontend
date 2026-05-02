@@ -2,16 +2,16 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
+  useEffect,
   type JSX,
 } from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { Copy, Check, Sparkles, ArrowRight } from "lucide-react";
-import { apiUrl } from "@/lib/api";
+import { useOffers } from "@/lib/hooks/use-offers";
 
 interface OfferCard {
   title: string;
@@ -22,15 +22,6 @@ interface OfferCard {
   accentColor: string;
   tagline: string;
   decorativeIcon: JSX.Element;
-}
-
-interface ApiOfferItem {
-  discountValue?: number | string;
-  discountType?: string;
-  minOrderAmount?: number;
-  code?: string;
-  promoCode?: string;
-  title?: string;
 }
 
 const BusIcon = ({ className }: { className?: string }) => (
@@ -159,45 +150,6 @@ const CARD_THEMES = [
   },
 ] as const;
 
-function mapApiOffers(rows: ApiOfferItem[]): OfferCard[] {
-  const mapped: OfferCard[] = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    const item = rows[i];
-    const code =
-      typeof item?.promoCode === "string"
-        ? item.promoCode.trim()
-        : typeof item?.code === "string"
-          ? item.code.trim()
-          : "";
-    if (!code) continue;
-
-    const dv = Number(item?.discountValue);
-    if (!Number.isFinite(dv) || dv <= 0) continue;
-
-    const isPct = item?.discountType === "percentage";
-    const theme = CARD_THEMES[i % CARD_THEMES.length] ?? CARD_THEMES[0];
-
-    mapped.push({
-      title:
-        typeof item?.title === "string" && item.title.trim()
-          ? item.title.trim()
-          : isPct
-            ? `${dv}% off`
-            : `Flat ₹${dv} off`,
-      subtitle:
-        typeof item?.minOrderAmount === "number" && item.minOrderAmount > 0
-          ? `Min booking ₹${item.minOrderAmount}`
-          : "On selected bookings",
-      discount: isPct ? `${dv}%` : `₹${dv}`,
-      code,
-      ...theme,
-    });
-  }
-
-  return mapped;
-}
-
 const OfferCardItem = ({
   offer,
   index,
@@ -311,50 +263,10 @@ const OfferCardItem = ({
 
 const OffersSection = () => {
   const t = useTranslations("offers");
-  const [offers, setOffers] = useState<OfferCard[] | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadOffers() {
-      try {
-        const res = await fetch(apiUrl("/offers?page=1&limit=4"), {
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          setOffers([]);
-          return;
-        }
-
-        const payload: unknown = await res.json().catch(() => null);
-        if (payload == null || typeof payload !== "object") {
-          setOffers([]);
-          return;
-        }
-
-        const data = (payload as Record<string, unknown>).data;
-        if (!Array.isArray(data) || data.length === 0) {
-          setOffers([]);
-          return;
-        }
-
-        const valid = mapApiOffers(data as ApiOfferItem[]);
-        setOffers(valid.length > 0 ? valid : []);
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          console.error("[OffersSection] Failed to fetch offers:", err);
-          setOffers([]);
-        }
-      }
-    }
-
-    void loadOffers();
-    return () => controller.abort();
-  }, []);
+  const { offers, isLoading } = useOffers();
 
   // Still loading — show skeleton
-  if (offers === null) {
+  if (isLoading || offers === null) {
     return (
       <section className="relative overflow-hidden bg-linear-to-b from-slate-50 via-white to-slate-50 dark:from-[#0b1020] dark:via-[#0d1328] dark:to-[#0b1020]">
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">

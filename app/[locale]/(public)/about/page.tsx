@@ -11,38 +11,37 @@ import {
   Headset,
   TrendingUp,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function AboutPage() {
+  const t = useTranslations("about");
+
   const stats = [
-    { label: "Happy Travelers", value: "2M+", icon: Users },
-    { label: "Cities Connected", value: "500+", icon: MapPin },
-    { label: "Bus Operators", value: "1,200+", icon: Bus },
-    { label: "Star Rating", value: "4.8/5", icon: Star },
+    { label: t("stats.happyTravelers"), value: "2M+", icon: Users },
+    { label: t("stats.citiesConnected"), value: "500+", icon: MapPin },
+    { label: t("stats.busOperators"), value: "1,200+", icon: Bus },
+    { label: t("stats.starRating"), value: "4.8/5", icon: Star },
   ];
 
   const features = [
     {
-      title: "Unmatched Safety",
-      description:
-        "Every bus on our platform is thoroughly verified for safety and hygiene standards.",
+      title: t("values.unmatchedSafety.title"),
+      description: t("values.unmatchedSafety.description"),
       icon: Shield,
     },
     {
-      title: "24/7 Support",
-      description:
-        "Our customer success team is always ready to help you with your journey.",
+      title: t("values.support247.title"),
+      description: t("values.support247.description"),
       icon: Headset,
     },
     {
-      title: "Best Value",
-      description:
-        "We guarantee the best prices and offer regular rewards for our frequent travelers.",
+      title: t("values.bestValue.title"),
+      description: t("values.bestValue.description"),
       icon: Award,
     },
     {
-      title: "Continuous Innovation",
-      description:
-        "From live tracking to VR seat previews, we continuously upgrade our tech.",
+      title: t("values.continuousInnovation.title"),
+      description: t("values.continuousInnovation.description"),
       icon: TrendingUp,
     },
   ];
@@ -64,12 +63,10 @@ export default function AboutPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-6xl">
-              Transforming the way India travels
+              {t("heroTitle")}
             </h1>
             <p className="mt-6 text-lg leading-8 text-slate-600 dark:text-slate-300">
-              BookMySeat is more than just a ticketing platform. We are on a
-              mission to make bus travel seamless, safe, and enjoyable for
-              millions of people every day.
+              {t("heroDescription")}
             </p>
           </div>
         </div>
@@ -109,24 +106,17 @@ export default function AboutPage() {
             <div className="lg:pr-8 lg:pt-4">
               <div className="lg:max-w-lg">
                 <h2 className="text-base font-semibold leading-7 text-rose-600 dark:text-rose-400">
-                  Our Story
+                  {t("story.label")}
                 </h2>
                 <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-                  A better way to get there
+                  {t("story.title")}
                 </p>
                 <p className="mt-6 text-lg leading-8 text-slate-600 dark:text-slate-300">
-                  Founded in 2024, BookMySeat started with a simple observation:
-                  booking a bus ticket was harder than it needed to be. We set
-                  out to build a platform that brought transparency,
-                  reliability, and modern technology to the intercity bus
-                  industry.
+                  {t("story.paragraph1")}
                 </p>
                 <div className="mt-8">
                   <p className="text-slate-600 dark:text-slate-300">
-                    Today, we partner with thousands of operators to bring you
-                    real-time inventory, live tracking, and instant support. We
-                    believe that the journey is just as important as the
-                    destination.
+                    {t("story.paragraph2")}
                   </p>
                 </div>
               </div>
@@ -149,10 +139,10 @@ export default function AboutPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl lg:text-center">
             <h2 className="text-base font-semibold leading-7 text-rose-600 dark:text-rose-400">
-              Why We Exist
+              {t("values.label")}
             </h2>
             <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-              Everything you need for a perfect journey
+              {t("values.title")}
             </p>
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
