@@ -3,7 +3,7 @@
 import React from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations } from 'next-intl';
-import { Ticket, MapPin, Bus, Users, ArrowRight, type LucideIcon } from "lucide-react";
+import { Ticket, MapPin, Bus, Users, ArrowRight } from "lucide-react";
 
 export default function ServicesSection() {
   const t = useTranslations("services");

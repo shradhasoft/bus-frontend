@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiUrl } from "@/lib/api";
 
 interface ApiOfferItem {
@@ -18,7 +18,7 @@ interface OfferCard {
   gradientStyle: React.CSSProperties;
   accentColor: string;
   tagline: string;
-  decorativeIcon: React.JSX.Element;
+  decorativeIcon?: React.JSX.Element;
 }
 
 const CARD_THEMES = [
@@ -100,7 +100,6 @@ interface CacheEntry {
   timestamp: number;
 }
 
-let inMemoryCache: CacheEntry | null = null;
 let pendingRequest: Promise<OfferCard[]> | null = null;
 
 function getCachedData(): OfferCard[] | null {
@@ -110,7 +109,6 @@ function getCachedData(): OfferCard[] | null {
       const entry: CacheEntry = JSON.parse(cached);
       const now = Date.now();
       if (now - entry.timestamp < CACHE_TTL) {
-        inMemoryCache = entry;
         return entry.data;
       }
       localStorage.removeItem(CACHE_KEY);
@@ -127,7 +125,6 @@ function setCachedData(data: OfferCard[]): void {
       data,
       timestamp: Date.now(),
     };
-    inMemoryCache = entry;
     localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
   } catch {
     // Ignore cache errors

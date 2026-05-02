@@ -115,40 +115,12 @@ const WalletIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const CARD_THEMES = [
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #f97316, #ea580c, #dc2626)",
-    },
-    accentColor: "#fde047",
-    tagline: "FIRST ORDER",
-    decorativeIcon: <BusIcon className="h-full w-full" />,
-  },
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #7c3aed, #9333ea, #4338ca)",
-    },
-    accentColor: "#fde047",
-    tagline: "FLASH DEAL",
-    decorativeIcon: <TicketIcon className="h-full w-full" />,
-  },
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #10b981, #16a34a, #0f766e)",
-    },
-    accentColor: "#fef08a",
-    tagline: "CASHBACK",
-    decorativeIcon: <WalletIcon className="h-full w-full" />,
-  },
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #ec4899, #e11d48, #be123c)",
-    },
-    accentColor: "#fde047",
-    tagline: "WEEKEND SPECIAL",
-    decorativeIcon: <StarBurst className="h-full w-full" />,
-  },
-] as const;
+const DECORATIVE_ICONS = [
+  <BusIcon key="1" className="h-full w-full" />,
+  <TicketIcon key="2" className="h-full w-full" />,
+  <WalletIcon key="3" className="h-full w-full" />,
+  <StarBurst key="4" className="h-full w-full" />,
+];
 
 const OfferCardItem = ({
   offer,
@@ -199,7 +171,7 @@ const OfferCardItem = ({
 
       {/* Decorative icon - large, semi-transparent */}
       <div className="pointer-events-none absolute -right-4 top-1/2 -translate-y-1/2 h-36 w-36 text-white/10 transition-all duration-500 group-hover:text-white/15 group-hover:scale-110 group-hover:rotate-6">
-        {offer.decorativeIcon}
+        {DECORATIVE_ICONS[index % DECORATIVE_ICONS.length]}
       </div>
 
       {/* Shine sweep on hover */}

@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronUp,
   HelpCircle,
-  Headphones,
   Mail,
   MapPin,
   MessageCircle,
@@ -21,46 +20,6 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-/* ───────────────────── Data ───────────────────── */
-
-const QUICK_LINKS = [
-  {
-    icon: Ticket,
-    title: "Book Tickets",
-    description: "Search routes and reserve your seat in seconds",
-    href: "/bus-tickets",
-    color: "text-rose-600 dark:text-rose-400",
-    bg: "bg-rose-50 dark:bg-rose-500/10",
-    border: "border-rose-200 dark:border-rose-500/20",
-  },
-  {
-    icon: MapPin,
-    title: "Track Your Bus",
-    description: "Live GPS tracking of your bus in real-time",
-    href: "/track",
-    color: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-50 dark:bg-blue-500/10",
-    border: "border-blue-200 dark:border-blue-500/20",
-  },
-  {
-    icon: BadgePercent,
-    title: "View Offers",
-    description: "Explore promo codes and exclusive discounts",
-    href: "/offers",
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-500/10",
-    border: "border-amber-200 dark:border-amber-500/20",
-  },
-  {
-    icon: Users,
-    title: "My Bookings",
-    description: "View, manage, or cancel your reservations",
-    href: "/bookings",
-    color: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-50 dark:bg-emerald-500/10",
-    border: "border-emerald-200 dark:border-emerald-500/20",
-  },
-];
 
 type FAQItem = {
   question: string;
@@ -145,41 +104,11 @@ const FAQ_DATA: FAQItem[] = [
 
 const CATEGORIES = [...new Set(FAQ_DATA.map((f) => f.category))];
 
-const GUIDES = [
-  {
-    icon: Ticket,
-    title: "Booking Your First Ticket",
-    steps: [
-      "Search for your route by entering origin and destination",
-      "Select your preferred travel date and find available buses",
-      "Choose your seat from the interactive seat layout",
-      "Enter passenger details and apply any promo code",
-      "Complete payment and receive your e-ticket instantly",
-    ],
-  },
-  {
-    icon: MapPin,
-    title: "Tracking Your Bus",
-    steps: [
-      'Navigate to the "Track Bus" page from the main menu',
-      "Enter your bus name or number in the search bar",
-      "View the live location pinned on the map",
-      "Check estimated arrival times at upcoming stops",
-      "Share your bus location link with family or friends",
-    ],
-  },
-  {
-    icon: RefreshCcw,
-    title: "Managing Your Booking",
-    steps: [
-      "Log in and navigate to My Bookings",
-      "Find the booking you want to modify or cancel",
-      'Click "View Details" to see full ticket information',
-      "Use cancel or modify options as needed",
-      "Track refund status in your booking history",
-    ],
-  },
-];
+type Guide = {
+  icon: any;
+  title: string;
+  steps: string[];
+};
 
 /* ───────────────────── FAQ Accordion ───────────────────── */
 
@@ -240,7 +169,7 @@ const FAQAccordion = ({
 
 /* ───────────────────── Guide Card ───────────────────── */
 
-const GuideCard = ({ guide }: { guide: (typeof GUIDES)[0] }) => {
+const GuideCard = ({ guide }: { guide: Guide }) => {
   const Icon = guide.icon;
   return (
     <div className="group rounded-3xl border border-slate-200/70 bg-white/85 p-6 shadow-[0_16px_32px_rgba(15,23,42,0.06)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(15,23,42,0.1)] dark:border-white/10 dark:bg-slate-900/70 dark:hover:border-white/20">
@@ -351,7 +280,7 @@ const HelpPage = () => {
     },
   ];
 
-  const FAQ_DATA: FAQItem[] = [
+  const FAQ_DATA_MEMO: FAQItem[] = useMemo(() => [
     {
       category: t("categories.booking"),
       question: t("faqItems.howToBook.question"),
@@ -412,10 +341,10 @@ const HelpPage = () => {
       question: t("faqItems.amenities.question"),
       answer: t("faqItems.amenities.answer"),
     },
-  ];
+  ], [t]);
 
   const filteredFAQs = useMemo(() => {
-    let items = FAQ_DATA;
+    let items = FAQ_DATA_MEMO;
     if (activeCategory !== t("all")) {
       items = items.filter((f) => f.category === activeCategory);
     }
@@ -428,7 +357,7 @@ const HelpPage = () => {
       );
     }
     return items;
-  }, [searchQuery, activeCategory, t]);
+  }, [searchQuery, activeCategory, t, FAQ_DATA_MEMO]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0b1020] dark:text-slate-100">
