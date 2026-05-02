@@ -105,12 +105,12 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
     setMessage(null);
 
     if (!normalizedPhone) {
-      setMessage({ type: "error", text: "Enter a valid phone number." });
+      setMessage({ type: "error", text: t("enterValidPhone") });
       return;
     }
 
     if (!recaptchaRef.current) {
-      setMessage({ type: "error", text: "reCAPTCHA is not ready yet." });
+      setMessage({ type: "error", text: t("recaptchaNotReady") });
       return;
     }
 
@@ -123,21 +123,21 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
       );
       setConfirmation(result);
       setOtp("");
-      setMessage({ type: "success", text: "Code sent. Check your phone." });
+      setMessage({ type: "success", text: t("codeSent") });
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to send code.",
+        text: error instanceof Error ? error.message : t("failedToSendCode"),
       });
     } finally {
       setIsSending(false);
     }
-  }, [normalizedPhone]);
+  }, [normalizedPhone, t]);
 
   const handleVerifyCode = useCallback(async () => {
     if (!confirmation) return;
     if (!otp.trim()) {
-      setMessage({ type: "error", text: "Enter the verification code." });
+      setMessage({ type: "error", text: t("enterVerificationCode") });
       return;
     }
 
@@ -146,17 +146,17 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
     try {
       const credential = await confirmation.confirm(otp.trim());
       await finishLogin(credential.user);
-      setMessage({ type: "success", text: "You're signed in." });
+      setMessage({ type: "success", text: t("signedIn") });
       onAuthSuccess?.();
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Verification failed.",
+        text: error instanceof Error ? error.message : t("verificationFailed"),
       });
     } finally {
       setIsVerifying(false);
     }
-  }, [confirmation, finishLogin, otp, onAuthSuccess]);
+  }, [confirmation, finishLogin, otp, onAuthSuccess, t]);
 
   const handleGoogleSignIn = useCallback(async () => {
     setIsGoogleLoading(true);
@@ -165,17 +165,17 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
       const provider = new GoogleAuthProvider();
       const credential = await signInWithPopup(firebaseAuth, provider);
       await finishLogin(credential.user);
-      setMessage({ type: "success", text: "You're signed in." });
+      setMessage({ type: "success", text: t("signedIn") });
       onAuthSuccess?.();
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Google sign-in failed.",
+        text: error instanceof Error ? error.message : t("googleSignInFailed"),
       });
     } finally {
       setIsGoogleLoading(false);
     }
-  }, [finishLogin, onAuthSuccess]);
+  }, [finishLogin, onAuthSuccess, t]);
 
   // Auto-submit OTP
   useEffect(() => {
@@ -250,7 +250,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
               <div>
                 <p className="text-lg font-bold tracking-wide">BookMySeat</p>
                 <p className="text-sm text-white/80 font-medium">
-                  Your Journey, Our Priority
+                  {t("tagline")}
                 </p>
               </div>
             </div>
@@ -275,11 +275,11 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
           <div className="relative z-10 mt-10 grid gap-3 rounded-2xl border border-white/20 bg-white/10 p-5 text-sm font-medium text-white shadow-lg backdrop-blur-md">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-emerald-400" />
-              Secure & verified checkout
+              {t("secureCheckout")}
             </div>
             <div className="flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-sky-400" />
-              Early access deals for members
+              {t("earlyAccessDeals")}
             </div>
           </div>
         </div>
@@ -287,10 +287,10 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
         <div className="flex flex-col justify-center px-6 py-8 sm:px-12 sm:py-12 bg-white dark:bg-slate-950">
           <div className="flex flex-col gap-2">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">
-              Welcome Back
+              {t("welcomeBack")}
             </p>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1">
-              Sign in or create account
+              {t("signInOrCreate")}
             </h2>
             <p className="text-base text-slate-500 dark:text-slate-400 mt-1">
               {t("usePhoneOrGoogle")}
@@ -300,7 +300,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
           <div className="mt-8 space-y-6">
             <div>
               <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Mobile Number
+                {t("mobileNumber")}
               </label>
               <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-700 shadow-sm transition-all focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-400/10 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:focus-within:border-white/30 dark:focus-within:ring-white/5">
                 <span className="text-slate-400">+91</span>
@@ -322,7 +322,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
             {confirmation ? (
               <div className="space-y-4">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Enter verification code
+                  {t("enterVerificationCode")}
                 </label>
                 <div className="flex gap-2 justify-between">
                   {[...Array(6)].map((_, index) => (
@@ -345,7 +345,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
                     onClick={handleVerifyCode}
                     disabled={isVerifying || otp.length < 6}
                   >
-                    {isVerifying ? "Verifying..." : "Verify code"}
+                    {isVerifying ? t("verifying") : t("verifyCode")}
                   </Button>
                   <Button
                     variant="outline"
@@ -356,7 +356,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
                     }}
                     disabled={isVerifying}
                   >
-                    Change number
+                    {t("changeNumber")}
                   </Button>
                 </div>
               </div>
@@ -366,13 +366,13 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
                 onClick={handleSendCode}
                 disabled={isSending}
               >
-                {isSending ? "Sending code..." : "Continue with Phone"}
+                {isSending ? t("sendingCode") : t("continueWithPhone")}
               </Button>
             )}
 
             <div className="flex items-center gap-4 text-sm text-slate-400 dark:text-slate-500">
               <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-              Or continue with
+              {t("orContinueWith")}
               <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
             </div>
 
@@ -389,7 +389,7 @@ const SignCard = ({ className, onAuthSuccess }: SignCardProps) => {
                 height={20}
                 className="shrink-0"
               />
-              {isGoogleLoading ? "Connecting..." : "Sign in with Google"}
+              {isGoogleLoading ? t("connecting") : t("signInWithGoogle")}
             </Button>
 
             <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-500 shadow-inner dark:border-white/5 dark:bg-white/2 dark:text-slate-400">

@@ -90,11 +90,11 @@
     "codeSent": "Code sent. Check your phone.",
     "failedToSendCode": "Failed to send code.",
     "enterTheCode": "Enter the verification code.",
-    "youreSignedIn": "You're signed in.",
+    "signedIn": "You're signed in.",
     "verificationFailed": "Verification failed.",
     "googleSignInFailed": "Google sign-in failed.",
     "authFailed": "Authentication failed",
-    "yourJourney": "Your Journey, Our Priority",
+    "tagline": "Your Journey, Our Priority",
     "trustedBookings": "Trusted bookings",
     "trustedBookingsDesc": "Seats verified across top-rated bus operators.",
     "easyCancellations": "Easy cancellations",
@@ -139,7 +139,14 @@
     "downloadOnThe": "Download on the",
     "appStore": "App Store",
     "getItOn": "Get it on",
-    "googlePlay": "Google Play"
+    "googlePlay": "Google Play",
+    "tagline": "Search. Book. Travel.",
+    "socials": {
+      "instagram": "Instagram",
+      "twitter": "Twitter",
+      "facebook": "Facebook",
+      "youtube": "YouTube"
+    }
   },
   "offers": {
     "exclusiveDeals": "Exclusive Deals",
@@ -202,7 +209,7 @@
     "downloadDescription": "Download the BookMySeat app and enjoy the fastest way to search, book, and track buses. Available for free on iOS and Android.",
     "instantBooking": "Instant ticket booking in seconds",
     "liveTracking": "Real-time live bus tracking",
-    "appDeals": "App-exclusive deals & cashbacks",
+    "exclusiveDeals": "App-exclusive deals & cashbacks",
     "smartAlerts": "Smart trip alerts & reminders",
     "downloadOnThe": "Download on the",
     "appStore": "App Store",
@@ -214,10 +221,22 @@
     "save": "Save"
   },
   "faq": {
-    "faqLabel": "FAQ",
-    "title": "Frequently Asked Questions",
-    "description": "Quick answers to the most common questions about BookMySeat.",
+    "faq": "FAQ",
+    "frequentlyAskedQuestions": "Frequently Asked Questions",
+    "faqDescription": "Quick answers to the most common questions about BookMySeat.",
     "visitHelpCenter": "Visit Help Center",
+    "howToBook": "How do I book a bus ticket on BookMySeat?",
+    "howToBookAnswer": "Simply enter your origin, destination, and travel date in the search bar on the home page. Browse available buses, select your preferred seat, fill in passenger details, and complete the payment. You'll receive an instant e-ticket on your phone.",
+    "cancelReschedule": "Can I cancel or reschedule my booking?",
+    "cancelRescheduleAnswer": "Yes! Navigate to \"My Bookings\" and click \"Cancel\" on the relevant booking. Cancellations made 24+ hours before departure receive a 90% refund. Rescheduling is available for select routes — check the booking details for eligibility.",
+    "liveTracking": "How does live bus tracking work?",
+    "liveTrackingAnswer": "Go to the \"Track Bus\" page and enter your bus name or number. If the bus has GPS tracking enabled, you'll see its real-time location on the map with estimated arrival times at upcoming stops.",
+    "paymentMethods": "What payment methods are accepted?",
+    "paymentMethodsAnswer": "We accept UPI (Google Pay, PhonePe, Paytm), credit/debit cards (Visa, Mastercard, RuPay), net banking, and popular digital wallets. All transactions are secured with industry-standard encryption.",
+    "firstTimeDiscounts": "Are there any discounts for first-time users?",
+    "firstTimeDiscountsAnswer": "Absolutely! First-time users get up to 15% off on their first booking with code BMSFIRST. We also have regular seasonal offers, cashback deals, and referral bonuses. Check the Offers page for current promotions.",
+    "availability": "Is BookMySeat available in my city?",
+    "availabilityAnswer": "BookMySeat covers 650,000+ routes across India, connecting 6,200+ bus operators in major cities and towns. Whether it's a metro city or a small town, chances are we have a route for you. Search your route to check availability.",
     "q1": "How do I book a bus ticket on BookMySeat?",
     "a1": "Simply enter your origin, destination, and travel date in the search bar on the home page. Browse available buses, select your preferred seat, fill in passenger details, and complete the payment. You'll receive an instant e-ticket on your phone.",
     "q2": "Can I cancel or reschedule my booking?",
@@ -233,5 +252,394 @@
   },
   "languageSwitcher": {
     "changeLanguage": "Change language"
+  },
+  "about": {
+    "heroTitle": "Transforming the way India travels",
+    "heroDescription": "BookMySeat is more than just a ticketing platform. We are on a mission to make bus travel seamless, safe, and enjoyable for millions of people every day.",
+    "stats": {
+      "happyTravelers": "Happy Travelers",
+      "citiesConnected": "Cities Connected",
+      "busOperators": "Bus Operators",
+      "starRating": "Star Rating"
+    },
+    "story": {
+      "label": "Our Story",
+      "title": "A better way to get there",
+      "paragraph1": "Founded in 2024, BookMySeat started with a simple observation: booking a bus ticket was harder than it needed to be. We set out to build a platform that brought transparency, reliability, and modern technology to the intercity bus industry.",
+      "paragraph2": "Today, we partner with thousands of operators to bring you real-time inventory, live tracking, and instant support. We believe that the journey is just as important as the destination."
+    },
+    "values": {
+      "label": "Why We Exist",
+      "title": "Everything you need for a perfect journey",
+      "unmatchedSafety": {
+        "title": "Unmatched Safety",
+        "description": "Every bus on our platform is thoroughly verified for safety and hygiene standards."
+      },
+      "support247": {
+        "title": "24/7 Support",
+        "description": "Our customer success team is always ready to help you with your journey."
+      },
+      "bestValue": {
+        "title": "Best Value",
+        "description": "We guarantee the best prices and offer regular rewards for our frequent travelers."
+      },
+      "continuousInnovation": {
+        "title": "Continuous Innovation",
+        "description": "From live tracking to VR seat previews, we continuously upgrade our tech."
+      }
+    }
+  },
+  "contact": {
+    "heroTitle": "We're here to help",
+    "heroDescription": "Whether you have a question about your booking, need help with a refund, or just want to share feedback, our team is ready to assist you.",
+    "callUs": "Call Us",
+    "callDescription": "For immediate assistance with your bookings or urgent inquiries.",
+    "callAvailability": "Available Mon-Sat, 8am-10pm IST",
+    "emailUs": "Email Us",
+    "emailDescription": "For general queries, feedback, or issues that require detailed explanation.",
+    "emailResponseTime": "We aim to reply within 4 hours",
+    "raiseTicket": "Raise a Ticket",
+    "ticketDescription": "Create a dedicated support ticket to track your issue through to resolution.",
+    "submitTicket": "Submit a Ticket",
+    "ticketTracking": "Trackable status & priority handling",
+    "ourOffices": "Our Offices",
+    "officesDescription": "Come say hi at any of our primary locations across India.",
+    "bengaluru": "Bengaluru (HQ)",
+    "mumbai": "Mumbai",
+    "businessHours": "standard business hours: 9am - 6pm"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: {date}",
+    "intro": "Please read these terms and conditions carefully before using Our Service. These Terms outline your rights and responsibilities when using BookMySeat.",
+    "agreementToTerms": {
+      "title": "1. Agreement to Terms",
+      "content": "By accessing or using the Service, You agree to be bound by these Terms and Conditions. If You disagree with any part of these Terms and Conditions, then You may not access the Service."
+    },
+    "useOfService": {
+      "title": "2. Use of the Service",
+      "content": "Our Service allows you to search for, compare, and book bus tickets. We act solely as an intermediary between you and bus operators.",
+      "rule1": "You must be at least 18 years old to use the Service.",
+      "rule2": "You are responsible for maintaining the confidentiality of your account.",
+      "rule3": "You agree not to use the Service for any illegal or unauthorized purpose."
+    },
+    "bookingsAndPayments": {
+      "title": "3. Bookings and Payments",
+      "content": "When you make a booking, you are entering into a contract directly with the bus operator. BookMySeat is not responsible for the actual performance of the bus service.",
+      "paymentContent": "Payment must be made in full at the time of booking. Prices are subject to change without notice, but confirmed bookings will not be affected."
+    },
+    "cancellationsAndRefunds": {
+      "title": "4. Cancellations and Refunds",
+      "content": "Cancellations and refunds are subject to the policies of the respective bus operator. BookMySeat may charge a nominal cancellation fee in addition to the operator's fee. Please refer to our Refund Policy for detailed information."
+    },
+    "limitationOfLiability": {
+      "title": "5. Limitation of Liability",
+      "content": "BookMySeat shall not be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the Service; (ii) any conduct or content of any third party on the Service; (iii) any content obtained from the Service; and (iv) unauthorized access, use or alteration of your transmissions or content."
+    },
+    "changesToTerms": {
+      "title": "6. Changes to Terms",
+      "content": "We reserve the right, at our sole discretion, to modify or replace these Terms at any time. By continuing to access or use our Service after those revisions become effective, you agree to be bound by the revised terms."
+    },
+    "contactUs": {
+      "title": "Contact Us",
+      "content": "If you have any questions about these Terms, please contact us at"
+    }
+  },
+  "help": {
+    "heroTitle": "How can we",
+    "heroHighlight": "help you?",
+    "heroDescription": "Find answers to your questions, learn how to use BookMySeat, or get in touch with our support team.",
+    "searchPlaceholder": "Search for answers...",
+    "clear": "Clear",
+    "quickLinks": {
+      "bookTickets": {
+        "title": "Book Tickets",
+        "description": "Search routes and reserve your seat in seconds"
+      },
+      "trackBus": {
+        "title": "Track Your Bus",
+        "description": "Live GPS tracking of your bus in real-time"
+      },
+      "viewOffers": {
+        "title": "View Offers",
+        "description": "Explore promo codes and exclusive discounts"
+      },
+      "myBookings": {
+        "title": "My Bookings",
+        "description": "View, manage, or cancel your reservations"
+      }
+    },
+    "gettingStarted": "Getting Started",
+    "stepByStepGuides": "Step-by-Step Guides",
+    "guidesDescription": "Follow these guides to make the most of your BookMySeat experience.",
+    "bookingFirstTicket": {
+      "title": "Booking Your First Ticket",
+      "step1": "Search for your route by entering origin and destination",
+      "step2": "Select your preferred travel date and find available buses",
+      "step3": "Choose your seat from the interactive seat layout",
+      "step4": "Enter passenger details and apply any promo code",
+      "step5": "Complete payment and receive your e-ticket instantly"
+    },
+    "trackingBus": {
+      "title": "Tracking Your Bus",
+      "step1": "Navigate to the \"Track Bus\" page from the main menu",
+      "step2": "Enter your bus name or number in the search bar",
+      "step3": "View the live location pinned on the map",
+      "step4": "Check estimated arrival times at upcoming stops",
+      "step5": "Share your bus location link with family or friends"
+    },
+    "managingBooking": {
+      "title": "Managing Your Booking",
+      "step1": "Log in and navigate to My Bookings",
+      "step2": "Find the booking you want to modify or cancel",
+      "step3": "Click \"View Details\" to see full ticket information",
+      "step4": "Use cancel or modify options as needed",
+      "step5": "Track refund status in your booking history"
+    },
+    "faq": "FAQ",
+    "frequentlyAskedQuestions": "Frequently Asked Questions",
+    "faqDescription": "Quick answers to the most common questions about using BookMySeat.",
+    "all": "All",
+    "categories": {
+      "booking": "Booking",
+      "payment": "Payment",
+      "cancellation": "Cancellation",
+      "tracking": "Tracking",
+      "account": "Account",
+      "general": "General"
+    },
+    "faqItems": {
+      "howToBook": {
+        "question": "How do I book a bus ticket?",
+        "answer": "Go to the \"Book Tickets\" page, enter your origin, destination, and travel date, then select a bus from the available options. Choose your preferred seat, enter passenger details, apply any promo code, and proceed to payment. You'll receive a confirmation with your ticket details."
+      },
+      "multiplePassengers": {
+        "question": "Can I book tickets for multiple passengers at once?",
+        "answer": "Yes! During the booking process, you can select multiple seats and enter details for each passenger. All passengers will be included in a single booking under your account."
+      },
+      "advanceBooking": {
+        "question": "How far in advance can I book a ticket?",
+        "answer": "You can book tickets as soon as they become available for a route. Typically, bookings open up to 30 days in advance, depending on the bus operator. We recommend booking early to secure your preferred seats."
+      },
+      "paymentMethods": {
+        "question": "What payment methods are accepted?",
+        "answer": "We accept all major payment methods including UPI (Google Pay, PhonePe, Paytm), credit and debit cards (Visa, Mastercard, RuPay), net banking, and popular digital wallets. All transactions are processed through secure payment gateways."
+      },
+      "paymentSecurity": {
+        "question": "Is my payment information secure?",
+        "answer": "Absolutely. All payment transactions are encrypted using industry-standard SSL/TLS encryption. We do not store your card details on our servers. Payments are processed through PCI-DSS compliant payment gateways."
+      },
+      "howToCancel": {
+        "question": "How do I cancel my booking?",
+        "answer": "Navigate to \"My Bookings\", find the booking you wish to cancel, and click \"Cancel Booking\". The refund will be processed based on the cancellation policy — cancellations made 24+ hours before departure typically receive a full refund minus a small processing fee."
+      },
+      "refundPolicy": {
+        "question": "What is the refund policy?",
+        "answer": "Refunds are processed as follows: cancellations more than 24 hours before departure receive a 90% refund; between 12–24 hours, a 75% refund; between 6–12 hours, a 50% refund. Cancellations within 6 hours of departure are non-refundable. Refunds are credited within 5–7 business days."
+      },
+      "howToTrack": {
+        "question": "How do I track my bus in real-time?",
+        "answer": "Visit the \"Track Bus\" page and search for your bus using the bus name or number. If GPS tracking is enabled for your bus, you'll see its live location on the map along with estimated arrival times at upcoming stops."
+      },
+      "trackingNotAvailable": {
+        "question": "Why can't I see my bus on the tracking page?",
+        "answer": "Real-time tracking depends on the bus having an active GPS connection. If the bus hasn't started its journey yet, or if it's in an area with poor network coverage, the location may not be available. Try refreshing after a few minutes."
+      },
+      "howToCreateAccount": {
+        "question": "How do I create an account?",
+        "answer": "Click \"Login\" at the top of the page. You can sign in using your phone number or email. A new account will be created automatically on your first login. No separate registration is required."
+      },
+      "forgotPassword": {
+        "question": "I forgot my password. How do I reset it?",
+        "answer": "We use phone/email-based authentication, so there's no password to forget! Simply click \"Login\" and verify your identity via OTP (one-time password) sent to your registered phone number or email."
+      },
+      "amenities": {
+        "question": "What amenities are available on the bus?",
+        "answer": "Amenities vary by bus and operator. Common amenities include air conditioning, WiFi, charging points, blankets, water bottles, and entertainment systems. You can view the specific amenities for each bus during the booking process."
+      }
+    },
+    "noResults": "No results found for \"{query}\"",
+    "tryDifferent": "Try a different search term or browse by category.",
+    "stillNeedHelp": "Still need help?",
+    "getInTouch": "Get in Touch",
+    "getInTouchDescription": "Our support team is available to assist you. Reach out through any of these channels.",
+    "callUs": "Call Us",
+    "callAvailability": "Mon–Sat, 8AM–10PM IST",
+    "emailSupport": "Email Support",
+    "emailResponseTime": "Typical response within 4 hours",
+    "whatsapp": "WhatsApp",
+    "whatsappAvailability": "Quick replies, 24×7 available",
+    "chatOnWhatsapp": "Chat on WhatsApp",
+    "trustedByThousands": "Trusted by thousands",
+    "safeReliable": "Safe, Reliable & Always Here for You",
+    "safeReliableDescription": "BookMySeat is committed to providing a secure and seamless bus booking experience. Your data is encrypted, your payments are protected, and our support team is just a click away.",
+    "ticketsBooked": "Tickets Booked",
+    "uptimeGuarantee": "Uptime Guarantee",
+    "customerSatisfaction": "Customer Satisfaction"
+  },
+  "support": {
+    "ticket": {
+      "heroTitle": "Raise a Ticket",
+      "heroDescription": "Having trouble? Describe your issue below and our premium support team will jump on it immediately.",
+      "ticketReceived": "Ticket Received!",
+      "ticketSuccessMessage": "Thank you for reaching out. Your support ticket has been successfully logged in our system. Our team will review it and get back to you shortly.",
+      "ticketId": "Ticket ID:",
+      "submitAnother": "Submit Another Ticket",
+      "subjectLabel": "Subject / Topic",
+      "subjectPlaceholder": "e.g. Refund not received for booking",
+      "priorityLabel": "Priority Level",
+      "priorityLow": "Low",
+      "priorityMedium": "Medium",
+      "priorityHigh": "High",
+      "descriptionLabel": "Detailed Description",
+      "markdownSupported": "Markdown supported",
+      "descriptionPlaceholder": "Please describe your issue in as much detail as possible...",
+      "information": "Information:",
+      "infoMessage": "Our support team generally responds to High priority tickets within 2 hours, and Medium/Low within 24 hours. A notification will be generated when your ticket is updated.",
+      "submitTicket": "Submit Ticket",
+      "submittingTicket": "Submitting Ticket...",
+      "mustBeLoggedIn": "You must be logged in to raise a ticket.",
+      "failedToSubmit": "Failed to submit ticket",
+      "errorOccurred": "An error occurred while submitting."
+    }
+  },
+  "profile": {
+    "myProfile": "My Profile",
+    "loadingProfile": "Loading profile...",
+    "traveller": "Traveller",
+    "noEmailAvailable": "No email available",
+    "phoneNotAdded": "Phone not added",
+    "editProfile": "Edit Profile",
+    "fullName": "Full Name",
+    "email": "Email",
+    "phone": "Phone",
+    "saveChanges": "Save Changes",
+    "cancel": "Cancel",
+    "fullNameMinLength": "Full name must be at least 3 characters.",
+    "validEmail": "Please provide a valid email address.",
+    "validPhone": "Phone must be in E.164 format (for example, +917840009613).",
+    "unableToUpdateProfile": "Unable to update profile.",
+    "signInToViewProfile": "Sign in to view your profile and bookings.",
+    "unableToLoadProfile": "Unable to load profile.",
+    "unableToLoadProfileDetails": "Unable to load profile details.",
+    "myBookings": "My Bookings",
+    "upcoming": "Upcoming",
+    "cancelled": "Cancelled",
+    "completed": "Completed",
+    "searchBookings": "Search bookings...",
+    "noBookingsFound": "No bookings found",
+    "signInToAccessBookings": "Sign in to access your bookings.",
+    "unableToLoadBookings": "Unable to load bookings.",
+    "unableToLoadBookingsRightNow": "Unable to load bookings right now.",
+    "running": "Running",
+    "viewDetails": "View Details",
+    "downloadInvoice": "Download Invoice",
+    "downloadingInvoice": "Downloading Invoice...",
+    "unableToDownloadInvoice": "Unable to download invoice.",
+    "invoiceFileEmpty": "Invoice file is empty.",
+    "cancelBooking": "Cancel Booking",
+    "cancellationFailed": "Cancellation failed",
+    "alreadyCancelled": "This booking is already cancelled",
+    "cannotCancelAfterDeparture": "Cannot cancel after departure",
+    "failedToCancelBooking": "Failed to cancel booking",
+    "bookingDetails": "Booking Details",
+    "unableToLoadBookingDetails": "Unable to load booking details.",
+    "bookingDetailsUnavailable": "Booking details are unavailable.",
+    "close": "Close",
+    "passengerDetails": "Passenger Details",
+    "seat": "Seat",
+    "age": "Age",
+    "gender": "Gender",
+    "mobileNumber": "Mobile Number",
+    "identification": "Identification",
+    "type": "Type",
+    "number": "Number",
+    "tripDetails": "Trip Details",
+    "origin": "Origin",
+    "destination": "Destination",
+    "departureTime": "Departure Time",
+    "arrivalTime": "Arrival Time",
+    "duration": "Duration",
+    "boardingPoint": "Boarding Point",
+    "droppingPoint": "Dropping Point",
+    "busDetails": "Bus Details",
+    "busName": "Bus Name",
+    "busNumber": "Bus Number",
+    "operator": "Operator",
+    "paymentDetails": "Payment Details",
+    "paymentId": "Payment ID",
+    "amount": "Amount",
+    "method": "Method",
+    "status": "Status",
+    "paidAt": "Paid At",
+    "cancellationPolicy": "Cancellation Policy",
+    "refundEstimate": "Refund Estimate",
+    "enterReason": "Please enter a reason for cancellation.",
+    "areYouSure": "Are you sure you want to cancel this booking?",
+    "refundInfo": "You will receive a refund of approximately",
+    "confirmCancellation": "Confirm Cancellation",
+    "myRentals": "My Rentals",
+    "rentalRequests": "Rental Requests",
+    "noRentalRequests": "No rental requests found",
+    "signInToAccessRentals": "Sign in to access your rental requests.",
+    "unableToLoadRentals": "Unable to load rental requests.",
+    "unableToLoadRentalsRightNow": "Unable to load rental requests right now.",
+    "rentalStatusLabel": "Status",
+    "tripType": "Trip Type",
+    "pickupLocation": "Pickup Location",
+    "dropLocation": "Drop Location",
+    "journeyDate": "Journey Date",
+    "reportingTime": "Reporting Time",
+    "passengerCount": "Passenger Count",
+    "seatingCapacity": "Seating Capacity",
+    "requiredAmenities": "Required Amenities",
+    "createdAt": "Created At",
+    "rentalStatus": {
+      "new": "New",
+      "inProgress": "In Progress",
+      "quoted": "Quoted",
+      "closed": "Closed"
+    }
+  },
+  "sidebar": {
+    "expandTooltip": "Expand (⌘/Ctrl + B)",
+    "collapseTooltip": "Collapse (⌘/Ctrl + B)",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "commandCenter": "Command Center",
+    "toggleTheme": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "scrollToTop": "Scroll to top",
+    "openProfile": "Open profile",
+    "homePage": "Home Page",
+    "impersonating": "Impersonating",
+    "targetUser": "Target user",
+    "role": "ROLE",
+    "asAdmin": "as {name}",
+    "stopImpersonation": "Stop impersonation",
+    "unableToStopImpersonation": "Unable to stop impersonation.",
+    "dashboard": "Dashboard",
+    "manageBuses": "Manage Buses",
+    "manageBus": "Manage Bus",
+    "trackBus": "Track Bus",
+    "boardedUsers": "Boarded Users",
+    "manageBookings": "Manage Bookings",
+    "manageRental": "Manage Rental",
+    "manageCancels": "Manage Cancels",
+    "manageUsers": "Manage Users",
+    "manageOffers": "Manage Offers",
+    "manageTransactions": "Manage Transactions",
+    "callbackRequests": "Callback Requests",
+    "manageTickets": "Manage Tickets",
+    "broadcast": "Broadcast",
+    "manageReviews": "Manage Reviews",
+    "verifyTicket": "Verify Ticket",
+    "markOfflineBook": "Mark Offline Book",
+    "manageConductor": "Manage Conductor"
+  },
+  "testimonials": {
+    "title": "What Our Travelers Say",
+    "description": "Real experiences from real passengers who trust BookMySeat for their journeys."
   }
 }

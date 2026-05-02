@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronUp,
   HelpCircle,
-  Headphones,
   Mail,
   MapPin,
   MessageCircle,
@@ -19,47 +18,8 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-/* ───────────────────── Data ───────────────────── */
-
-const QUICK_LINKS = [
-  {
-    icon: Ticket,
-    title: "Book Tickets",
-    description: "Search routes and reserve your seat in seconds",
-    href: "/bus-tickets",
-    color: "text-rose-600 dark:text-rose-400",
-    bg: "bg-rose-50 dark:bg-rose-500/10",
-    border: "border-rose-200 dark:border-rose-500/20",
-  },
-  {
-    icon: MapPin,
-    title: "Track Your Bus",
-    description: "Live GPS tracking of your bus in real-time",
-    href: "/track",
-    color: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-50 dark:bg-blue-500/10",
-    border: "border-blue-200 dark:border-blue-500/20",
-  },
-  {
-    icon: BadgePercent,
-    title: "View Offers",
-    description: "Explore promo codes and exclusive discounts",
-    href: "/offers",
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-500/10",
-    border: "border-amber-200 dark:border-amber-500/20",
-  },
-  {
-    icon: Users,
-    title: "My Bookings",
-    description: "View, manage, or cancel your reservations",
-    href: "/bookings",
-    color: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-50 dark:bg-emerald-500/10",
-    border: "border-emerald-200 dark:border-emerald-500/20",
-  },
-];
 
 type FAQItem = {
   question: string;
@@ -144,41 +104,11 @@ const FAQ_DATA: FAQItem[] = [
 
 const CATEGORIES = [...new Set(FAQ_DATA.map((f) => f.category))];
 
-const GUIDES = [
-  {
-    icon: Ticket,
-    title: "Booking Your First Ticket",
-    steps: [
-      "Search for your route by entering origin and destination",
-      "Select your preferred travel date and find available buses",
-      "Choose your seat from the interactive seat layout",
-      "Enter passenger details and apply any promo code",
-      "Complete payment and receive your e-ticket instantly",
-    ],
-  },
-  {
-    icon: MapPin,
-    title: "Tracking Your Bus",
-    steps: [
-      'Navigate to the "Track Bus" page from the main menu',
-      "Enter your bus name or number in the search bar",
-      "View the live location pinned on the map",
-      "Check estimated arrival times at upcoming stops",
-      "Share your bus location link with family or friends",
-    ],
-  },
-  {
-    icon: RefreshCcw,
-    title: "Managing Your Booking",
-    steps: [
-      "Log in and navigate to My Bookings",
-      "Find the booking you want to modify or cancel",
-      'Click "View Details" to see full ticket information',
-      "Use cancel or modify options as needed",
-      "Track refund status in your booking history",
-    ],
-  },
-];
+type Guide = {
+  icon: React.ElementType;
+  title: string;
+  steps: string[];
+};
 
 /* ───────────────────── FAQ Accordion ───────────────────── */
 
@@ -239,7 +169,7 @@ const FAQAccordion = ({
 
 /* ───────────────────── Guide Card ───────────────────── */
 
-const GuideCard = ({ guide }: { guide: (typeof GUIDES)[0] }) => {
+const GuideCard = ({ guide }: { guide: Guide }) => {
   const Icon = guide.icon;
   return (
     <div className="group rounded-3xl border border-slate-200/70 bg-white/85 p-6 shadow-[0_16px_32px_rgba(15,23,42,0.06)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(15,23,42,0.1)] dark:border-white/10 dark:bg-slate-900/70 dark:hover:border-white/20">
@@ -270,13 +200,152 @@ const GuideCard = ({ guide }: { guide: (typeof GUIDES)[0] }) => {
 /* ───────────────────── Main Page ───────────────────── */
 
 const HelpPage = () => {
+  const t = useTranslations("help");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
+  const QUICK_LINKS = [
+    {
+      icon: Ticket,
+      title: t("quickLinks.bookTickets.title"),
+      description: t("quickLinks.bookTickets.description"),
+      href: "/bus-tickets",
+      color: "text-rose-600 dark:text-rose-400",
+      bg: "bg-rose-50 dark:bg-rose-500/10",
+      border: "border-rose-200 dark:border-rose-500/20",
+    },
+    {
+      icon: MapPin,
+      title: t("quickLinks.trackBus.title"),
+      description: t("quickLinks.trackBus.description"),
+      href: "/track",
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-50 dark:bg-blue-500/10",
+      border: "border-blue-200 dark:border-blue-500/20",
+    },
+    {
+      icon: BadgePercent,
+      title: t("quickLinks.viewOffers.title"),
+      description: t("quickLinks.viewOffers.description"),
+      href: "/offers",
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-500/10",
+      border: "border-amber-200 dark:border-amber-500/20",
+    },
+    {
+      icon: Users,
+      title: t("quickLinks.myBookings.title"),
+      description: t("quickLinks.myBookings.description"),
+      href: "/bookings",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-emerald-50 dark:bg-emerald-500/10",
+      border: "border-emerald-200 dark:border-emerald-500/20",
+    },
+  ];
+
+  const GUIDES = [
+    {
+      icon: Ticket,
+      title: t("bookingFirstTicket.title"),
+      steps: [
+        t("bookingFirstTicket.step1"),
+        t("bookingFirstTicket.step2"),
+        t("bookingFirstTicket.step3"),
+        t("bookingFirstTicket.step4"),
+        t("bookingFirstTicket.step5"),
+      ],
+    },
+    {
+      icon: MapPin,
+      title: t("trackingBus.title"),
+      steps: [
+        t("trackingBus.step1"),
+        t("trackingBus.step2"),
+        t("trackingBus.step3"),
+        t("trackingBus.step4"),
+        t("trackingBus.step5"),
+      ],
+    },
+    {
+      icon: RefreshCcw,
+      title: t("managingBooking.title"),
+      steps: [
+        t("managingBooking.step1"),
+        t("managingBooking.step2"),
+        t("managingBooking.step3"),
+        t("managingBooking.step4"),
+        t("managingBooking.step5"),
+      ],
+    },
+  ];
+
+  const FAQ_DATA_MEMO: FAQItem[] = useMemo(() => [
+    {
+      category: t("categories.booking"),
+      question: t("faqItems.howToBook.question"),
+      answer: t("faqItems.howToBook.answer"),
+    },
+    {
+      category: t("categories.booking"),
+      question: t("faqItems.multiplePassengers.question"),
+      answer: t("faqItems.multiplePassengers.answer"),
+    },
+    {
+      category: t("categories.booking"),
+      question: t("faqItems.advanceBooking.question"),
+      answer: t("faqItems.advanceBooking.answer"),
+    },
+    {
+      category: t("categories.payment"),
+      question: t("faqItems.paymentMethods.question"),
+      answer: t("faqItems.paymentMethods.answer"),
+    },
+    {
+      category: t("categories.payment"),
+      question: t("faqItems.paymentSecurity.question"),
+      answer: t("faqItems.paymentSecurity.answer"),
+    },
+    {
+      category: t("categories.cancellation"),
+      question: t("faqItems.howToCancel.question"),
+      answer: t("faqItems.howToCancel.answer"),
+    },
+    {
+      category: t("categories.cancellation"),
+      question: t("faqItems.refundPolicy.question"),
+      answer: t("faqItems.refundPolicy.answer"),
+    },
+    {
+      category: t("categories.tracking"),
+      question: t("faqItems.howToTrack.question"),
+      answer: t("faqItems.howToTrack.answer"),
+    },
+    {
+      category: t("categories.tracking"),
+      question: t("faqItems.trackingNotAvailable.question"),
+      answer: t("faqItems.trackingNotAvailable.answer"),
+    },
+    {
+      category: t("categories.account"),
+      question: t("faqItems.howToCreateAccount.question"),
+      answer: t("faqItems.howToCreateAccount.answer"),
+    },
+    {
+      category: t("categories.account"),
+      question: t("faqItems.forgotPassword.question"),
+      answer: t("faqItems.forgotPassword.answer"),
+    },
+    {
+      category: t("categories.general"),
+      question: t("faqItems.amenities.question"),
+      answer: t("faqItems.amenities.answer"),
+    },
+  ], [t]);
+
   const filteredFAQs = useMemo(() => {
-    let items = FAQ_DATA;
-    if (activeCategory !== "All") {
+    let items = FAQ_DATA_MEMO;
+    if (activeCategory !== t("all")) {
       items = items.filter((f) => f.category === activeCategory);
     }
     if (searchQuery.trim()) {
@@ -288,7 +357,7 @@ const HelpPage = () => {
       );
     }
     return items;
-  }, [searchQuery, activeCategory]);
+  }, [searchQuery, activeCategory, t, FAQ_DATA_MEMO]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0b1020] dark:text-slate-100">
@@ -303,47 +372,37 @@ const HelpPage = () => {
 
         <div className="relative mx-auto max-w-4xl text-center">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-rose-200/60 bg-rose-100/50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-rose-600 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-rose-300">
-            <Headphones className="h-3.5 w-3.5" />
-            Help Center
+            {t("faq")}
           </div>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-            How can we{" "}
-            <span className="bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600 bg-clip-text text-transparent dark:from-rose-400 dark:via-rose-500 dark:to-pink-500">
-              help you?
-            </span>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+            {t("heroTitle")}{" "}
+            <span className="text-rose-600 dark:text-rose-400">{t("heroHighlight")}</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-            Find answers to your questions, learn how to use BookMySeat, or get
-            in touch with our support team.
+          <p className="mt-6 text-lg leading-8 text-slate-600 dark:text-slate-300">
+            {t("heroDescription")}
           </p>
 
-          {/* Search bar */}
-          <div className="mx-auto mt-8 max-w-xl">
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md transition-all focus-within:border-rose-500/40 focus-within:bg-white focus-within:shadow-sm dark:border-white/10 dark:bg-white/5 dark:focus-within:border-rose-500/40 dark:focus-within:bg-white/10">
-              <Search className="h-5 w-5 shrink-0 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
+          {/* Search Bar */}
+          <div className="mt-10 relative mx-auto max-w-2xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder={t("searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-full border-0 bg-white px-14 py-4 text-slate-900 shadow-lg ring-1 ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-rose-500 focus:outline-none dark:bg-slate-900 dark:ring-slate-700 dark:placeholder:text-slate-500 dark:focus:ring-rose-400"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
                   setOpenFaqIndex(null);
                 }}
-                placeholder="Search for answers..."
-                className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setOpenFaqIndex(null);
-                  }}
-                  className="text-xs font-semibold text-slate-400 transition hover:text-slate-600 dark:hover:text-white"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 transition hover:text-slate-600 dark:hover:text-white"
+              >
+                {t("clear")}
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -384,14 +443,13 @@ const HelpPage = () => {
         <section>
           <div className="mb-8 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-500 dark:text-rose-400">
-              Getting Started
+              {t("gettingStarted")}
             </p>
             <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-              Step-by-Step Guides
+              {t("stepByStepGuides")}
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500 dark:text-slate-400">
-              Follow these guides to make the most of your BookMySeat
-              experience.
+              {t("guidesDescription")}
             </p>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
@@ -405,19 +463,19 @@ const HelpPage = () => {
         <section>
           <div className="mb-8 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-500 dark:text-rose-400">
-              FAQ
+              {t("faq")}
             </p>
             <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-              Frequently Asked Questions
+              {t("frequentlyAskedQuestions")}
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500 dark:text-slate-400">
-              Quick answers to the most common questions about using BookMySeat.
+              {t("faqDescription")}
             </p>
           </div>
 
           {/* Category tabs */}
           <div className="mb-6 flex flex-wrap justify-center gap-2">
-            {["All", ...CATEGORIES].map((cat) => (
+            {[t("all"), ...CATEGORIES].map((cat) => (
               <button
                 key={cat}
                 type="button"
@@ -442,10 +500,10 @@ const HelpPage = () => {
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center dark:border-white/15 dark:bg-slate-900/60">
                 <HelpCircle className="mx-auto mb-3 h-8 w-8 text-slate-300 dark:text-slate-600" />
                 <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  No results found for &quot;{searchQuery}&quot;
+                  {t("noResults", { query: searchQuery })}
                 </p>
                 <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                  Try a different search term or browse by category.
+                  {t("tryDifferent")}
                 </p>
               </div>
             ) : (
@@ -467,14 +525,13 @@ const HelpPage = () => {
         <section>
           <div className="mb-8 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-500 dark:text-rose-400">
-              Still need help?
+              {t("stillNeedHelp")}
             </p>
             <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-              Get in Touch
+              {t("getInTouch")}
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500 dark:text-slate-400">
-              Our support team is available to assist you. Reach out through any
-              of these channels.
+              {t("getInTouchDescription")}
             </p>
           </div>
 
@@ -485,10 +542,10 @@ const HelpPage = () => {
                 <Phone className="h-6 w-6" />
               </div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Call Us
+                {t("callUs")}
               </h3>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Mon–Sat, 8AM–10PM IST
+                {t("callAvailability")}
               </p>
               <a
                 href="tel:+911234567890"
@@ -505,10 +562,10 @@ const HelpPage = () => {
                 <Mail className="h-6 w-6" />
               </div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Email Support
+                {t("emailSupport")}
               </h3>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Typical response within 4 hours
+                {t("emailResponseTime")}
               </p>
               <a
                 href="mailto:support@bookmyseat.in"
@@ -525,10 +582,10 @@ const HelpPage = () => {
                 <MessageCircle className="h-6 w-6" />
               </div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                WhatsApp
+                {t("whatsapp")}
               </h3>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Quick replies, 24×7 available
+                {t("whatsappAvailability")}
               </p>
               <a
                 href="https://wa.me/911234567890"
@@ -537,7 +594,7 @@ const HelpPage = () => {
                 className="mt-3 inline-flex items-center gap-1 rounded-full bg-green-50 px-4 py-2 text-sm font-bold text-green-700 transition hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 dark:hover:bg-green-500/20"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
-                Chat on WhatsApp
+                {t("chatOnWhatsapp")}
               </a>
             </div>
           </div>
@@ -548,29 +605,27 @@ const HelpPage = () => {
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-rose-300 backdrop-blur-sm">
               <Shield className="h-3.5 w-3.5" />
-              Trusted by thousands
+              {t("trustedByThousands")}
             </div>
             <h2 className="text-2xl font-bold sm:text-3xl">
-              Safe, Reliable & Always Here for You
+              {t("safeReliable")}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-slate-300">
-              BookMySeat is committed to providing a secure and seamless bus
-              booking experience. Your data is encrypted, your payments are
-              protected, and our support team is just a click away.
+              {t("safeReliableDescription")}
             </p>
             <div className="mt-8 grid gap-6 sm:grid-cols-3">
               <div>
                 <p className="text-3xl font-bold text-rose-400">50K+</p>
-                <p className="mt-1 text-xs text-slate-400">Tickets Booked</p>
+                <p className="mt-1 text-xs text-slate-400">{t("ticketsBooked")}</p>
               </div>
               <div>
                 <p className="text-3xl font-bold text-rose-400">99.9%</p>
-                <p className="mt-1 text-xs text-slate-400">Uptime Guarantee</p>
+                <p className="mt-1 text-xs text-slate-400">{t("uptimeGuarantee")}</p>
               </div>
               <div>
                 <p className="text-3xl font-bold text-rose-400">4.8★</p>
                 <p className="mt-1 text-xs text-slate-400">
-                  Customer Satisfaction
+                  {t("customerSatisfaction")}
                 </p>
               </div>
             </div>

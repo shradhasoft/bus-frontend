@@ -5,7 +5,10 @@ import { Link } from "@/i18n/routing";
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Clock, MapPin, IndianRupee } from "lucide-react";
 
-const ROUTES = [
+export default function PopularRoutesSection() {
+  const t = useTranslations("popularRoutes");
+
+  const ROUTES = [
   {
     from: "Bengaluru",
     to: "Chennai",
@@ -64,21 +67,19 @@ const ROUTES = [
   },
 ];
 
-const PopularRoutesSection = () => {
-  const t = useTranslations('popularRoutes');
   return (
   <section className="bg-white dark:bg-[#0d1225]">
     <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       {/* Heading */}
       <div className="mx-auto max-w-2xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-500 dark:text-rose-400">
-          Trending Now
+          {t("trendingNow")}
         </p>
         <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl lg:text-4xl dark:text-white">
-          Popular Bus Routes
+          {t("popularBusRoutes")}
         </h2>
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          {t('routesDescription')}
+          {t("routesDescription")}
         </p>
       </div>
 
@@ -132,7 +133,4 @@ const PopularRoutesSection = () => {
     </div>
   </section>
 );
-
 }
-
-export default PopularRoutesSection;

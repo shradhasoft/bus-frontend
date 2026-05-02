@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import {
   LifeBuoy,
   Send,
@@ -30,6 +31,7 @@ const ticketSchema = z.object({
 type TicketFormValues = z.infer<typeof ticketSchema>;
 
 export default function TicketSubmissionPage() {
+  const t = useTranslations("support.ticket");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successTicketId, setSuccessTicketId] = useState<string | null>(null);
 
@@ -64,9 +66,9 @@ export default function TicketSubmissionPage() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("You must be logged in to raise a ticket.");
+          throw new Error(t("mustBeLoggedIn"));
         }
-        throw new Error(result.message || "Failed to submit ticket");
+        throw new Error(result.message || t("failedToSubmit"));
       }
 
       setSuccessTicketId(result.data.ticketId);
@@ -76,7 +78,7 @@ export default function TicketSubmissionPage() {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error("An error occurred while submitting.");
+        toast.error(t("errorOccurred"));
       }
     } finally {
       setIsSubmitting(false);
@@ -91,22 +93,20 @@ export default function TicketSubmissionPage() {
             <LifeBuoy className="h-8 w-8" />
           </div>
           <h2 className="mt-6 text-2xl font-bold text-slate-800 dark:text-white">
-            Ticket Received!
+            {t("ticketReceived")}
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            Thank you for reaching out. Your support ticket has been
-            successfully logged in our system. Our team will review it and get
-            back to you shortly.
+            {t("ticketSuccessMessage")}
           </p>
           <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
             <Hash className="h-4 w-4 text-emerald-500" />
-            Ticket ID: <span className="font-bold">{successTicketId}</span>
+            {t("ticketId")} <span className="font-bold">{successTicketId}</span>
           </div>
           <button
             onClick={() => setSuccessTicketId(null)}
             className="mt-8 block w-full rounded-xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
           >
-            Submit Another Ticket
+            {t("submitAnother")}
           </button>
         </div>
       </div>
@@ -121,11 +121,10 @@ export default function TicketSubmissionPage() {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
               <LifeBuoy className="h-6 w-6" />
             </span>
-            Raise a Ticket
+            {t("heroTitle")}
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-slate-600 dark:text-slate-400">
-            Having trouble? Describe your issue below and our premium support
-            team will jump on it immediately.
+            {t("heroDescription")}
           </p>
         </div>
 
@@ -135,13 +134,13 @@ export default function TicketSubmissionPage() {
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2.5 sm:col-span-2">
                   <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">
-                    Subject / Topic <span className="text-rose-500">*</span>
+                    {t("subjectLabel")} <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       {...register("subject")}
                       type="text"
-                      placeholder="e.g. Refund not received for booking"
+                      placeholder={t("subjectPlaceholder")}
                       className={`w-full rounded-xl border bg-slate-50 px-4 py-3.5 pl-11 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-600 ${
                         errors.subject
                           ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500/30 dark:focus:border-rose-500"
@@ -166,10 +165,10 @@ export default function TicketSubmissionPage() {
 
                 <div className="space-y-2.5 sm:col-span-2">
                   <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">
-                    Priority Level <span className="text-rose-500">*</span>
+                    {t("priorityLabel")} <span className="text-rose-500">*</span>
                   </label>
                   <div className="grid grid-cols-3 gap-3">
-                    {["Low", "Medium", "High"].map((level) => (
+                    {[t("priorityLow"), t("priorityMedium"), t("priorityHigh")].map((level) => (
                       <label
                         key={level}
                         className="group relative flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-3 text-sm font-medium transition-all hover:bg-slate-50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-700 dark:border-white/10 dark:bg-slate-950 dark:hover:bg-white/5 dark:has-[:checked]:border-indigo-500 dark:has-[:checked]:bg-indigo-500/10 dark:has-[:checked]:text-indigo-300"
@@ -189,17 +188,17 @@ export default function TicketSubmissionPage() {
                 <div className="space-y-2.5 sm:col-span-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">
-                      Detailed Description{" "}
+                      {t("descriptionLabel")}{" "}
                       <span className="text-rose-500">*</span>
                     </label>
                     <span className="text-xs text-slate-400">
-                      Markdown supported
+                      {t("markdownSupported")}
                     </span>
                   </div>
                   <textarea
                     {...register("description")}
                     rows={6}
-                    placeholder="Please describe your issue in as much detail as possible..."
+                    placeholder={t("descriptionPlaceholder")}
                     className={`w-full resize-y rounded-xl border bg-slate-50 p-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-600 ${
                       errors.description
                         ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500/30 dark:focus:border-rose-500"
@@ -218,11 +217,9 @@ export default function TicketSubmissionPage() {
 
             <div className="rounded-2xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-500 dark:bg-white/5 dark:text-slate-400">
               <span className="font-semibold text-slate-700 dark:text-slate-300">
-                Information:
+                {t("information")}:
               </span>{" "}
-              Our support team generally responds to High priority tickets
-              within 2 hours, and Medium/Low within 24 hours. A notification
-              will be generated when your ticket is updated.
+              {t("infoMessage")}
             </div>
 
             <div className="pt-2">
@@ -233,13 +230,13 @@ export default function TicketSubmissionPage() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Submitting Ticket...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("submittingTicket")}
                   </>
                 ) : (
                   <>
-                    Submit Ticket
-                    <Send className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                    <Send className="h-4 w-4" />
+                    {t("submitTicket")}
                   </>
                 )}
               </button>

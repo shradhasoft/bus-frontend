@@ -3,61 +3,59 @@
 
 import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import { Bus, Instagram, Twitter, Facebook, Youtube } from "lucide-react";
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-const NAV_COLUMNS = [
-  {
-    heading: "Product",
-    links: [
-      { label: "Search Buses", href: "/bus-tickets" },
-      { label: "Track Live Bus", href: "/track" },
-      { label: "Offers & Discounts", href: "/offers" },
-      { label: "Route Explorer", href: "/bus-tickets" },
-    ],
-  },
-  {
-    heading: "Company",
-    links: [
-      { label: "About BookMySeat", href: "/about" },
-      { label: "Our Fleet", href: "/fleet" },
-      { label: "Careers", href: "/careers" },
-      { label: "Press & Media", href: "/press" },
-    ],
-  },
-  {
-    heading: "Support",
-    links: [
-      { label: "Help Center", href: "/help" },
-      { label: "Contact Us", href: "/contact" },
-      { label: "Raise a Ticket", href: "/support/ticket" },
-      { label: "Cancellation & Refunds", href: "/refunds" },
-      { label: "Travel Guidelines", href: "/guidelines" },
-    ],
-  },
-  {
-    heading: "Legal",
-    links: [
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Service", href: "/terms" },
-      { label: "Cookie Policy", href: "/cookies" },
-      { label: "Accessibility", href: "/accessibility" },
-    ],
-  },
-] as const;
-
-const SOCIALS = [
-  { label: "Instagram", href: "#", Icon: Instagram },
-  { label: "Twitter", href: "#", Icon: Twitter },
-  { label: "Facebook", href: "#", Icon: Facebook },
-  { label: "YouTube", href: "#", Icon: Youtube },
-];
+import { Bus, Instagram, Twitter, Facebook, Youtube, type LucideIcon } from "lucide-react";
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 const Footer = () => {
   const t = useTranslations("footer");
+
+  const NAV_COLUMNS = [
+    {
+      heading: t("product"),
+      links: [
+        { label: t("searchBuses"), href: "/bus-tickets" },
+        { label: t("trackLiveBus"), href: "/track" },
+        { label: t("offersAndDiscounts"), href: "/offers" },
+        { label: t("routeExplorer"), href: "/bus-tickets" },
+      ],
+    },
+    {
+      heading: t("company"),
+      links: [
+        { label: t("aboutBookMySeat"), href: "/about" },
+        { label: t("ourFleet"), href: "/fleet" },
+        { label: t("careers"), href: "/careers" },
+        { label: t("pressAndMedia"), href: "/press" },
+      ],
+    },
+    {
+      heading: t("support"),
+      links: [
+        { label: t("helpCenter"), href: "/help" },
+        { label: t("contactUs"), href: "/contact" },
+        { label: t("raiseTicket"), href: "/support/ticket" },
+        { label: t("cancellationRefunds"), href: "/refunds" },
+        { label: t("travelGuidelines"), href: "/guidelines" },
+      ],
+    },
+    {
+      heading: t("legal"),
+      links: [
+        { label: t("privacyPolicy"), href: "/privacy" },
+        { label: t("termsOfService"), href: "/terms" },
+        { label: t("cookiePolicy"), href: "/cookies" },
+        { label: t("accessibility"), href: "/accessibility" },
+      ],
+    },
+  ] as const;
+
+  const SOCIALS: Array<{ label: string; href: string; Icon: LucideIcon }> = [
+    { label: t("socials.instagram"), href: "#", Icon: Instagram },
+    { label: t("socials.twitter"), href: "#", Icon: Twitter },
+    { label: t("socials.facebook"), href: "#", Icon: Facebook },
+    { label: t("socials.youtube"), href: "#", Icon: Youtube },
+  ];
 
   return (
     <footer className="relative overflow-hidden border-t border-white/8 bg-[#0a0a0a]">
@@ -82,7 +80,7 @@ const Footer = () => {
 
             {/* Tagline */}
             <h2 className="text-2xl font-medium tracking-tight text-center sm:text-left text-white/90 leading-snug sm:text-[28px]">
-              Search. Book. Travel.
+              {t("tagline")}
             </h2>
 
             {/* Copyright */}

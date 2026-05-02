@@ -2,16 +2,16 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
+  useEffect,
   type JSX,
 } from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { Copy, Check, Sparkles, ArrowRight } from "lucide-react";
-import { apiUrl } from "@/lib/api";
+import { useOffers } from "@/lib/hooks/use-offers";
 
 interface OfferCard {
   title: string;
@@ -21,16 +21,7 @@ interface OfferCard {
   gradientStyle: React.CSSProperties;
   accentColor: string;
   tagline: string;
-  decorativeIcon: JSX.Element;
-}
-
-interface ApiOfferItem {
-  discountValue?: number | string;
-  discountType?: string;
-  minOrderAmount?: number;
-  code?: string;
-  promoCode?: string;
-  title?: string;
+  decorativeIcon?: JSX.Element;
 }
 
 const BusIcon = ({ className }: { className?: string }) => (
@@ -124,79 +115,12 @@ const WalletIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const CARD_THEMES = [
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #f97316, #ea580c, #dc2626)",
-    },
-    accentColor: "#fde047",
-    tagline: "FIRST ORDER",
-    decorativeIcon: <BusIcon className="h-full w-full" />,
-  },
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #7c3aed, #9333ea, #4338ca)",
-    },
-    accentColor: "#fde047",
-    tagline: "FLASH DEAL",
-    decorativeIcon: <TicketIcon className="h-full w-full" />,
-  },
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #10b981, #16a34a, #0f766e)",
-    },
-    accentColor: "#fef08a",
-    tagline: "CASHBACK",
-    decorativeIcon: <WalletIcon className="h-full w-full" />,
-  },
-  {
-    gradientStyle: {
-      background: "linear-gradient(135deg, #ec4899, #e11d48, #be123c)",
-    },
-    accentColor: "#fde047",
-    tagline: "WEEKEND SPECIAL",
-    decorativeIcon: <StarBurst className="h-full w-full" />,
-  },
-] as const;
-
-function mapApiOffers(rows: ApiOfferItem[]): OfferCard[] {
-  const mapped: OfferCard[] = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    const item = rows[i];
-    const code =
-      typeof item?.promoCode === "string"
-        ? item.promoCode.trim()
-        : typeof item?.code === "string"
-          ? item.code.trim()
-          : "";
-    if (!code) continue;
-
-    const dv = Number(item?.discountValue);
-    if (!Number.isFinite(dv) || dv <= 0) continue;
-
-    const isPct = item?.discountType === "percentage";
-    const theme = CARD_THEMES[i % CARD_THEMES.length] ?? CARD_THEMES[0];
-
-    mapped.push({
-      title:
-        typeof item?.title === "string" && item.title.trim()
-          ? item.title.trim()
-          : isPct
-            ? `${dv}% off`
-            : `Flat ₹${dv} off`,
-      subtitle:
-        typeof item?.minOrderAmount === "number" && item.minOrderAmount > 0
-          ? `Min booking ₹${item.minOrderAmount}`
-          : "On selected bookings",
-      discount: isPct ? `${dv}%` : `₹${dv}`,
-      code,
-      ...theme,
-    });
-  }
-
-  return mapped;
-}
+const DECORATIVE_ICONS = [
+  <BusIcon key="1" className="h-full w-full" />,
+  <TicketIcon key="2" className="h-full w-full" />,
+  <WalletIcon key="3" className="h-full w-full" />,
+  <StarBurst key="4" className="h-full w-full" />,
+];
 
 const OfferCardItem = ({
   offer,
@@ -247,7 +171,7 @@ const OfferCardItem = ({
 
       {/* Decorative icon - large, semi-transparent */}
       <div className="pointer-events-none absolute -right-4 top-1/2 -translate-y-1/2 h-36 w-36 text-white/10 transition-all duration-500 group-hover:text-white/15 group-hover:scale-110 group-hover:rotate-6">
-        {offer.decorativeIcon}
+        {DECORATIVE_ICONS[index % DECORATIVE_ICONS.length]}
       </div>
 
       {/* Shine sweep on hover */}
@@ -311,50 +235,10 @@ const OfferCardItem = ({
 
 const OffersSection = () => {
   const t = useTranslations("offers");
-  const [offers, setOffers] = useState<OfferCard[] | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadOffers() {
-      try {
-        const res = await fetch(apiUrl("/offers?page=1&limit=4"), {
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          setOffers([]);
-          return;
-        }
-
-        const payload: unknown = await res.json().catch(() => null);
-        if (payload == null || typeof payload !== "object") {
-          setOffers([]);
-          return;
-        }
-
-        const data = (payload as Record<string, unknown>).data;
-        if (!Array.isArray(data) || data.length === 0) {
-          setOffers([]);
-          return;
-        }
-
-        const valid = mapApiOffers(data as ApiOfferItem[]);
-        setOffers(valid.length > 0 ? valid : []);
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          console.error("[OffersSection] Failed to fetch offers:", err);
-          setOffers([]);
-        }
-      }
-    }
-
-    void loadOffers();
-    return () => controller.abort();
-  }, []);
+  const { offers, isLoading } = useOffers();
 
   // Still loading — show skeleton
-  if (offers === null) {
+  if (isLoading || offers === null) {
     return (
       <section className="relative overflow-hidden bg-linear-to-b from-slate-50 via-white to-slate-50 dark:from-[#0b1020] dark:via-[#0d1328] dark:to-[#0b1020]">
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">

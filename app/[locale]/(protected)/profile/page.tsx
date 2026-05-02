@@ -10,6 +10,7 @@ import React, {
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   CalendarDays,
   CircleDollarSign,
@@ -197,16 +198,6 @@ type ProfileResponse = {
 
 type VisibleTab = "upcoming" | "cancelled" | "completed";
 
-const TAB_OPTIONS: Array<{
-  key: VisibleTab;
-  label: string;
-  summaryKey: keyof BookingSummary;
-}> = [
-  { key: "upcoming", label: "Upcoming", summaryKey: "upcoming" },
-  { key: "cancelled", label: "Cancelled", summaryKey: "cancelled" },
-  { key: "completed", label: "Completed", summaryKey: "completed" },
-];
-
 const DEFAULT_SUMMARY: BookingSummary = {
   total: 0,
   upcoming: 0,
@@ -217,21 +208,6 @@ const DEFAULT_SUMMARY: BookingSummary = {
 const LIST_PAGE_SIZE = 8;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const E164_PHONE_REGEX = /^\+[1-9]\d{1,14}$/;
-
-const STATUS_LABELS: Record<BookingListItem["lifecycleBucket"], string> = {
-  upcoming: "Upcoming",
-  cancelled: "Cancelled",
-  completed: "Completed",
-};
-
-const STATUS_STYLES: Record<BookingListItem["lifecycleBucket"], string> = {
-  upcoming:
-    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200",
-  cancelled:
-    "border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200",
-  completed:
-    "border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200",
-};
 
 const RUNNING_STYLE =
   "border-indigo-200/80 bg-indigo-50 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200";
@@ -344,12 +320,7 @@ const getArrivalDateTime = (
   if (departure && arrival.getTime() < departure.getTime()) {
     arrival.setDate(arrival.getDate() + 1);
   }
-  return arrival;
-};
-
-const getStatusLabel = (booking: BookingListItem) => {
-  if (booking.isRunning) return "Running";
-  return STATUS_LABELS[booking.lifecycleBucket] ?? booking.bookingStatus;
+  return arrival;  
 };
 
 const getPaymentMethodLabel = (value?: string | null) => {
@@ -390,6 +361,7 @@ const getProfileFormState = (user?: ProfileUser | null): ProfileFormState => ({
 });
 
 const ProfilePage = () => {
+  const t = useTranslations("profile");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -397,6 +369,36 @@ const ProfilePage = () => {
     () => getVisibleTab(searchParams.get("tab")),
     [searchParams],
   );
+
+  const TAB_OPTIONS: Array<{
+    key: VisibleTab;
+    label: string;
+    summaryKey: keyof BookingSummary;
+  }> = [
+    { key: "upcoming", label: t("upcoming"), summaryKey: "upcoming" },
+    { key: "cancelled", label: t("cancelled"), summaryKey: "cancelled" },
+    { key: "completed", label: t("completed"), summaryKey: "completed" },
+  ];
+
+  const STATUS_LABELS: Record<BookingListItem["lifecycleBucket"], string> = {
+    upcoming: t("upcoming"),
+    cancelled: t("cancelled"),
+    completed: t("completed"),
+  };
+
+  const STATUS_STYLES: Record<BookingListItem["lifecycleBucket"], string> = {
+    upcoming:
+      "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200",
+    cancelled:
+      "border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200",
+    completed:
+      "border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200",
+  };
+
+  const getStatusLabel = (booking: BookingListItem) => {
+    if (booking.isRunning) return t("running");
+    return STATUS_LABELS[booking.lifecycleBucket] ?? booking.bookingStatus;
+  };
 
   const [authReady, setAuthReady] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
