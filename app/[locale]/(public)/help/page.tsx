@@ -105,7 +105,7 @@ const FAQ_DATA: FAQItem[] = [
 const CATEGORIES = [...new Set(FAQ_DATA.map((f) => f.category))];
 
 type Guide = {
-  icon: any;
+  icon: React.ElementType;
   title: string;
   steps: string[];
 };

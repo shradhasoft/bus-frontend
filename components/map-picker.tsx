@@ -42,7 +42,7 @@ const MapViewUpdater = ({ center, zoom }: { center: MapPoint; zoom: number }) =>
 
 const MapClickHandler = ({ onPick }: { onPick: MapPickerProps["onPick"] }) => {
   useMapEvents({
-    click: (event) => {
+    click: (event: L.LeafletMouseEvent) => {
       onPick(event.latlng.lat, event.latlng.lng);
     },
   });

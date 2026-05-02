@@ -94,7 +94,7 @@ export const CallbackModal = ({ trigger }: { trigger?: React.ReactNode }) => {
         </DialogHeader>
 
         <form
-          onSubmit={handleSubmit(onSubmit, (err) =>
+          onSubmit={handleSubmit(onSubmit, (err: unknown) =>
             console.log("Form errors:", err),
           )}
           className="space-y-4 py-4"

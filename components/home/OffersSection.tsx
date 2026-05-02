@@ -21,7 +21,7 @@ interface OfferCard {
   gradientStyle: React.CSSProperties;
   accentColor: string;
   tagline: string;
-  decorativeIcon: JSX.Element;
+  decorativeIcon?: JSX.Element;
 }
 
 const BusIcon = ({ className }: { className?: string }) => (
